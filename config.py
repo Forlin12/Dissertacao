@@ -1,0 +1,28 @@
+# config.py
+
+# [Controlo de Simulação]
+CENARIO_SEMPRE_NOVO = True
+
+# [Geografia e Topologia]
+COORDENADAS = (41.8058, -6.7572)
+RAIO_M = 300
+LARGURA_RUA = 10
+AREA_MEDIA_LOTE = 350
+ESPACO_ENTRE_LOTES = 2.0
+
+# [Volumetria 3D]
+DENSIDADE_PREDIOS = 0.8
+ALTURA_MIN = 5
+ALTURA_MAX = 45
+
+# [Navegação e Zonas de Segurança]
+START_LOC = (25, 25)
+GOAL_LOC = (350, 350)
+ZONA_LIVRE_INICIO = 20.0
+ZONA_LIVRE_POUSO = 20.0
+
+# [Parâmetros Físicos do Drone]
+DRONE_RAIO_M = 2.0
+DRONE_ALTURA_VOO = 25
+DRONE_VELOCIDADE_MS = 12
+DRONE_CARGA_KG = 3.0
