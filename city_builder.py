@@ -36,15 +36,10 @@ def gerar_cidade():
     max_x, max_y = int(lotes_gdf.total_bounds[2]), int(lotes_gdf.total_bounds[3])
 
     lotes_gdf['lote_id'] = range(len(lotes_gdf))
-    ponto_inicio = Point(cfg.START_LOC)
-    ponto_pouso = Point(cfg.GOAL_LOC)
 
     lotes_gdf['altura_z'] = 0
     for idx, lote in lotes_gdf.iterrows():
         if np.random.random() <= cfg.DENSIDADE_PREDIOS:
-            if lote.geometry.distance(ponto_inicio) < cfg.ZONA_LIVRE_INICIO or lote.geometry.distance(ponto_pouso) < cfg.ZONA_LIVRE_POUSO:
-                lotes_gdf.at[idx, 'altura_z'] = 0
-            else:
-                lotes_gdf.at[idx, 'altura_z'] = np.random.randint(cfg.ALTURA_MIN, cfg.ALTURA_MAX)
+            lotes_gdf.at[idx, 'altura_z'] = np.random.randint(cfg.ALTURA_MIN, cfg.ALTURA_MAX)
 
     return lotes_gdf, max_x, max_y

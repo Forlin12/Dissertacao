@@ -40,7 +40,6 @@ class Drone:
         colisao = False;
         ponto_queda = None
 
-        # FASE 1: DESCOLAGEM VERTICAL
         while pos[2] < self.altura_alvo:
             pos[2] += self.velocidade_vert * dt
             self.tempo_voo_s += dt
@@ -48,7 +47,6 @@ class Drone:
             rota_xyz.append(pos.copy())
             if self.checar_impacto(pos, lotes_gdf): colisao = True; ponto_queda = pos.copy(); break
 
-        # FASE 2: VOO DE CRUZEIRO
         if not colisao:
             for i in range(1, len(caminho_a_star)):
                 alvo = np.array([caminho_a_star[i][0], caminho_a_star[i][1], self.altura_alvo], dtype=float)
@@ -65,7 +63,6 @@ class Drone:
                 if colisao: break
                 pos[:2] = alvo[:2]
 
-                # FASE 3: POUSO VERTICAL
         if not colisao:
             while pos[2] > 0.15:
                 pos[2] -= self.velocidade_vert * dt

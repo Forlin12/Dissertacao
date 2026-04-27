@@ -1,14 +1,13 @@
 # pathfinder.py
 import networkx as nx
 import math
-import config as cfg
 
 
-def calcular_rota_8way(max_x, max_y, lotes_gdf, drone):
+def calcular_rota_8way(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc):
     G = nx.Graph()
 
-    for x in range(max_x + 10):
-        for y in range(max_y + 10):
+    for x in range(int(max_x) + 10):
+        for y in range(int(max_y) + 10):
             G.add_node((x, y))
             if x > 0: G.add_edge((x - 1, y), (x, y), weight=1.0)
             if y > 0: G.add_edge((x, y - 1), (x, y), weight=1.0)
@@ -16,8 +15,7 @@ def calcular_rota_8way(max_x, max_y, lotes_gdf, drone):
                 G.add_edge((x - 1, y - 1), (x, y), weight=1.414)
                 G.add_edge((x - 1, y), (x, y - 1), weight=1.414)
 
-    inflacao = drone.raio + 2.5
-
+    inflacao = drone.raio + 2.0
     for _, p in lotes_gdf[lotes_gdf['altura_z'] >= drone.altura_alvo].iterrows():
         b = p.geometry.buffer(inflacao).bounds
         for x in range(int(b[0]), int(b[2])):
@@ -27,8 +25,6 @@ def calcular_rota_8way(max_x, max_y, lotes_gdf, drone):
     def dist_heuristica(a, b):
         return math.hypot(b[0] - a[0], b[1] - a[1])
 
-    start_loc = cfg.START_LOC
-    goal_loc = cfg.GOAL_LOC
     nos_livres = list(G.nodes)
 
     if start_loc not in G: start_loc = min(nos_livres, key=lambda n: dist_heuristica(n, start_loc))
