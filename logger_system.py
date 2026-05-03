@@ -10,24 +10,31 @@ class TrainingLogger:
         if not os.path.exists(cfg.CAMINHO_LOG):
             os.makedirs(cfg.CAMINHO_LOG)
 
-        self.arquivo_csv = os.path.join(cfg.CAMINHO_LOG, f"treino_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+        self.arquivo_csv = os.path.join(cfg.CAMINHO_LOG, f"simulacao_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
         self.inicializar_csv()
 
     def inicializar_csv(self):
+        # O cabeçalho agora inclui a coluna 'Rodada'
         cabecalho = [
-            "Timestamp", "Drone_ID", "Missao_ID", "Estado",
+            "Timestamp", "Rodada", "Drone_ID", "Missao_ID", "Estado",
             "PosX", "PosY", "PosZ", "Bateria_kWh", "Carga_kg", "Impacto"
         ]
         with open(self.arquivo_csv, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(cabecalho)
 
-    def registrar(self, drone_id, missao_id, estado, pos, bateria, carga, impacto=False):
+    # AQUI ESTAVA O ERRO: Faltava o parâmetro 'rodada' logo a seguir ao 'self'
+    def registrar(self, rodada, drone_id, missao_id, estado, pos, bateria, carga, impacto=False):
         with open(self.arquivo_csv, mode='a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow([
                 datetime.now().strftime("%H:%M:%S.%f"),
-                drone_id, missao_id, estado,
+                rodada,
+                drone_id,
+                missao_id,
+                estado,
                 round(pos[0], 2), round(pos[1], 2), round(pos[2], 2),
-                round(bateria, 6), carga, int(impacto)
+                round(bateria, 6),
+                carga,
+                int(impacto)
             ])
