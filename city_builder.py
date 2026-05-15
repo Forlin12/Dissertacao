@@ -5,6 +5,8 @@ import numpy as np
 from shapely.geometry import Polygon, MultiPoint, Point
 from shapely.ops import voronoi_diagram
 import config as cfg
+from shapely.geometry import box
+
 
 def gerar_cidade():
     if not cfg.CENARIO_SEMPRE_NOVO: np.random.seed(42)
@@ -41,5 +43,21 @@ def gerar_cidade():
     for idx, lote in lotes_gdf.iterrows():
         if np.random.random() <= cfg.DENSIDADE_PREDIOS:
             lotes_gdf.at[idx, 'altura_z'] = np.random.randint(cfg.ALTURA_MIN, cfg.ALTURA_MAX)
+
+    if getattr(cfg, 'USAR_MINI_MAPA', False):
+        print(f"✂️ MODO TREINO ATIVO: A recortar a cidade para {cfg.TAMANHO_MINI_MAPA}x{cfg.TAMANHO_MINI_MAPA}m...")
+
+        caixa_corte = box(0, 0, cfg.TAMANHO_MINI_MAPA, cfg.TAMANHO_MINI_MAPA)
+        lotes_gdf = lotes_gdf.clip(caixa_corte)
+
+        # --- ADICIONE ESTA LINHA ABAIXO ---
+        # Garante que geometrias cortadas ao meio não virem MultiPolygons corrompidos no motor 3D
+        lotes_gdf = lotes_gdf.explode(index_parts=False)
+        # ----------------------------------
+        lotes_gdf['geometry'] = lotes_gdf.geometry.buffer(0)
+        lotes_gdf = lotes_gdf[~lotes_gdf.is_empty]
+        lotes_gdf = lotes_gdf.reset_index(drop=True)
+        max_x = cfg.TAMANHO_MINI_MAPA
+        max_y = cfg.TAMANHO_MINI_MAPA
 
     return lotes_gdf, max_x, max_y

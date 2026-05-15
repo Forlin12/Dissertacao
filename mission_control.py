@@ -10,14 +10,18 @@ def gerar_tarefas_logisticas(max_x, max_y, lotes_gdf):
     lista_missoes = []
 
     def esculpir_ponto_livre(x_min, x_max, y_min, y_max, zona_livre):
-        px = np.random.uniform(x_min, x_max)
-        py = np.random.uniform(y_min, y_max)
+        # Arredonda para inteiro — garante conformidade exata com o grid do A*
+        px = float(int(round(np.random.uniform(x_min, x_max))))
+        py = float(int(round(np.random.uniform(y_min, y_max))))
         p = Point(px, py)
-        area_seguranca = p.buffer(zona_livre)
 
-        # Força brutal: Esmaga (altura=0) qualquer terreno que toque na zona de aterragem
-        for idx, lote in lotes_gdf.iterrows():
-            if lote.geometry.intersects(area_seguranca):
+        # OTIMIZAÇÃO DE SEGURANÇA: Aumentamos ligeiramente o buffer de limpeza (zona_livre + 1.5)
+        # para engolir qualquer micro-fragmento geométrico gerado pelo clipping do mini-mapa.
+        area_seguranca = p.buffer(zona_livre + 1.5)
+
+        # Força brutal corrigida para indexação pós-clip/explode
+        for idx in lotes_gdf.index:
+            if lotes_gdf.loc[idx, 'geometry'].intersects(area_seguranca):
                 lotes_gdf.at[idx, 'altura_z'] = 0
 
         return (px, py)

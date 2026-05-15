@@ -1,21 +1,19 @@
 # renderer.py
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import numpy as np
-import math
 import config as cfg
 
 
 def plotar_frota_3d(max_x, max_y, lotes_gdf, centros_distribuicao, missoes_realizadas):
     fig = go.Figure()
 
-    # Chão
+    # --- CHÃO ---
     fig.add_trace(go.Mesh3d(x=[-20, max_x + 20, max_x + 20, -20], y=[-20, -20, max_y + 20, max_y + 20],
                             z=[-0.1, -0.1, -0.1, -0.1],
                             i=[0, 0], j=[1, 2], k=[2, 3], color='#1b2631', opacity=1, name='Chão', hoverinfo='skip'))
 
-    # Edifícios
+    # --- EDIFÍCIOS ---
     all_x, all_y, all_z, all_i, all_j, all_k = [], [], [], [], [], []
     v_off = 0
     for _, l in lotes_gdf[lotes_gdf['altura_z'] > 0].iterrows():
@@ -42,7 +40,7 @@ def plotar_frota_3d(max_x, max_y, lotes_gdf, centros_distribuicao, missoes_reali
     fig.add_trace(go.Mesh3d(x=all_x, y=all_y, z=all_z, i=all_i, j=all_j, k=all_k, color='#5d6d7e', flatshading=True,
                             name='Edifícios'))
 
-    # Bases
+    # --- BASES ---
     for i, cd in enumerate(centros_distribuicao):
         fig.add_trace(go.Scatter3d(x=[cd[0]], y=[cd[1]], z=[0.5], mode='markers',
                                    marker=dict(size=12, color='#3498DB', symbol='square'), name=f'Base CD {i + 1}'))
@@ -52,8 +50,10 @@ def plotar_frota_3d(max_x, max_y, lotes_gdf, centros_distribuicao, missoes_reali
     cores_drones = ['#00ffcc', '#ff00ff', '#ffff00', '#ff9900', '#00ccff']
 
     for missao in missoes_realizadas:
-        rota = missao['rota']
+        rota = np.array(missao['rota'])
         bateu = missao['bateu']
+        start_flt = missao['start']
+        goal_flt = missao['goal']
 
         total_kwh += missao['uav'].energia_consumida_kwh
         total_dist += missao['uav'].distancia_voada
@@ -62,12 +62,47 @@ def plotar_frota_3d(max_x, max_y, lotes_gdf, centros_distribuicao, missoes_reali
 
         cor_linha = cores_drones[missao['id_drone'] % len(cores_drones)]
 
-        fig.add_trace(go.Scatter3d(x=rota[:, 0], y=rota[:, 1], z=rota[:, 2], mode='lines',
+        # --- LÓGICA DE PLOTAGEM CONTÍNUA (COM DESCIDA NO CLIENTE) ---
+        partes_visuais = []
+
+        # 1. Nasce do chão exato da base e sobe para a altitude de cruzeiro
+        partes_visuais.append(np.array([[start_flt[0], start_flt[1], 0.0]]))
+        partes_visuais.append(np.array([[start_flt[0], start_flt[1], rota[0, 2]]]))
+
+        if bateu:
+            # Se bateu, desenha a rota até o ponto do acidente e para.
+            partes_visuais.append(rota)
+        else:
+            # Encontra o ponto exato onde a rota passa em cima do cliente
+            dists = np.hypot(rota[:, 0] - goal_flt[0], rota[:, 1] - goal_flt[1])
+            idx_entrega = np.argmin(dists)
+
+            # Voa da base até o teto do cliente
+            partes_visuais.append(rota[:idx_entrega + 1])
+
+            # Desce até a porta do cliente (Z=0)
+            partes_visuais.append(np.array([[goal_flt[0], goal_flt[1], 0.0]]))
+
+            # Verifica se existe viagem de volta (array continua após a entrega)
+            if idx_entrega < len(rota) - 1:
+                # Sobe do cliente para a altitude de cruzeiro
+                partes_visuais.append(np.array([[goal_flt[0], goal_flt[1], rota[idx_entrega, 2]]]))
+                # Faz a viagem de volta
+                partes_visuais.append(rota[idx_entrega + 1:])
+                # Pousa de volta na base (Z=0)
+                partes_visuais.append(np.array([[rota[-1, 0], rota[-1, 1], 0.0]]))
+
+        # Junta tudo em uma única linha contínua perfeita
+        rota_visual = np.concatenate(partes_visuais)
+
+        fig.add_trace(go.Scatter3d(x=rota_visual[:, 0], y=rota_visual[:, 1], z=rota_visual[:, 2],
+                                   mode='lines',
                                    line=dict(color=cor_linha, width=5),
                                    name=f"Missão {missao['id_entrega']} (UAV {missao['id_drone']})"))
 
+        # --- MARCADORES ---
         if not bateu:
-            fig.add_trace(go.Scatter3d(x=[missao['goal'][0]], y=[missao['goal'][1]], z=[0.1],
+            fig.add_trace(go.Scatter3d(x=[goal_flt[0]], y=[goal_flt[1]], z=[0.1],
                                        mode='markers', marker=dict(size=6, color='#F1C40F'),
                                        name=f"Destino {missao['id_entrega']}"))
         else:
@@ -76,7 +111,7 @@ def plotar_frota_3d(max_x, max_y, lotes_gdf, centros_distribuicao, missoes_reali
                                        name=f"Crash M{missao['id_entrega']}"))
 
     fig.update_layout(template="plotly_dark",
-                      title=f"Painel Operacional | Missões: {len(missoes_realizadas)} | Dist. Total: {total_dist:.1f}m | Bat. Total: {total_kwh:.4f} kWh",
+                      title=f"UTM 4D | Missões: {len(missoes_realizadas)} | Dist: {total_dist:.1f}m | Bat: {total_kwh:.4f} kWh",
                       scene=dict(aspectmode='data', zaxis=dict(range=[0, max(lotes_gdf['altura_z']) + 20])),
                       margin=dict(l=0, r=0, b=0, t=40))
     fig.show()
@@ -185,7 +220,6 @@ def plotar_diagrama_espaco_tempo(missoes_realizadas):
             else:
                 tempo_corrigido.append(t)
 
-        # NOVO CÁLCULO: Distância Euclidiana exata da Base Logística
         distancias_da_base = []
         for p in rota:
             dx = p[0] - base_origem[0]

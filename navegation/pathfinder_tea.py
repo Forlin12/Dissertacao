@@ -2,26 +2,31 @@ import heapq
 import math
 from shapely.geometry import Point
 
-def calcular_rota_tea(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc, reserva_global, t_inicial=0):
-    def heuristica(p1, p2):
-        return math.hypot(p2[0] - p1[0], p2[1] - p1[1])
+_CUSTO_DIAG = math.sqrt(2)
+_VIZINHOS_DELTA = (
+    (1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
+    (1, 1, _CUSTO_DIAG), (-1, -1, _CUSTO_DIAG),
+    (1, -1, _CUSTO_DIAG), (-1, 1, _CUSTO_DIAG)
+)
+
+
+def calcular_rota_tea(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc,
+                      reserva_global, t_inicial=0, limite_iteracoes=400000):
+    """
+    TEA_STAR Dinâmico e Corrigido (Busca Espacial + Hashing O(1) com Sets)
+    """
 
     inflacao = drone.raio + 1.0
 
-    # ==========================================
-    # CACHE ESTÁTICO DE OBSTÁCULOS (MEMÓRIA)
-    # ==========================================
-    # Verifica se a memória já existe
+    # CACHE ESTÁTICO DE OBSTÁCULOS (Mantendo Tuplas simples)
     if not hasattr(calcular_rota_tea, "cache_obstaculos"):
         calcular_rota_tea.cache_obstaculos = {}
         calcular_rota_tea.cache_cidade_id = None
 
-    # INVALIDAÇÃO DE CACHE: Se o mapa da cidade mudar (novo GeoDataFrame), limpa a memória
     if calcular_rota_tea.cache_cidade_id != id(lotes_gdf):
         calcular_rota_tea.cache_obstaculos = {}
         calcular_rota_tea.cache_cidade_id = id(lotes_gdf)
 
-    # Se a altitude atual ainda não foi mapeada, processa e guarda
     if drone.altura_alvo not in calcular_rota_tea.cache_obstaculos:
         novo_set_obstaculos = set()
         predios_altos = lotes_gdf[lotes_gdf['altura_z'] >= drone.altura_alvo]
@@ -34,47 +39,65 @@ def calcular_rota_tea(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc, reser
                         novo_set_obstaculos.add((x, y))
         calcular_rota_tea.cache_obstaculos[drone.altura_alvo] = novo_set_obstaculos
 
-    # Carrega a cidade a partir da memória super-rápida
     obstaculos = calcular_rota_tea.cache_obstaculos[drone.altura_alvo]
 
     start = (int(round(start_loc[0])), int(round(start_loc[1])))
     goal = (int(round(goal_loc[0])), int(round(goal_loc[1])))
 
-    # ------------------ SISTEMA DE DIAGNÓSTICO: PRÉ-VOO ------------------
     if start in obstaculos:
         print(f"      🛑 [FALHA] Partida Inválida! A Base {start} está dentro de um obstáculo físico.")
         return []
     if goal in obstaculos:
         print(f"      🛑 [FALHA] Destino Inválido! O Cliente {goal} está dentro de um obstáculo físico.")
         return []
-    # ---------------------------------------------------------------------
+
+    # ==========================================
+    # CORREÇÃO: ISOLANDO A ALTURA E CRIANDO SETS
+    # ==========================================
+    # Ao invés de checar o dicionário pesado (x,y,z,t) a cada passo, extraímos
+    # apenas o (x,y,t) que importa para a altura deste drone.
+    # Sets do Python são escritos em C e são imbatíveis em velocidade.
+    ocupacao_set = set()
+    agentes_dict = {}
+
+    for chaves, id_agente in reserva_global.items():
+        # Lida tanto com chaves (x, y, z, t) do main.py quanto eventuais (x, y, t) antigas
+        if len(chaves) == 4:
+            rx, ry, rz, rt = chaves
+        else:
+            rx, ry, rz, rt = chaves[0], chaves[1], drone.altura_alvo, chaves[2]
+
+        if rz == drone.altura_alvo:
+            chave_3d = (rx, ry, rt)
+            ocupacao_set.add(chave_3d)
+            agentes_dict[chave_3d] = id_agente
 
     PESO_HEURISTICA = 1.2
-    abertos = [(0 + (heuristica(start, goal) * PESO_HEURISTICA), t_inicial, start[0], start[1])]
-    veio_de = {}
-    g_score = {(start[0], start[1], t_inicial): 0}
 
-    # Aumentada a tolerância de tempo máximo para lidar com tráfego muito pesado
-    max_t = t_inicial + int(heuristica(start, goal) * 3.0) + 300
-    LIMITE_ITERACOES = 40000000
+    def h(x, y):
+        return math.hypot(goal[0] - x, goal[1] - y) * PESO_HEURISTICA
+
+    gx, gy = goal
+    sx, sy = start
+
+    abertos = [(h(sx, sy), t_inicial, sx, sy)]
+    veio_de = {}
+    g_score = {(sx, sy, t_inicial): 0}
+
+    max_t = t_inicial + int(math.hypot(gx - sx, gy - sy) * 3.0) + 300
     iteracoes = 0
     melhor_t_espacial = {}
-
-    # Custo diagonal matematicamente exato para admissibilidade do A*
-    custo_diag = math.sqrt(2)
 
     while abertos:
         iteracoes += 1
 
-        # ------------------ SISTEMA DE DIAGNÓSTICO: TIMEOUT ------------------
-        if iteracoes > LIMITE_ITERACOES:
-            print(f"      ⏳ [FALHA] Timeout! Atingiu {LIMITE_ITERACOES} cálculos. Espaço congestionado.")
+        if iteracoes > limite_iteracoes:
+            print(f"      ⏳ [FALHA] Timeout! Atingiu {limite_iteracoes} cálculos.")
             return []
-        # ---------------------------------------------------------------------
 
-        _, t, x, y = heapq.heappop(abertos)
+        f_cur, t, x, y = heapq.heappop(abertos)
 
-        if (x, y) == goal:
+        if x == gx and y == gy:
             caminho_final = []
             curr = (x, y, t)
             while curr in veio_de:
@@ -83,56 +106,60 @@ def calcular_rota_tea(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc, reser
             caminho_final.append(start)
             return caminho_final[::-1]
 
-        if t >= max_t: continue
+        if t >= max_t:
+            continue
 
-        vizinhos = [
-            (x + 1, y, 1.0), (x - 1, y, 1.0), (x, y + 1, 1.0), (x, y - 1, 1.0),
-            (x + 1, y + 1, custo_diag), (x - 1, y - 1, custo_diag),
-            (x + 1, y - 1, custo_diag), (x - 1, y + 1, custo_diag)
-        ]
+        g_cur = g_score.get((x, y, t), math.inf)
 
         conflito_dinamico = False
         vizinhos_validos = []
+        nt = t + 1
 
-        for nx, ny, custo in vizinhos:
-            nt = t + 1
-            if not (0 <= nx < max_x and 0 <= ny < max_y): continue
-            if (nx, ny) in obstaculos: continue
+        for dx, dy, custo in _VIZINHOS_DELTA:
+            nx, ny = x + dx, y + dy
 
-            bloqueado = False
-            # Checa reserva estática e conflito de troca (Swap Conflict) para a mesma coordenada
-            if (nx, ny, nt) in reserva_global:
-                bloqueado = True
-            elif (nx, ny, t) in reserva_global and (x, y, nt) in reserva_global:
-                if reserva_global[(nx, ny, t)] == reserva_global[(x, y, nt)]:
-                    bloqueado = True
+            if not (0 <= nx < max_x and 0 <= ny < max_y):
+                continue
+            if (nx, ny) in obstaculos:
+                continue
 
-            if bloqueado:
+            # LOOKUP O(1) usando Tuplas (Resolve a colisão e permite o desvio)
+            chave_alvo = (nx, ny, nt)
+            if chave_alvo in ocupacao_set:
                 conflito_dinamico = True
-            else:
-                vizinhos_validos.append((nx, ny, custo))
+                continue
 
-        # Se houver conflito dinâmico, força a avaliação do Hovering (Espera Tática)
+            # Conflito de Troca (Swap Conflict)
+            chave_origem_alvo = (nx, ny, t)
+            chave_alvo_origem = (x, y, nt)
+
+            if chave_origem_alvo in agentes_dict and chave_alvo_origem in agentes_dict:
+                if agentes_dict[chave_origem_alvo] == agentes_dict[chave_alvo_origem]:
+                    conflito_dinamico = True
+                    continue
+
+            vizinhos_validos.append((nx, ny, custo))
+
+        # Hovering táctico para ceder passagem
         if conflito_dinamico:
             vizinhos_validos.append((x, y, 1.0))
 
         for nx, ny, custo in vizinhos_validos:
-            nt = t + 1
-
             if nx != x or ny != y:
-                if (nx, ny) not in melhor_t_espacial:
+                melhor = melhor_t_espacial.get((nx, ny))
+                if melhor is None:
                     melhor_t_espacial[(nx, ny)] = nt
-                # Alargamento do limite de poda para permitir contornar engarrafamentos massivos
-                elif nt > melhor_t_espacial[(nx, ny)] + 50:
+                elif nt > melhor + 50:
                     continue
 
-            novo_g = g_score[(x, y, t)] + custo
-            if (nx, ny, nt) not in g_score or novo_g < g_score[(nx, ny, nt)]:
-                g_score[(nx, ny, nt)] = novo_g
-                f = novo_g + (heuristica((nx, ny), goal) * PESO_HEURISTICA)
-                veio_de[(nx, ny, nt)] = (x, y, t)
+            novo_g = g_cur + custo
+            chave = (nx, ny, nt)
+
+            if chave not in g_score or novo_g < g_score[chave]:
+                g_score[chave] = novo_g
+                f = novo_g + h(nx, ny)
+                veio_de[chave] = (x, y, t)
                 heapq.heappush(abertos, (f, nt, nx, ny))
 
-    # ------------------ SISTEMA DE DIAGNÓSTICO: BECO SEM SAÍDA ------------------
-    print(f"      🧱 [FALHA] Encurralado! O drone explorou todo o mapa livre, mas está bloqueado por edifícios.")
+    print(f"      🧱 [FALHA] Encurralado! O drone explorou todo o mapa livre.")
     return []

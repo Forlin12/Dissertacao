@@ -8,18 +8,19 @@ COORDENADAS = (41.8058, -6.7572) # Bragança
 RAIO_M = 200
 LARGURA_RUA = 10
 AREA_MEDIA_LOTE = 350
-ESPACO_ENTRE_LOTES = 0.6
-DENSIDADE_PREDIOS = 0.8
+ESPACO_ENTRE_LOTES = 1.2
+DENSIDADE_PREDIOS = 0.6
 ALTURA_MIN = 20
 ALTURA_MAX = 45
+USAR_MINI_MAPA = True
+TAMANHO_MINI_MAPA = 400
 
-# [Gestão de Frota e Logística]
-NUM_DRONES_DISPONIVEIS = 20
-NUM_ENTREGAS_TOTAL = 20
+NUM_DRONES_DISPONIVEIS = 5
+NUM_ENTREGAS_TOTAL = 10
 DISTANCIA_MIN_ENTREGA = 70.0
 MARGEM_SEGURANCA_MAPA = 15.0
-ZONA_LIVRE_CD = 15.0
-ZONA_LIVRE_ENTREGA = 5.0
+ZONA_LIVRE_CD = 7
+ZONA_LIVRE_ENTREGA = 0.2
 
 # [Parâmetros Físicos do Drone]
 CUSTO_ESPERA = 1.2
@@ -34,14 +35,14 @@ TEMPO_DESCARGA = 5
 # 'A_STAR'         -> 2D Clássico (Mais rápido, mas bate se não houver caminho na altitude base)
 # 'A_STAR_CAMADAS' -> 2.5D Multi-Tier (Tenta subir para alturas maiores se o caminho estiver bloqueado)
 # 'TEA_STAR'       -> 3D Espaço-Tempo (Desvia de prédios e de outros drones, com penalidade de espera)
-TIPO_ALGORITMO = 'TEA_STAR'
+TIPO_ALGORITMO = 'TEA_STAR_CAMADAS'
 
 # [Caminho de Salvamento de Logs]
 CAMINHO_LOG = r"C:\Users\Forlin\Dissertação\log"
 
 # [Configurações de Tráfego e Visualização UTM]
 # Lista com o atraso de saída de cada missão (se houver mais missões, ele repete o ciclo)
-VETOR_TEMPOS_PARTIDA = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+VETOR_TEMPOS_PARTIDA = [0]
 
 
 ATIVAR_RELATORIO_FANTASMA = False
@@ -51,8 +52,9 @@ ATIVAR_RELATORIO_FANTASMA = False
 # ==========================================
 # Formato: [ID_do_Pedido, ID_do_Drone]
 # (Lembrando que em Python a contagem começa em 0)
-MATRIZ_PEDIDO_DRONE = [
-    [1, 1],  # Pedido 1 vai para o Drone 1
-    [2, 2],  # Pedido 2 vai para o Drone 0 (O Drone 0 faz duas viagens)
-    [3, 2]   # Pedido 3 vai para o Drone 2
-]
+# ==========================================
+# ATRIBUIÇÃO MANUAL DE MISSÕES
+# ==========================================
+# O índice (posição) na lista é o ID da Encomenda.
+# O valor é o ID do Drone que vai fazer a entrega.
+VETOR_PEDIDO_DRONE = [0]
