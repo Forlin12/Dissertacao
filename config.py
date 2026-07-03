@@ -13,10 +13,10 @@ DENSIDADE_PREDIOS = 0.6
 ALTURA_MIN = 20
 ALTURA_MAX = 45
 USAR_MINI_MAPA = True
-TAMANHO_MINI_MAPA = 400
+TAMANHO_MINI_MAPA = 500
 
 NUM_DRONES_DISPONIVEIS = 5
-NUM_ENTREGAS_TOTAL = 10
+NUM_ENTREGAS_TOTAL = 40
 DISTANCIA_MIN_ENTREGA = 70.0
 MARGEM_SEGURANCA_MAPA = 15.0
 ZONA_LIVRE_CD = 7
@@ -24,18 +24,21 @@ ZONA_LIVRE_ENTREGA = 0.2
 
 # [Parâmetros Físicos do Drone]
 CUSTO_ESPERA = 1.2
-VETOR_CAMADAS_VOO = [25, 30, 35, 40, 50]
-DRONE_RAIO_M = 2.0
+VETOR_CAMADAS_VOO = [25, 28, 30, 35, 40, 50]
+DRONE_RAIO_M = 2
 DRONE_ALTURA_VOO = 25
 DRONE_VELOCIDADE_MS = 25
 DRONE_CARGA_KG = 3.0
 TEMPO_DESCARGA = 5
 # [Inteligência de Navegação (Cérebro do Drone)]
-# Escolha uma das 3 opções abaixo:
+# Escolha uma das opções abaixo:
 # 'A_STAR'         -> 2D Clássico (Mais rápido, mas bate se não houver caminho na altitude base)
 # 'A_STAR_CAMADAS' -> 2.5D Multi-Tier (Tenta subir para alturas maiores se o caminho estiver bloqueado)
 # 'TEA_STAR'       -> 3D Espaço-Tempo (Desvia de prédios e de outros drones, com penalidade de espera)
-TIPO_ALGORITMO = 'TEA_STAR_CAMADAS'
+# 'TEA_STAR_CAMADAS'-> 4D Espaço-Tempo Multi-Tier Clássico
+# 'MOSP_CAMADAS'   -> 4D Espaço-Tempo Multi-Objetivo (Minimiza tempo total e consumo de energia)
+
+TIPO_ALGORITMO = 'MOSP_CAMADAS'
 
 # [Caminho de Salvamento de Logs]
 CAMINHO_LOG = r"C:\Users\Forlin\Dissertação\log"
@@ -57,4 +60,4 @@ ATIVAR_RELATORIO_FANTASMA = False
 # ==========================================
 # O índice (posição) na lista é o ID da Encomenda.
 # O valor é o ID do Drone que vai fazer a entrega.
-VETOR_PEDIDO_DRONE = [0]
+VETOR_PEDIDO_DRONE = [0, 1, 2, 3, 4, 1, 4, 4, 3, 2]

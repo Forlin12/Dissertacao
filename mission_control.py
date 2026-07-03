@@ -15,11 +15,18 @@ def gerar_tarefas_logisticas(max_x, max_y, lotes_gdf):
         py = float(int(round(np.random.uniform(y_min, y_max))))
         p = Point(px, py)
 
-        # OTIMIZAÇÃO DE SEGURANÇA: Aumentamos ligeiramente o buffer de limpeza (zona_livre + 1.5)
-        # para engolir qualquer micro-fragmento geométrico gerado pelo clipping do mini-mapa.
-        area_seguranca = p.buffer(zona_livre + 1.5)
+        # 1. Calculamos o raio (em linha reta) que o TEA* vai limpar no seu grid interno
+        raio_expurgo_tea = int(math.ceil(cfg.DRONE_RAIO_M)) + 1.0
 
-        # Força brutal corrigida para indexação pós-clip/explode
+        # 2. O TEA* limpa um QUADRADO. A distância do centro até à quina desse quadrado é a hipotenusa (* 1.415)
+        raio_expurgo_diagonal = raio_expurgo_tea * 1.415
+
+        # 3. O Mission Control cava um buraco circular físico que engole a quina do TEA* + a asa do drone + folga
+        raio_limpeza_fisica = zona_livre + raio_expurgo_diagonal + cfg.DRONE_RAIO_M + 1.0
+
+        area_seguranca = p.buffer(raio_limpeza_fisica)
+
+        # Achata os prédios na zona de aterragem
         for idx in lotes_gdf.index:
             if lotes_gdf.loc[idx, 'geometry'].intersects(area_seguranca):
                 lotes_gdf.at[idx, 'altura_z'] = 0

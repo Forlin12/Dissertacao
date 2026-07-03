@@ -1,7 +1,8 @@
-# ga_optimizer.py — VERSÃO FINAL 4D (PyGAD 3.x + Camadas + Threads)
+# ga_optimizer.py — VERSÃO FINAL 4D (PyGAD 3.x + Camadas + Threads + Logs Temporais)
 import os
 import math
 import time
+import copy
 import numpy as np
 import pygad
 import config as cfg
@@ -43,7 +44,7 @@ log_secao("1/5  ARRANQUE DO SISTEMA")
 
 NUM_CORES = os.cpu_count() or 4
 TEMPO_DESCARGA = getattr(cfg, 'TEMPO_DESCARGA', 5)
-VETOR_CAMADAS = getattr(cfg, 'VETOR_CAMADAS', [40, 50, 60, 70])  # Garante que as camadas existem
+VETOR_CAMADAS = getattr(cfg, 'VETOR_CAMADAS', [40, 50, 60, 70])
 
 SOL_POP = 100
 NUM_GERACOES = 8
@@ -90,7 +91,8 @@ pontos_missoes = [
 # ==========================================
 def simular_com_tea(solution, teto_makespan=math.inf, verbose=False):
     """
-    Simula rotas em 4D. Aborta precocemente se ultrapassar o teto_makespan.
+    Simula rotas em 4D. Usa Fila de Espera (Repescagem) para missões bloqueadas,
+    garantindo alinhamento total com a lógica do main.py.
     """
     reserva_global = {}
     disponibilidade = {i: 0 for i in range(NUM_DRONES)}
@@ -98,44 +100,73 @@ def simular_com_tea(solution, teto_makespan=math.inf, verbose=False):
     esperas_total = 0
     missoes_falhadas = 0
 
-    for id_pedido in range(NUM_PEDIDOS):
-        id_drone = int(solution[id_pedido])
-        drone = frota_base[id_drone]
-        drone.reset_metricas()
+    # Criação da Fila de Missões (idx_pedido, id_drone_alocado, tentativas)
+    fila_missoes = [(id_pedido, int(solution[id_pedido]), 0) for id_pedido in range(NUM_PEDIDOS)]
+
+    while fila_missoes:
+        id_pedido, id_drone, tentativas = fila_missoes.pop(0)
+
+        # Correção do Race Condition: Criar uma cópia isolada do drone para esta thread
+        drone_local = copy.deepcopy(frota_base[id_drone])
+        drone_local.reset_metricas()
 
         start = pontos_missoes[id_pedido]['start']
         goal = pontos_missoes[id_pedido]['goal']
-        t_ida = disponibilidade[id_drone]
 
-        # CHAMADA 4D (IDA)
-        cam_ida = calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start, goal, reserva_global, VETOR_CAMADAS,
-                                            t_ida)
+        # --- Lógica de Tempo de Partida ---
+        vetor_partida = getattr(cfg, 'VETOR_TEMPOS_PARTIDA', [0])
+        t_base = vetor_partida[id_pedido] if id_pedido < len(vetor_partida) else vetor_partida[-1] + (
+                    (id_pedido - len(vetor_partida) + 1) * 15)
+
+        if tentativas > 0:
+            # Repescagem: Vai para o final de tudo para encontrar espaço livre
+            t_ida = max(disponibilidade.values()) + 10
+        else:
+            # 1ª Tentativa: Sai quando estiver disponível ou no t_base agendado
+            t_ida = max(t_base, disponibilidade[id_drone])
+
+        # --- CHAMADA 4D (IDA) ---
+        cam_ida = calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone_local, start, goal, reserva_global,
+                                            VETOR_CAMADAS, t_ida)
 
         if not cam_ida:
-            missoes_falhadas += 1
+            if tentativas == 0:
+                # Falhou por tráfego. Vai para o fim da fila!
+                fila_missoes.append((id_pedido, id_drone, tentativas + 1))
+            else:
+                # Falhou mesmo sozinho no mapa (problema impossível)
+                missoes_falhadas += 1
             continue
 
-        # Registo UTM 4D dinâmico usando o Z real da rota (p[2])
+        reservas_temporarias = []
         for i, p in enumerate(cam_ida):
-            reserva_global[(p[0], p[1], p[2], t_ida + i)] = id_drone
+            chave = (p[0], p[1], p[2], t_ida + i)
+            reserva_global[chave] = id_drone
+            reservas_temporarias.append(chave)
 
         esperas_total += sum(1 for i in range(1, len(cam_ida)) if cam_ida[i] == cam_ida[i - 1])
         t_volta = t_ida + len(cam_ida) + TEMPO_DESCARGA
 
-        # Regista o drone parado a descarregar (Mantém no Z de cruzeiro)
         for extra in range(TEMPO_DESCARGA):
-            reserva_global[(cam_ida[-1][0], cam_ida[-1][1], cam_ida[-1][2], t_ida + len(cam_ida) + extra)] = id_drone
+            chave_descarga = (cam_ida[-1][0], cam_ida[-1][1], cam_ida[-1][2], t_ida + len(cam_ida) + extra)
+            reserva_global[chave_descarga] = id_drone
+            reservas_temporarias.append(chave_descarga)
 
-        # CHAMADA 4D (VOLTA)
-        cam_volta = calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, goal, start, reserva_global,
+        # --- CHAMADA 4D (VOLTA) ---
+        cam_volta = calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone_local, goal, start, reserva_global,
                                               VETOR_CAMADAS, t_volta)
 
         if not cam_volta:
-            missoes_falhadas += 1
-            disponibilidade[id_drone] = t_volta
+            if tentativas == 0:
+                # Tráfego na volta! Rollback total da ida e volta para o fim da fila
+                for k in reservas_temporarias:
+                    reserva_global.pop(k, None)
+                fila_missoes.append((id_pedido, id_drone, tentativas + 1))
+            else:
+                missoes_falhadas += 1
+                disponibilidade[id_drone] = t_volta
             continue
 
-        # Registo UTM 4D dinâmico usando o Z real da rota (p[2])
         for i, p in enumerate(cam_volta):
             reserva_global[(p[0], p[1], p[2], t_volta + i)] = id_drone
 
@@ -146,12 +177,11 @@ def simular_com_tea(solution, teto_makespan=math.inf, verbose=False):
         if t_fim > makespan_frames:
             makespan_frames = t_fim
 
-        # OTIMIZAÇÃO: EARLY-EXIT (PODA)
+        # Early-exit optimization (Se já demorou demasiado, aborta a avaliação deste cromossoma para poupar CPU)
         if not verbose and makespan_frames > teto_makespan + 50:
-            return makespan_frames, esperas_total, missoes_falhadas + (NUM_PEDIDOS - id_pedido - 1)
+            return makespan_frames, esperas_total, missoes_falhadas + len(fila_missoes)
 
     return makespan_frames, esperas_total, missoes_falhadas
-
 
 # ==========================================
 # 4. FITNESS NATIVA DO PYGAD E FEEDBACK VISUAL
@@ -210,6 +240,8 @@ for _ in range(SOL_POP - 4):
     indiv_aleatorio = [int(np.random.randint(0, NUM_DRONES)) for _ in range(NUM_PEDIDOS)]
     populacao_inicial.append(indiv_aleatorio)
 
+
+
 ga_instance = pygad.GA(
     num_generations=NUM_GERACOES,
     num_parents_mating=max(10, SOL_POP // 4),
@@ -231,7 +263,6 @@ ga_instance = pygad.GA(
     save_solutions=True,
     save_best_solutions=True,
     stop_criteria=["saturate_3"],
-    initial_population=populacao_inicial,
 
     parallel_processing=["thread", NUM_CORES],
     on_generation=on_generation
@@ -278,3 +309,23 @@ print(f"  📋 Cola isto no teu config.py:")
 print(f"{'=' * 60}")
 print(f"VETOR_PEDIDO_DRONE = {vetor_perfeito}")
 print(f"{'=' * 60}")
+
+# ==========================================
+# 8. REGISTO DOS RESULTADOS EM CSV
+# ==========================================
+from logger_system import TrainingLogger
+
+logger_ga = TrainingLogger(prefixo="ga")
+
+kpis_ga = {
+    "Tempo_Total_Treino_s": round(t_ga, 2),
+    "Geracao_Paragem": gen_reais if gen_reais < NUM_GERACOES else "N/A",
+    "Avaliacoes_Teoricas": total_avaliacoes_teoricas,
+    "Calculos_Reais_TEA": _simulacoes_reais[0],
+    "Poupanca_Chamadas": poupanca,
+    "Makespan_Final_frames": makespan_final,
+    "Missoes_Falhadas": falhas_final,
+    "Vetor_Perfeito": str(vetor_perfeito)
+}
+
+logger_ga.salvar_resumo_ga(kpis_ga)

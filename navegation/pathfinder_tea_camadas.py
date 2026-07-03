@@ -108,7 +108,7 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
 
         melhor_t_espacial = np.full((max_x, max_y, num_camadas), -1, dtype=np.int32)
         max_t = t_inicial + int(math.sqrt((gx - sx) ** 2 + (gy - sy) ** 2) * 3.0) + 150
-        LIMITE_ITERACOES = 400000
+        LIMITE_ITERACOES = 4000000
         iteracoes = 0
 
         movimentos_base = [
