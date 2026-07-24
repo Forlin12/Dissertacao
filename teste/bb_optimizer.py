@@ -1,5 +1,4 @@
 # bb_optimizer.py — BRANCH AND BOUND (Com Warm Start, Quebra de Simetria e Simulação Incremental)
-import os
 import math
 import time
 import copy
@@ -9,7 +8,7 @@ from city_builder import gerar_cidade
 import mission_control
 from uav_physics import Drone
 from navegation.pathfinder_tea_camadas import calcular_rota_tea_camadas
-from logger_system import TrainingLogger
+from teste.logger_system import TrainingLogger
 
 t_total_inicio = time.perf_counter()
 

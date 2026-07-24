@@ -16,13 +16,15 @@ def gerar_tarefas_logisticas(max_x, max_y, lotes_gdf):
         p = Point(px, py)
 
         # 1. Calculamos o raio (em linha reta) que o TEA* vai limpar no seu grid interno
-        raio_expurgo_tea = int(math.ceil(cfg.DRONE_RAIO_M)) + 1.0
+        # Busca o maior raio na frota heterogénea
+        maior_raio_drone = max([perfil.get('raio_m', 2.0) for perfil in cfg.PERFIS_DRONES])
+        raio_expurgo_tea = int(math.ceil(maior_raio_drone)) + 1.0
 
         # 2. O TEA* limpa um QUADRADO. A distância do centro até à quina desse quadrado é a hipotenusa (* 1.415)
         raio_expurgo_diagonal = raio_expurgo_tea * 1.415
 
         # 3. O Mission Control cava um buraco circular físico que engole a quina do TEA* + a asa do drone + folga
-        raio_limpeza_fisica = zona_livre + raio_expurgo_diagonal + cfg.DRONE_RAIO_M + 1.0
+        raio_limpeza_fisica = zona_livre + raio_expurgo_diagonal + maior_raio_drone + 1.0
 
         area_seguranca = p.buffer(raio_limpeza_fisica)
 
@@ -51,8 +53,14 @@ def gerar_tarefas_logisticas(max_x, max_y, lotes_gdf):
             if (cfg.MARGEM_SEGURANCA_MAPA < ex < max_x - cfg.MARGEM_SEGURANCA_MAPA) and \
                     (cfg.MARGEM_SEGURANCA_MAPA < ey < max_y - cfg.MARGEM_SEGURANCA_MAPA):
                 destino = esculpir_ponto_livre(ex - 1, ex + 1, ey - 1, ey + 1, cfg.ZONA_LIVRE_ENTREGA)
-                lista_missoes.append({'origem': cd_principal, 'destino': destino})
-                print(f"   📦 Pedido {i + 1} agendado. Destino: {int(destino[0])}, {int(destino[1])}")
+
+                # Gera um peso aleatório para a encomenda (ex: entre 0.5kg e 3.5kg)
+                peso_produto = round(np.random.uniform(0.5, 3.5), 2)
+
+                # Adiciona a origem, destino e o peso à missão
+                lista_missoes.append({'origem': cd_principal, 'destino': destino, 'peso_kg': peso_produto})
+                print(
+                    f"   📦 Pedido {i + 1} agendado. Destino: {int(destino[0])}, {int(destino[1])} | Peso: {peso_produto}kg")
                 break
 
     return centros_distribuicao, lista_missoes

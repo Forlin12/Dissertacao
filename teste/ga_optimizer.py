@@ -313,7 +313,7 @@ print(f"{'=' * 60}")
 # ==========================================
 # 8. REGISTO DOS RESULTADOS EM CSV
 # ==========================================
-from logger_system import TrainingLogger
+from teste.logger_system import TrainingLogger
 
 logger_ga = TrainingLogger(prefixo="ga")
 
