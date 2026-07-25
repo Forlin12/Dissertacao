@@ -338,7 +338,7 @@ def executar_simulacao():
                             from shapely.geometry import Point
                             ponto_queda = Point(queda_v[0], queda_v[1])
                             lote_atingido = lotes_gdf[lotes_gdf.geometry.contains(ponto_queda)]
-                            altura_lote = lote_atingido['altura'].values[0] if not lote_atingido.empty else "Solo/Rua"
+                            altura_lote = lote_atingido['altura_z'].values[0] if not lote_atingido.empty else "Solo/Rua"
 
                             print(f"   💥 ALERTA: O UAV {id_drone + 1} bateu nas coordenadas {queda_v} durante a VOLTA!")
                             print(

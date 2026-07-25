@@ -135,4 +135,56 @@ PERFIS_DRONES = [
         'consumo_hover_wh_s': 1.44,
         'penalidade_carga_wh_kg_m': 0.001
     },
+    # {
+    # 'id_modelo': 'Matternet_M2',
+    # 'raio_m': 10000.0,                    # [OFICIAL] metade dos 20km de alcance (matternet.com)
+    # 'altura_voo': 120,                    # [OFICIAL] datasheet técnico 2017
+    # 'carga_kg': 2.0,                      # [OFICIAL] matternet.com
+    # 'velocidade_cruzeiro_ms': 10.0,       # [OFICIAL] datasheet técnico 2017
+    # 'velocidade_subida_ms': 3.0,          # [ESTIMADO] padrão de transição VTOL, sem dado publicado
+    # 'velocidade_descida_ms': 2.5,         # [ESTIMADO] idem
+    # 'bateria_capacidade_wh': 826.5,       # [ESTIMADO] 9,5kg (massa vazia c/bateria) x 87 Wh/kg
+    # 'bateria_reserva_seguranca_pct': 20.0,# [ESTIMADO] premissa consistente com os outros perfis
+    # 'taxa_recarga_w': 1496.0,             # [ESTIMADO] 826,5 x 1,81
+    # 'consumo_cruzeiro_wh_m': 0.03306,     # [ESTIMADO] 0,8x826,5Wh / 20.000m (ida+volta)
+    # 'consumo_subida_wh_m': 0.1416,        # [ESTIMADO] física m·g·v aplicada
+    # 'consumo_descida_wh_m': 0.1322,       # [ESTIMADO] idem
+    # 'consumo_hover_wh_s': 0.3306,         # [ESTIMADO] potência de cruzeiro / 3600
+    # 'penalidade_carga_wh_kg_m': 0.004311  # [ESTIMADO] escalonamento P∝W^1,5
+    # },
+    # {
+    # 'id_modelo': 'Wing_Alphabet',
+    # 'raio_m': 9650.0,                     # [OFICIAL] metade de 19,3km round-trip declarado
+    # 'altura_voo': 45,                     # [FONTE SECUNDÁRIA] ~45m, fontes independentes (Osinto/Medium)
+    # 'carga_kg': 1.2,                      # [FONTE SECUNDÁRIA] engenharia reversa (Medium), modelo padrão
+    # 'velocidade_cruzeiro_ms': 29.0,       # [OFICIAL] 104,4 km/h declarado pela Alphabet
+    # 'velocidade_subida_ms': 3.0,          # [ESTIMADO] sem dado publicado
+    # 'velocidade_descida_ms': 2.5,         # [ESTIMADO] idem
+    # 'bateria_capacidade_wh': 452.4,       # [ESTIMADO] 5,2kg x 87 Wh/kg — CAUTELA: asa fixa é mais eficiente, provável superestimativa
+    # 'bateria_reserva_seguranca_pct': 20.0,# [ESTIMADO]
+    # 'taxa_recarga_w': 818.8,              # [ESTIMADO] 452,4 x 1,81
+    # 'consumo_cruzeiro_wh_m': 0.01875,     # [ESTIMADO] 0,8x452,4Wh / 19.300m
+    # 'consumo_subida_wh_m': 0.1988,        # [ESTIMADO] física m·g·v
+    # 'consumo_descida_wh_m': 0.2175,       # [ESTIMADO] idem
+    # 'consumo_hover_wh_s': 0.5438,         # [ESTIMADO] relevância limitada: Wing só paira na transição VTOL
+    # 'penalidade_carga_wh_kg_m': 0.004396  # [ESTIMADO]
+    # },
+    # {
+    # 'id_modelo': 'Zipline_P1_Sparrow',
+    # 'raio_m': 80000.0,                    # [OFICIAL] MDPI Encyclopedia, dado citado pela Zipline
+    # 'altura_voo': 100,                    # [OFICIAL] faixa 80-120m declarada; usei o ponto médio
+    # 'carga_kg': 1.75,                     # [OFICIAL] consistente em múltiplas fontes
+    # 'velocidade_cruzeiro_ms': 28.06,      # [OFICIAL] 101 km/h declarado
+    # 'velocidade_subida_ms': 3.0,          # [ESTIMADO] sem dado publicado
+    # 'velocidade_descida_ms': 2.5,         # [ESTIMADO] idem
+    # 'bateria_capacidade_wh': 1815.7,      # [ESTIMADO] 20,87kg (peso vazio, museu Sullenberger) x 87 Wh/kg
+    # 'bateria_reserva_seguranca_pct': 20.0,# [ESTIMADO]
+    # 'taxa_recarga_w': 3286.4,             # [ESTIMADO] 1815,7 x 1,81
+    # 'consumo_cruzeiro_wh_m': 0.009079,    # [ESTIMADO] 0,8x1815,7Wh / 160.000m (bate com "160km round-trip" citado por fonte independente)
+    # 'consumo_subida_wh_m': 0.1466,        # [ESTIMADO] física m·g·v
+    # 'consumo_descida_wh_m': 0.1019,       # [ESTIMADO] idem
+    # 'consumo_hover_wh_s': 0.2548,         # [ESTIMADO] relevância limitada: Zipline P1 não paira em voo normal
+    # 'penalidade_carga_wh_kg_m': 0.000602  # [ESTIMADO] menor por ser asa fixa (mais consistente com sustentação por planeio)
+    # }
+
 ]

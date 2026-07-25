@@ -44,11 +44,15 @@ class Drone:
         self.motivo_falha = None
 
     def reset_metricas(self):
+        # NOTA: 'bateria_baixa' propositalmente NÃO é resetado aqui.
+        # Este método é chamado a cada nova missão do mesmo drone (ver main.py).
+        # Se resetássemos a flag, o relatório final só refletiria a última
+        # missão de cada UAV, escondendo alertas de bateria baixa ocorridos
+        # em missões anteriores da mesma simulação.
         self.distancia_voada = 0.0
         self.tempo_voo_s = 0.0
         self.energia_consumida_kwh = 0.0
         self.motivo_falha = None
-        self.bateria_baixa = False
 
     def recarregar_bateria(self):
         self.bateria_atual_wh = self.bateria_capacidade_wh

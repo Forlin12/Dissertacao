@@ -3,14 +3,16 @@ import math
 import numpy as np
 from shapely.geometry import Point
 
+
 # =========================================================================
-# ALGORITMO PRINCIPAL A* 4D
+# ALGORITMO PRINCIPAL TEA* 4D (Alta Fidelidade Física)
 # =========================================================================
 def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc, reserva_global, vetor_camadas,
                               t_inicial=0):
     """
     Calcula a rota de um drone em um ambiente 4D (Espaço + Tempo).
-    Retorna a rota bruta baseada no grid, sem pós-processamento de suavização.
+    Utiliza as velocidades físicas reais do drone para calcular o custo (g_score)
+    em segundos, mantendo a integridade do UTM baseada em frames lógicos.
     """
 
     # 1. CACHE ESTÁTICO DE OBSTÁCULOS 3D
@@ -54,23 +56,19 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
     sx, sy = int(round(start_loc[0])), int(round(start_loc[1]))
     gx, gy = int(round(goal_loc[0])), int(round(goal_loc[1]))
 
-    # --- AUTO-EXPURGADOR DE REBARBAS (COM REGISTRO PARA RESTAURAÇÃO) ---
+    # --- AUTO-EXPURGADOR DE REBARBAS ---
     raio_limpeza = int(math.ceil(drone.raio)) + 1
     pixels_restaurar = []
 
     for dx in range(-raio_limpeza, raio_limpeza + 1):
         for dy in range(-raio_limpeza, raio_limpeza + 1):
-            # Limpeza na Origem
             nx_s, ny_s = sx + dx, sy + dy
             if 0 <= nx_s < max_x and 0 <= ny_s < max_y:
-                # Salva o estado original antes de modificar
                 pixels_restaurar.append((z_idx_inicial, nx_s, ny_s, grid_estatico[z_idx_inicial, nx_s, ny_s]))
                 grid_estatico[z_idx_inicial, nx_s, ny_s] = False
 
-            # Limpeza no Destino
             nx_g, ny_g = gx + dx, gy + dy
             if 0 <= nx_g < max_x and 0 <= ny_g < max_y:
-                # Salva o estado original antes de modificar
                 pixels_restaurar.append((z_idx_inicial, nx_g, ny_g, grid_estatico[z_idx_inicial, nx_g, ny_g]))
                 grid_estatico[z_idx_inicial, nx_g, ny_g] = False
 
@@ -83,12 +81,21 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
             print(f"      🛑 [FALHA 4D] Destino Inválido em {(gx, gy)}.")
             return []
 
+        # 3. EXTRAÇÃO DOS PARÂMETROS FÍSICOS REAIS
+        v_horiz = drone.velocidade_horiz if drone.velocidade_horiz > 0 else 1.0
+        v_sub = drone.velocidade_subida if drone.velocidade_subida > 0 else 1.0
+        v_des = drone.velocidade_descida if drone.velocidade_descida > 0 else 1.0
+
         PESO_HEURISTICA = 1.2
 
-        def h(x, y):
-            return math.sqrt((gx - x) ** 2 + (gy - y) ** 2) * PESO_HEURISTICA
+        def h_fisico(x, y, z_idx):
+            # A heurística agora prevê o tempo real restante em segundos (em vez de distância geométrica abstrata)
+            dist_xy = math.sqrt((gx - x) ** 2 + (gy - y) ** 2)
+            dist_z = abs(idx_to_z[z_idx] - z_inicial_val)
+            tempo_ideal = (dist_xy / v_horiz) + (dist_z / v_des)
+            return tempo_ideal * PESO_HEURISTICA
 
-        # 3. FILTRO UTM DINÂMICO (Reserva de Outros Agentes)
+        # 4. FILTRO UTM DINÂMICO (Reserva de Outros Agentes)
         ocupacao_set = set()
         agentes_dict = {}
         for chaves, id_agente in reserva_global.items():
@@ -100,17 +107,21 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
                     ocupacao_set.add(chave_4d)
                     agentes_dict[chave_4d] = id_agente
 
-        # 4. BUSCA A*
+        # 5. BUSCA A*
         abertos = []
-        heapq.heappush(abertos, (h(sx, sy), t_inicial, sx, sy, z_idx_inicial))
+        # O heap guarda: (f_score_segundos, t_frame, x, y, z_idx)
+        heapq.heappush(abertos, (h_fisico(sx, sy, z_idx_inicial), t_inicial, sx, sy, z_idx_inicial))
+
+        # g_score agora acumula SEGUNDOS físicos
         g_score = {(sx, sy, z_idx_inicial, t_inicial): 0.0}
         veio_de = {}
 
         melhor_t_espacial = np.full((max_x, max_y, num_camadas), -1, dtype=np.int32)
-        max_t = t_inicial + int(math.sqrt((gx - sx) ** 2 + (gy - sy) ** 2) * 3.0) + 150
+        max_t = t_inicial + int(math.sqrt((gx - sx) ** 2 + (gy - sy) ** 2) * 6.0) + 150
         LIMITE_ITERACOES = 4000000
         iteracoes = 0
 
+        # Os custos base passam a ser distâncias que serão divididas pela velocidade
         movimentos_base = [
             (1, 0, 0, 1.0), (-1, 0, 0, 1.0), (0, 1, 0, 1.0), (0, -1, 0, 1.0),
             (1, 1, 0, 1.414), (-1, -1, 0, 1.414), (1, -1, 0, 1.414), (-1, 1, 0, 1.414)
@@ -124,7 +135,7 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
 
             f_cur, t, x, y, z_idx = heapq.heappop(abertos)
 
-            # 5. SUCESSO: RECONSTRUÇÃO DA ROTA (BRUTA)
+            # 6. SUCESSO: RECONSTRUÇÃO DA ROTA
             if x == gx and y == gy:
                 caminho_final = []
                 curr = (x, y, z_idx, t)
@@ -138,13 +149,19 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
             if t >= max_t: continue
 
             g_atual = g_score[(x, y, z_idx, t)]
-            nt = t + 1
+            nt = t + 1  # O passo de tempo lógigo do UTM (frames) mantém-se imutável
 
             movimentos = list(movimentos_base)
-            if z_idx > 0: movimentos.append((0, 0, -1, 2.0))
-            if z_idx < num_camadas - 1: movimentos.append((0, 0, 1, 2.0))
 
-            for dx, dy, dz_idx, custo in movimentos:
+            # Dinâmica Vertical com distâncias reais das camadas
+            if z_idx > 0:
+                dist_z_descida = abs(idx_to_z[z_idx] - idx_to_z[z_idx - 1])
+                movimentos.append((0, 0, -1, dist_z_descida))
+            if z_idx < num_camadas - 1:
+                dist_z_subida = abs(idx_to_z[z_idx + 1] - idx_to_z[z_idx])
+                movimentos.append((0, 0, 1, dist_z_subida))
+
+            for dx, dy, dz_idx, dist in movimentos:
                 nx, ny, nz_idx = x + dx, y + dy, z_idx + dz_idx
 
                 if not (0 <= nx < max_x and 0 <= ny < max_y): continue
@@ -162,13 +179,25 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
                 melhor = melhor_t_espacial[nx, ny, nz_idx]
                 if melhor == -1:
                     melhor_t_espacial[nx, ny, nz_idx] = nt
-                elif nt > melhor + 10:
+                elif nt > melhor + 15:  # Ligeiramente ampliado para permitir mais flexibilidade física
                     continue
 
-                novo_g = g_atual + custo
+                # Cálculo do custo em SEGUNDOS REAIS
+                if dz_idx == 0:
+                    custo_fisico = dist / v_horiz
+                elif dz_idx > 0:
+                    custo_fisico = dist / v_sub
+                else:
+                    custo_fisico = dist / v_des
+
+                novo_g = g_atual + custo_fisico
+
                 if chave_alvo not in g_score or novo_g < g_score[chave_alvo]:
                     g_score[chave_alvo] = novo_g
-                    f_novo = novo_g + h(nx, ny) + (abs(idx_to_z[nz_idx] - z_inicial_val) * 0.1)
+
+                    # Penalidade temporal ínfima (0.05s) apenas para desincentivar trocas de camada desnecessárias
+                    f_novo = novo_g + h_fisico(nx, ny, nz_idx) + (abs(idx_to_z[nz_idx] - z_inicial_val) * 0.05)
+
                     veio_de[chave_alvo] = (x, y, z_idx, t)
                     heapq.heappush(abertos, (f_novo, nt, nx, ny, nz_idx))
 
@@ -177,6 +206,5 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
 
     finally:
         # --- RESTAURAÇÃO DO CACHE ESTÁTICO ---
-        # Este bloco executa SEMPRE, não importa qual 'return' seja acionado acima.
         for z, x, y, val_original in pixels_restaurar:
             grid_estatico[z, x, y] = val_original

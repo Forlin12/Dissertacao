@@ -1,4 +1,3 @@
-# pathfinder_mosp_camadas.py
 import heapq
 import math
 import numpy as np
@@ -9,8 +8,8 @@ class Label:
     """Rótulo para o algoritmo MOSP contendo os múltiplos objetivos."""
 
     def __init__(self, obj_tempo, obj_energia, x, y, z_idx, t, pai=None):
-        self.obj_tempo = obj_tempo  # Objetivo 1: Tempo total / Frames
-        self.obj_energia = obj_energia  # Objetivo 2: Custo acumulado de manobras/alturas
+        self.obj_tempo = obj_tempo
+        self.obj_energia = obj_energia
         self.x = x
         self.y = y
         self.z_idx = z_idx
@@ -18,27 +17,19 @@ class Label:
         self.pai = pai
 
     def __lt__(self, outro):
-        # Para a fila de prioridade, ordenamos por uma métrica lexicográfica ou soma linear.
-        # Damos preferência ao tempo, usando o custo de energia como critério de desempate.
         if math.isclose(self.obj_tempo, outro.obj_tempo, abs_tol=1e-4):
             return self.obj_energia < outro.obj_energia
         return self.obj_tempo < outro.obj_tempo
 
     def domina(self, outro):
-        """Verifica se este rótulo domina o 'outro' (Fronteira de Pareto)."""
-        # Um rótulo domina outro se for estritamente melhor em pelo menos um objetivo
-        # e não for pior em nenhum deles.
-        return (self.obj_tempo <= outro.obj_tempo and self.obj_energia <= outro.obj_energia) and \
-            (self.obj_tempo < outro.obj_tempo or self.obj_energia < outro.obj_energia)
+        # Epsilon-Dominância ajustada para poda agressiva de rotas semelhantes
+        eps_t = 0.5  # 0.5 segundos de tolerância
+        eps_e = 0.2  # 0.2 Wh de tolerância
+        return (self.obj_tempo <= outro.obj_tempo + eps_t) and (self.obj_energia <= outro.obj_energia + eps_e)
 
 
 def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc, reserva_global, vetor_camadas,
                               t_inicial=0):
-    """
-    Calcula a rota de um drone utilizando o algoritmo MOSP Label Setting em um espaço-tempo 4D.
-    Substitui a lógica tradicional do TEA* mantendo total compatibilidade com o main.py.
-    """
-
     # 1. CACHE ESTÁTICO DE OBSTÁCULOS 3D
     if not hasattr(calcular_rota_tea_camadas, "cache_grid"):
         calcular_rota_tea_camadas.cache_grid = None
@@ -54,12 +45,10 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
             for _, p in predios_altos.iterrows():
                 geom_inflada = p.geometry.buffer(inflacao)
                 b = geom_inflada.bounds
-
                 x_min = max(0, int(math.floor(b[0])))
                 x_max = min(max_x - 1, int(math.ceil(b[2])))
                 y_min = max(0, int(math.floor(b[1])))
                 y_max = min(max_y - 1, int(math.ceil(b[3])))
-
                 for x in range(x_min, x_max + 1):
                     for y in range(y_min, y_max + 1):
                         if geom_inflada.contains(Point(x, y)):
@@ -70,7 +59,7 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
 
     grid_estatico = calcular_rota_tea_camadas.cache_grid
 
-    # 2. INICIALIZAÇÃO E MAPEAMENTO
+    # 2. INICIALIZAÇÃO
     z_to_idx = {z: i for i, z in enumerate(vetor_camadas)}
     idx_to_z = {i: z for i, z in enumerate(vetor_camadas)}
     z_inicial_val = vetor_camadas[0]
@@ -80,17 +69,14 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
     sx, sy = int(round(start_loc[0])), int(round(start_loc[1]))
     gx, gy = int(round(goal_loc[0])), int(round(goal_loc[1]))
 
-    # --- AUTO-EXPURGADOR DE REBARBAS ---
     raio_limpeza = int(math.ceil(drone.raio)) + 1
     pixels_restaurar = []
-
     for dx in range(-raio_limpeza, raio_limpeza + 1):
         for dy in range(-raio_limpeza, raio_limpeza + 1):
             nx_s, ny_s = sx + dx, sy + dy
             if 0 <= nx_s < max_x and 0 <= ny_s < max_y:
                 pixels_restaurar.append((z_idx_inicial, nx_s, ny_s, grid_estatico[z_idx_inicial, nx_s, ny_s]))
                 grid_estatico[z_idx_inicial, nx_s, ny_s] = False
-
             nx_g, ny_g = gx + dx, gy + dy
             if 0 <= nx_g < max_x and 0 <= ny_g < max_y:
                 pixels_restaurar.append((z_idx_inicial, nx_g, ny_g, grid_estatico[z_idx_inicial, nx_g, ny_g]))
@@ -101,7 +87,17 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
             print(f"      🛑 [MOSP 4D] Partida ou Destino Inválido.")
             return []
 
-        # 3. FILTRO DE RESERVAS UTM DINÂMICAS
+        # 3. PERFIS FÍSICOS
+        v_horiz = drone.velocidade_horiz if drone.velocidade_horiz > 0 else 1.0
+        v_sub = drone.velocidade_subida if drone.velocidade_subida > 0 else 1.0
+        v_des = drone.velocidade_descida if drone.velocidade_descida > 0 else 1.0
+
+        c_cruzeiro = drone.consumo_cruzeiro + (drone.carga * drone.penalidade_carga)
+        c_subida = drone.consumo_subida + (drone.carga * drone.penalidade_carga)
+        c_descida = drone.consumo_descida + (drone.carga * drone.penalidade_carga)
+        c_hover = drone.consumo_hover
+
+        # 4. RESERVAS UTM
         ocupacao_set = set()
         agentes_dict = {}
         for chaves, id_agente in reserva_global.items():
@@ -113,34 +109,27 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
                     ocupacao_set.add(chave_4d)
                     agentes_dict[chave_4d] = id_agente
 
-        # --- CORREÇÃO 2: Heurística Octile (Mais leve para a CPU) ---
-        PESO_HEURISTICA = 1.0
-
         def h_tempo(x, y):
             dx = abs(gx - x)
             dy = abs(gy - y)
-            # Distância Octile perfeitamente admissível em grelhas 8-way
-            return (dx + dy + (1.414 - 2.0) * min(dx, dy)) * PESO_HEURISTICA
+            return (dx + dy + (1.414 - 2.0) * min(dx, dy)) / v_horiz
 
-        # 4. ESTRUTURAS DO MOSP LABEL SETTING
-        # Armazena listas de rótulos não-dominados por estado espacial (x, y, z_idx)
+        # 5. MOSP LABEL SETTING
         rotulos_permanentes = {}
-
         abertos = []
         rotulo_inicial = Label(obj_tempo=0.0, obj_energia=0.0, x=sx, y=sy, z_idx=z_idx_inicial, t=t_inicial)
-
-        # Inserimos na heap com base na estimativa do custo total do rótulo inicial (f_score)
         heapq.heappush(abertos, (rotulo_inicial.obj_tempo + h_tempo(sx, sy), rotulo_inicial))
 
-        max_t = t_inicial + int(math.sqrt((gx - sx) ** 2 + (gy - sy) ** 2) * 3.0) + 150
-        LIMITE_ITERACOES = 350000
+        max_t = t_inicial + int(math.sqrt((gx - sx) ** 2 + (gy - sy) ** 2) * 5.0) + 300
+        LIMITE_ITERACOES = 400000
         iteracoes = 0
 
-        # Movimentos horizontais básicos: (dx, dy, dz, custo_tempo, custo_energia)
         movimentos_base = [
-            (1, 0, 0, 1.0, 1.0), (-1, 0, 0, 1.0, 1.0), (0, 1, 0, 1.0, 1.0), (0, -1, 0, 1.0, 1.0),
-            (1, 1, 0, 1.414, 1.5), (-1, -1, 0, 1.414, 1.5), (1, -1, 0, 1.414, 1.5), (-1, 1, 0, 1.414, 1.5),
-            (0, 0, 0, 1.0, 1.2)  # Comando HOVER (Esperar no mesmo ponto gasta energia e tempo)
+            (1, 0, 0, 1.0 / v_horiz, 1.0 * c_cruzeiro), (-1, 0, 0, 1.0 / v_horiz, 1.0 * c_cruzeiro),
+            (0, 1, 0, 1.0 / v_horiz, 1.0 * c_cruzeiro), (0, -1, 0, 1.0 / v_horiz, 1.0 * c_cruzeiro),
+            (1, 1, 0, 1.414 / v_horiz, 1.414 * c_cruzeiro), (-1, -1, 0, 1.414 / v_horiz, 1.414 * c_cruzeiro),
+            (1, -1, 0, 1.414 / v_horiz, 1.414 * c_cruzeiro), (-1, 1, 0, 1.414 / v_horiz, 1.414 * c_cruzeiro),
+            (0, 0, 0, 1.0, c_hover)
         ]
 
         melhores_solucoes_destino = []
@@ -148,17 +137,16 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
         while abertos:
             iteracoes += 1
             if iteracoes > LIMITE_ITERACOES:
+                print(f"      ⏳ [FALHA MOSP 4D] Timeout computacional atingido nas iterações.")
                 break
 
             _, label_atual = heapq.heappop(abertos)
             estado_espacial = (label_atual.x, label_atual.y, label_atual.z_idx)
 
-            # --- CORREÇÃO 3: Limite Rígido de Pruning Local ---
-            # Se já temos 3 boas rotas alternativas para este quadrado, ignoramos o resto.
+            # Gargalo restrito: corta explosão de memória
             if len(rotulos_permanentes.get(estado_espacial, [])) >= 3:
                 continue
 
-            # Critério de Pruning / Eliminação por Dominância local
             dominado = False
             if estado_espacial in rotulos_permanentes:
                 for r_perm in rotulos_permanentes[estado_espacial]:
@@ -168,28 +156,28 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
             if dominado:
                 continue
 
-            # Adiciona à lista de não-dominados do nó
             if estado_espacial not in rotulos_permanentes:
                 rotulos_permanentes[estado_espacial] = []
             rotulos_permanentes[estado_espacial].append(label_atual)
 
-            # Verificação de Destino atingido
             if label_atual.x == gx and label_atual.y == gy:
                 melhores_solucoes_destino.append(label_atual)
-                # Como a Fila está ordenada por prioridade de tempo, o primeiro a chegar tende a ser o ótimo temporal.
-                # Se já coletamos alternativas suficientes na fronteira de Pareto, podemos encerrar.
-                if len(melhores_solucoes_destino) >= 3:
+                # Gatilho de saída rápido
+                if len(melhores_solucoes_destino) >= 5:
                     break
 
             if label_atual.t >= max_t:
                 continue
 
-            # Construção dinâmica de adjacências de mudança de camada
             movimentos = list(movimentos_base)
+
             if label_atual.z_idx > 0:
-                movimentos.append((0, 0, -1, 2.0, 3.0))  # Descer camada (Tempo extra de transição e energia)
+                dist_z_descida = abs(idx_to_z[label_atual.z_idx] - idx_to_z[label_atual.z_idx - 1])
+                movimentos.append((0, 0, -1, dist_z_descida / v_des, dist_z_descida * c_descida))
+
             if label_atual.z_idx < num_camadas - 1:
-                movimentos.append((0, 0, 1, 2.0, 4.0))  # Subir camada (Gasta mais energia mecânica)
+                dist_z_subida = abs(idx_to_z[label_atual.z_idx + 1] - idx_to_z[label_atual.z_idx])
+                movimentos.append((0, 0, 1, dist_z_subida / v_sub, dist_z_subida * c_subida))
 
             for dx, dy, dz_idx, c_t, c_e in movimentos:
                 nx, ny, nz_idx = label_atual.x + dx, label_atual.y + dy, label_atual.z_idx + dz_idx
@@ -197,43 +185,46 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
 
                 if not (0 <= nx < max_x and 0 <= ny < max_y): continue
                 if grid_estatico[nz_idx, nx, ny]: continue
+                if (nx, ny, nz_idx, nt) in ocupacao_set: continue
 
-                # Filtro de Colisão Espaço-Tempo UTM
-                chave_alvo = (nx, ny, nz_idx, nt)
-                if chave_alvo in ocupacao_set: continue
-
-                # Evita colisões frontais por troca simultânea de posição
                 chave_origem_alvo = (nx, ny, nz_idx, label_atual.t)
                 chave_alvo_origem = (label_atual.x, label_atual.y, label_atual.z_idx, nt)
                 if chave_origem_alvo in agentes_dict and chave_alvo_origem in agentes_dict:
                     if agentes_dict[chave_origem_alvo] == agentes_dict[chave_alvo_origem]:
                         continue
 
-                # --- CORREÇÃO 1: Arredondamento dos custos (Evita explosão de estados únicos) ---
-                novo_obj_tempo = round(label_atual.obj_tempo + c_t, 2)
+                novo_obj_tempo = label_atual.obj_tempo + c_t
                 novo_obj_energia = label_atual.obj_energia + c_e
-
-                # Penalização suave para afastamento da altitude recomendada base
-                novo_obj_energia += abs(idx_to_z[nz_idx] - z_inicial_val) * 0.1
-                novo_obj_energia = round(novo_obj_energia, 2)
+                novo_obj_energia += abs(idx_to_z[nz_idx] - z_inicial_val) * 0.01
 
                 novo_label = Label(novo_obj_tempo, novo_obj_energia, nx, ny, nz_idx, nt, pai=label_atual)
 
-                # Pruning antes de inserir na Heap: Verifica se já é dominado no destino alvo
                 estado_alvo = (nx, ny, nz_idx)
                 if estado_alvo in rotulos_permanentes:
                     if any(r.domina(novo_label) for r in rotulos_permanentes[estado_alvo]):
                         continue
 
-                f_score_tempo = novo_obj_tempo + h_tempo(nx, ny)
+                # Heurística firme (* 1.3) força convergência direcional e evita timeout
+                f_score_tempo = novo_obj_tempo + (h_tempo(nx, ny) * 1.3)
                 heapq.heappush(abertos, (f_score_tempo, novo_label))
 
-        # --- CORREÇÃO 4: Typo na variável de melhores soluções corrigido ---
-        # 5. SELECIONAR O MELHOR RÓTULO DA FRONTEIRA DE PARETO NO DESTINO
+        # 6. SELEÇÃO DE PARETO
         if melhores_solucoes_destino:
-            # Seleciona o equilíbrio ideal. Aqui, optamos pelo rótulo que minimizou o tempo
-            # respeitando a restrição de menor agressividade energética.
-            melhor_label = min(melhores_solucoes_destino, key=lambda l: (l.obj_tempo, l.obj_energia))
+            min_t = min([l.obj_tempo for l in melhores_solucoes_destino])
+            max_t = max([l.obj_tempo for l in melhores_solucoes_destino]) or 1.0
+            min_e = min([l.obj_energia for l in melhores_solucoes_destino])
+            max_e = max([l.obj_energia for l in melhores_solucoes_destino]) or 1.0
+
+            melhor_label = None
+            menor_dist = float('inf')
+
+            for l in melhores_solucoes_destino:
+                norm_t = (l.obj_tempo - min_t) / (max_t - min_t) if max_t > min_t else 0
+                norm_e = (l.obj_energia - min_e) / (max_e - min_e) if max_e > min_e else 0
+                dist_ideal = math.sqrt(norm_t ** 2 + norm_e ** 2)
+                if dist_ideal < menor_dist:
+                    menor_dist = dist_ideal
+                    melhor_label = l
 
             caminho_final = []
             curr = melhor_label
@@ -242,7 +233,7 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
                 curr = curr.pai
             return caminho_final[::-1]
 
-        print(f"      🧱 [MOSP 4D] Não foi possível encontrar uma rota válida sem dominância crítica.")
+        print(f"      🧱 [MOSP 4D] Não foi possível encontrar uma rota válida.")
         return []
 
     finally:
