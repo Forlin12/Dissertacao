@@ -1,31 +1,49 @@
 # config.py
+from sympy import false
 
 # [Controlo de Simulação]
 CENARIO_SEMPRE_NOVO = False
 
 # [Geografia e Topologia]
 COORDENADAS = (41.8058, -6.7572) # Bragança
-RAIO_M = 250
+RAIO_M = 500
 LARGURA_RUA = 10
-AREA_MEDIA_LOTE = 350
+AREA_MEDIA_LOTE = 400
 ESPACO_ENTRE_LOTES = 1.2
 DENSIDADE_PREDIOS = 0.6
 ALTURA_MIN = 20
 ALTURA_MAX = 45
-USAR_MINI_MAPA = True
+USAR_MINI_MAPA = False
 TAMANHO_MINI_MAPA = 500
 
+# ==========================================
+# MATRIZ DE TESTES AUTOMATIZADOS (BATCH RUN)
+# ==========================================
+# Formato: [ [Nº Drones, Nº Entregas, 'ALGORITMO'], ... ]
+MATRIZ_TESTES = [
+    [8, 10, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
+    [8, 10, 'MOSP_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
+    [5, 8, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
+    # [5, 8, 'MOSP_CAMADAS']       # Teste 4: Comparação de alta pressão
+]
+
+# (Valores de fallback caso o loop não sobrescreva)
 NUM_DRONES_DISPONIVEIS = 8
-NUM_ENTREGAS_TOTAL = 20
+NUM_ENTREGAS_TOTAL = 10
+TIPO_ALGORITMO = 'TEA_STAR_CAMADAS'
+
+
 DISTANCIA_MIN_ENTREGA = 70.0
 MARGEM_SEGURANCA_MAPA = 15.0
 ZONA_LIVRE_CD = 7
 ZONA_LIVRE_ENTREGA = 0.2
 
 # [Parâmetros Físicos do Drone]
-CUSTO_ESPERA = 4
+CUSTO_ESPERA = 4000
 VETOR_CAMADAS_VOO = [25, 28, 30, 35, 40, 50]
 
+
+VETOR_PEDIDO_DRONE = [4, 5, 3, 5, 6, 5, 2, 6, 0, 7]
 # ==========================================
 # PERFIS DE DRONES (Frota Heterogénea)
 # ==========================================
@@ -63,7 +81,7 @@ TEMPO_DESCARGA = 5
 # 'TEA_STAR_CAMADAS'-> 4D Espaço-Tempo Multi-Tier Clássico
 # 'MOSP_CAMADAS'   -> 4D Espaço-Tempo Multi-Objetivo (Minimiza tempo total e consumo de energia)
 
-TIPO_ALGORITMO = 'TEA_STAR_CAMADAS'
+TIPO_ALGORITMO = 'MOSP_CAMADAS'
 
 # [Caminho de Salvamento de Logs]
 CAMINHO_LOG = r"C:\Users\Forlin\Dissertação\log"
@@ -74,7 +92,7 @@ VETOR_TEMPOS_PARTIDA = [0]
 
 
 
-VETOR_PEDIDO_DRONE = [0]
+
 
 
 # USAR_VENTO = True
@@ -84,23 +102,23 @@ VETOR_PEDIDO_DRONE = [0]
 
 
 PERFIS_DRONES = [
-    {
-        'id_modelo': 'Standard_M300',
-        'raio_m': 2.0,
-        'altura_voo': 25,
-        'carga_kg': 3.0,
-        'velocidade_cruzeiro_ms': 15.0,
-        'velocidade_subida_ms': 5.0,
-        'velocidade_descida_ms': 3.0,
-        'bateria_capacidade_wh': 200.0,
-        'bateria_reserva_seguranca_pct': 20.0,
-        'taxa_recarga_w': 3000.0,
-        'consumo_cruzeiro_wh_m': 0.15,
-        'consumo_subida_wh_m': 0.25,
-        'consumo_descida_wh_m': 0.05,
-        'consumo_hover_wh_s': 0.12,
-        'penalidade_carga_wh_kg_m': 0.02
-    },
+    # {
+    #     'id_modelo': 'Standard_M300',
+    #     'raio_m': 2.0,
+    #     'altura_voo': 25,
+    #     'carga_kg': 3.0,
+    #     'velocidade_cruzeiro_ms': 15.0,
+    #     'velocidade_subida_ms': 5.0,
+    #     'velocidade_descida_ms': 3.0,
+    #     'bateria_capacidade_wh': 200.0,
+    #     'bateria_reserva_seguranca_pct': 20.0,
+    #     'taxa_recarga_w': 3000.0,
+    #     'consumo_cruzeiro_wh_m': 0.15,
+    #     'consumo_subida_wh_m': 0.25,
+    #     'consumo_descida_wh_m': 0.05,
+    #     'consumo_hover_wh_s': 0.12,
+    #     'penalidade_carga_wh_kg_m': 0.02
+    # },
     {
         'id_modelo': 'DJI_Matrice_300_RTK',
         'raio_m': 2,

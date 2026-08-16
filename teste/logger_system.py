@@ -18,6 +18,10 @@ class TrainingLogger:
         self.arquivo_log = os.path.join(self.log_dir, f"{prefixo}_rotas_{self.timestamp}.csv")
         self._inicializar_arquivo()
 
+        # Ficheiro dedicado para o Live Tracking dos Recordes do GA
+        self.arquivo_recordes = os.path.join(self.log_dir, f"{prefixo}_recordes_ga_{self.timestamp}.csv")
+        self._inicializar_arquivo_recordes()
+
     def _inicializar_arquivo(self):
         """Cria o cabeçalho do ficheiro de missões."""
         with open(self.arquivo_log, mode='w', newline='', encoding='utf-8') as f:
@@ -26,6 +30,18 @@ class TrainingLogger:
                 "Cenario_ID", "ID_Drone", "ID_Missao", "Fase",
                 "Pos_Final_X", "Pos_Final_Y", "Pos_Final_Z",
                 "Energia_kWh", "Carga_Kg", "Colisao"
+            ])
+
+    def _inicializar_arquivo_recordes(self):
+        """Cria o cabeçalho do ficheiro de tracking de recordes."""
+        with open(self.arquivo_recordes, mode='w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "Tempo_Ate_Solucao_Segundos",
+                "Makespan_Frames",
+                "Energia_Total_Wh",
+                "Total_Esperas_Hover",
+                "Vetor_Combinacao"
             ])
 
     def registrar(self, cenario_id, id_drone, id_missao, fase, pos_final, energia, carga, bateu):
@@ -39,6 +55,19 @@ class TrainingLogger:
                 cenario_id, id_drone, id_missao, fase,
                 round(pos_x, 2), round(pos_y, 2), round(pos_z, 2),
                 round(energia, 6), round(carga, 2), bateu
+            ])
+
+    def salvar_novo_recorde_ga(self, tempo_execucao, makespan, energia, esperas, vetor_solucao):
+        """Guarda imediatamente um novo recorde do Algoritmo Genético no disco."""
+        with open(self.arquivo_recordes, mode='a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            vetor_limpo = [int(v) for v in vetor_solucao]
+            writer.writerow([
+                round(tempo_execucao, 2),
+                makespan,
+                round(energia, 2),
+                esperas,
+                str(vetor_limpo)
             ])
 
     def salvar_resumo_ga(self, kpis_ga):
