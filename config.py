@@ -1,12 +1,12 @@
 # config.py
 from sympy import false
-
+import os
 # [Controlo de Simulação]
 CENARIO_SEMPRE_NOVO = False
 
 # [Geografia e Topologia]
 COORDENADAS = (41.8058, -6.7572) # Bragança
-RAIO_M = 500
+RAIO_M = 200
 LARGURA_RUA = 10
 AREA_MEDIA_LOTE = 400
 ESPACO_ENTRE_LOTES = 1.2
@@ -21,9 +21,15 @@ TAMANHO_MINI_MAPA = 500
 # ==========================================
 # Formato: [ [Nº Drones, Nº Entregas, 'ALGORITMO'], ... ]
 MATRIZ_TESTES = [
-    [8, 10, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
-    [8, 10, 'MOSP_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
-    [5, 8, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
+    [5, 10, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
+    # [5, 20, 'TEA_STAR_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
+    # [5, 40, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
+    # [10, 20, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
+    # [10, 40, 'TEA_STAR_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
+    # [10, 80, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
+    # [20, 40, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
+    # [20, 80, 'TEA_STAR_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
+    # [20, 160, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
     # [5, 8, 'MOSP_CAMADAS']       # Teste 4: Comparação de alta pressão
 ]
 
@@ -84,7 +90,8 @@ TEMPO_DESCARGA = 5
 TIPO_ALGORITMO = 'MOSP_CAMADAS'
 
 # [Caminho de Salvamento de Logs]
-CAMINHO_LOG = r"C:\Users\Forlin\Dissertação\log"
+CAMINHO_BASE = os.path.dirname(os.path.abspath(__file__))
+CAMINHO_LOG = os.path.join(CAMINHO_BASE, "logs")
 
 # [Configurações de Tráfego e Visualização UTM]
 # Lista com o atraso de saída de cada missão (se houver mais missões, ele repete o ciclo)

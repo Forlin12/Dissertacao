@@ -354,7 +354,7 @@ def executar_simulacao():
         "cpu_tempo_algoritmo_s": round(t_cpu_algoritmo, 4)
     }
 
-    logger.salvar_kpis_globais(kpis_simulacao)
+    # logger.salvar_kpis_globais(kpis_simulacao)
 
     print(
         f"\n📊 Resumo Rápido: Makespan: {kpis_simulacao['makespan_frames']}f | Esperas: {kpis_simulacao['taxa_congestionamento_frames']}f | CPU Algoritmo: {kpis_simulacao['cpu_tempo_algoritmo_s']}s")

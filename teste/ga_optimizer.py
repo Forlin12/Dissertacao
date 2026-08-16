@@ -233,7 +233,10 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
     # ESTRUTURAS HPC SEGURAS E TRACKING AO VIVO
     # ==========================================
     _simulacoes_reais = [0]
-    _melhor_makespan_visual = [math.inf]
+
+    # NOVO: Agora rastreamos o CUSTO TOTAL (Tempo + Energia), e não apenas o Tempo (Makespan)
+    _melhor_custo_visual = [math.inf]
+
     _ga_lock = threading.Lock()
     _fitness_cache = {}
 
@@ -243,22 +246,33 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
         with _ga_lock:
             if sol_tuple in _fitness_cache:
                 return _fitness_cache[sol_tuple]
-            recorde_atual = _melhor_makespan_visual[0]
+            recorde_atual_custo = _melhor_custo_visual[0]
 
-        # PODA TEÓRICA: Filtro de rejeição rápida
+        # PODA TEÓRICA FÍSICA: Estimativa conservadora de Tempo + Bateria
         tempo_ideal_drones = [0.0] * num_drones
+        energia_ideal_drones = 0.0
+
         for id_pedido, id_drone in enumerate(solution):
             start = pontos_missoes[id_pedido]['start']
             goal = pontos_missoes[id_pedido]['goal']
             dist_reta = math.hypot(goal[0] - start[0], goal[1] - start[1])
+
             VELOCIDADE_MAX_TEORICA = 15.0
+            CONSUMO_CRUZEIRO_MINIMO = 0.015  # Wh/m otimista
+
             frames_ideais = (dist_reta / VELOCIDADE_MAX_TEORICA) + (TEMPO_DESCARGA * 2)
+            energia_ideal = (dist_reta * CONSUMO_CRUZEIRO_MINIMO) * 2  # Ida e volta
+
             tempo_ideal_drones[id_drone] += frames_ideais
+            energia_ideal_drones += energia_ideal
 
         makespan_teorico = max(tempo_ideal_drones)
+        FATOR_CONVERSAO_ENERGIA = 3.6  # 1 Wh = 3.6 segundos de penalização (recarga a 1000W)
 
-        if recorde_atual != math.inf and makespan_teorico >= recorde_atual:
-            fitness_rejeitado = 1.0 / (makespan_teorico + 100000)
+        custo_teorico_perfeito = makespan_teorico + (energia_ideal_drones * FATOR_CONVERSAO_ENERGIA)
+
+        if recorde_atual_custo != math.inf and custo_teorico_perfeito >= recorde_atual_custo:
+            fitness_rejeitado = 1.0 / (custo_teorico_perfeito + 100000)
             with _ga_lock:
                 _fitness_cache[sol_tuple] = fitness_rejeitado
             return fitness_rejeitado
@@ -271,19 +285,21 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
         makespan, esperas, falhas, energia = simular_com_tea(solution, teto_makespan=teto)
 
         penalidade = falhas * 50000
-        custo = makespan + (esperas * 0.5) + penalidade + (energia * 0.01)
+
+        # O Custo agora reflete o esforço real do drone (Tempo de voo + Tempo equivalente de recarga)
+        custo = makespan + (esperas * 0.5) + penalidade + (energia * FATOR_CONVERSAO_ENERGIA)
         fitness = 1.0 / (custo + 0.0001)
 
         with _ga_lock:
             _simulacoes_reais[0] += 1
-            if falhas == 0 and makespan < _melhor_makespan_visual[0]:
-                _melhor_makespan_visual[0] = makespan
+            if falhas == 0 and custo < _melhor_custo_visual[0]:
+                _melhor_custo_visual[0] = custo
 
                 # Calcular tempo decorrido desde o início deste batch específico
                 tempo_decorrido = time.perf_counter() - t_total_inicio
 
                 print(
-                    f"\n  ⭐ NOVO RECORDE: {makespan} frames! (Esperas: {esperas} | Falhas: 0 | Energia: {energia:.1f}Wh)",
+                    f"\n  ⭐ NOVO RECORDE: {makespan} frames! (Esperas: {esperas} | Falhas: 0 | Energia: {energia:.1f}Wh | Custo Físico: {custo:.1f})",
                     flush=True)
 
                 # SALVA-VIDAS EM DISCO RÍGIDO IMEDIATO
@@ -303,13 +319,13 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
     def on_generation(ga_instance):
         gen = ga_instance.generations_completed
         _, best_fit, _ = ga_instance.best_solution()
-        makespan_aprox = int(1.0 / best_fit)
+        custo_aprox = int(1.0 / best_fit)
         t_dec = time.perf_counter() - t_total_inicio
         pct = gen / NUM_GERACOES
         barra = "█" * int(pct * 20) + "░" * (20 - int(pct * 20))
 
         print(f"\n  [{barra}] Gen {gen:3d}/{NUM_GERACOES} | "
-              f"Melhor: ~{makespan_aprox}f | ⏱ {t_dec:5.1f}s | Cache: {len(_fitness_cache)} rotas", flush=True)
+              f"Custo Físico Melhor: ~{custo_aprox} | ⏱ {t_dec:5.1f}s | Cache: {len(_fitness_cache)} rotas", flush=True)
 
     def gerar_chute_inicial_heuristico():
         chute = []
@@ -322,8 +338,12 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
     populacao_inicial.append(chute_guloso)
 
     makespan_inicial, esperas_ini, falhas_ini, energia_ini = simular_com_tea(chute_guloso, verbose=False)
+    FATOR_CONVERSAO_ENERGIA = 3.6
+    custo_inicial = makespan_inicial + (esperas_ini * 0.5) + (energia_ini * FATOR_CONVERSAO_ENERGIA) + (
+                falhas_ini * 50000)
+
     print(
-        f"\n  🎯 [LANCE INICIAL] Makespan: {makespan_inicial}f | Esperas: {esperas_ini} | Falhas: {falhas_ini} | Energia: {energia_ini:.1f}Wh",
+        f"\n  🎯 [LANCE INICIAL] Makespan: {makespan_inicial}f | Esperas: {esperas_ini} | Falhas: {falhas_ini} | Energia: {energia_ini:.1f}Wh | Custo: {custo_inicial:.1f}",
         flush=True)
 
     for _ in range(3):
