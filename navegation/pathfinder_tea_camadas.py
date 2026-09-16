@@ -55,14 +55,6 @@ def rasterizar_bbox_numba(grid, z_idx, poly_coords, x_min, x_max, y_min, y_max, 
 thread_local_data = threading.local()
 _cache_lock = threading.Lock()
 
-_DIAG_TEMPO_MIN_S = 1.0
-_DIAG_ITER_MIN = 200000
-
-_route_cache = {}
-_route_cache_lock = threading.Lock()
-_route_cache_hits = [0]
-_route_cache_misses = [0]
-
 
 def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc, reserva_global, vetor_camadas,
                               t_inicial=0):
@@ -127,40 +119,9 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
     gx = int(round(goal_loc[0] / FATOR_ESCALA))
     gy = int(round(goal_loc[1] / FATOR_ESCALA))
 
-    # === VERIFICAÇÃO DE CACHE COM BOUNDING BOX LOCAL ===
-    MARGEM_CACHE = int(25 / FATOR_ESCALA)
-    min_x_box = min(sx, gx) - MARGEM_CACHE
-    max_x_box = max(sx, gx) + MARGEM_CACHE
-    min_y_box = min(sy, gy) - MARGEM_CACHE
-    max_y_box = max(sy, gy) + MARGEM_CACHE
-
-    reservas_relativas = frozenset(
-        (int(round(rx / FATOR_ESCALA)), int(round(ry / FATOR_ESCALA)), rz, rt - t_inicial)
-        for (rx, ry, rz, rt) in reserva_global.keys()
-        if rt >= t_inicial and
-        min_x_box <= int(round(rx / FATOR_ESCALA)) <= max_x_box and
-        min_y_box <= int(round(ry / FATOR_ESCALA)) <= max_y_box
-    )
-
-    chave_cache = (
-        sx, sy, gx, gy,
-        getattr(drone, 'nome_modelo', None), drone.raio,
-        drone.velocidade_horiz, drone.velocidade_subida, drone.velocidade_descida,
-        reservas_relativas
-    )
-
-    with _route_cache_lock:
-        resultado_cache = _route_cache.get(chave_cache)
-
-    if resultado_cache is not None:
-        _route_cache_hits[0] += 1
-        return list(resultado_cache)
-
-    _route_cache_misses[0] += 1
-
     def _guardar_cache(resultado):
-        with _route_cache_lock:
-            _route_cache[chave_cache] = list(resultado)
+        # Cache de rota removido (hit rate desprezível/instável no uso real
+        # com o GA; o custo de montar a chave + lock global não se pagava).
         return resultado
 
     raio_limpeza = int(math.ceil(drone.raio / FATOR_ESCALA)) + 1
