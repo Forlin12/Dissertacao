@@ -1,0 +1,4 @@
+Tempo_Ate_Solucao_Segundos,Makespan_Frames,Energia_Total_Wh,Total_Esperas_Hover,Vetor_Combinacao
+486.83,4898,612.38,0,"[0, 0, 2, 3, 0, 0, 4, 2, 3, 4]"
+498.24,4155,595.06,0,"[0, 1, 2, 3, 4, 0, 1, 2, 3, 4]"
+509.35,3838,596.9,0,"[4, 2, 1, 0, 4, 2, 0, 3, 4, 3]"
