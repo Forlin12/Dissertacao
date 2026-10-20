@@ -329,33 +329,45 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
 
     def gerar_chute_inicial_heuristico():
         chute = []
+        # Calcula quantos pedidos cada drone deve pegar para dividir sequencialmente
+        tamanho_bloco = math.ceil(NUM_PEDIDOS / num_drones) if num_drones > 0 else 1
+
         for id_pedido in range(NUM_PEDIDOS):
-            chute.append(id_pedido % num_drones)
+            # Atribuição sequencial em blocos (ex: 000, 111, 222)
+            id_drone_alocado = int(id_pedido // tamanho_bloco) % num_drones
+            chute.append(id_drone_alocado)
+
         return chute
 
+    # ==========================================
+    # CRIANDO A BASE DO GA A PARTIR DO CHUTE
+    # ==========================================
     populacao_inicial = []
-    chute_guloso = gerar_chute_inicial_heuristico()
-    populacao_inicial.append(chute_guloso)
+    chute_sequencial = gerar_chute_inicial_heuristico()
+    populacao_inicial.append(chute_sequencial)
 
-    makespan_inicial, esperas_ini, falhas_ini, energia_ini = simular_com_tea(chute_guloso, verbose=False)
+    makespan_inicial, esperas_ini, falhas_ini, energia_ini = simular_com_tea(chute_sequencial, verbose=False)
     FATOR_CONVERSAO_ENERGIA = 3.6
     custo_inicial = makespan_inicial + (esperas_ini * 0.5) + (energia_ini * FATOR_CONVERSAO_ENERGIA) + (
                 falhas_ini * 50000)
 
     print(
-        f"\n  🎯 [LANCE INICIAL] Makespan: {makespan_inicial}f | Esperas: {esperas_ini} | Falhas: {falhas_ini} | Energia: {energia_ini:.1f}Wh | Custo: {custo_inicial:.1f}",
+        f"\n  🎯 [LANCE INICIAL SEQUENCIAL] Makespan: {makespan_inicial}f | Esperas: {esperas_ini} | Falhas: {falhas_ini} | Energia: {energia_ini:.1f}Wh | Custo: {custo_inicial:.1f}",
         flush=True)
 
-    for _ in range(3):
-        chute_mutado = chute_guloso.copy()
-        idx_mutar = np.random.choice(NUM_PEDIDOS, size=min(3, NUM_PEDIDOS), replace=False)
+    # Preenche TODO o resto da população (SOL_POP - 1) baseada no chute sequencial
+    for _ in range(SOL_POP - 1):
+        chute_mutado = chute_sequencial.copy()
+
+        # Muta de 1 a 3 pedidos para criar diversidade (exploração),
+        # mas mantendo o "esqueleto" da solução sequencial
+        num_mutacoes = np.random.randint(1, 4)
+        idx_mutar = np.random.choice(NUM_PEDIDOS, size=min(num_mutacoes, NUM_PEDIDOS), replace=False)
+
         for idx in idx_mutar:
             chute_mutado[idx] = int(np.random.randint(0, num_drones))
-        populacao_inicial.append(chute_mutado)
 
-    for _ in range(SOL_POP - 4):
-        indiv_aleatorio = [int(np.random.randint(0, num_drones)) for _ in range(NUM_PEDIDOS)]
-        populacao_inicial.append(indiv_aleatorio)
+        populacao_inicial.append(chute_mutado)
 
     ga_instance = pygad.GA(
         num_generations=NUM_GERACOES,

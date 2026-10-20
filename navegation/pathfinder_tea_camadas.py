@@ -12,10 +12,6 @@ from numba import njit
 # ==========================================
 @njit(cache=True)
 def point_in_polygon_numba(x, y, poly_coords):
-    """
-    Algoritmo de Ray-Casting ultrarrápido compilado em C via Numba.
-    Verifica se um ponto (x,y) está dentro de um polígono.
-    """
     n = len(poly_coords)
     inside = False
     p1x, p1y = poly_coords[0]
@@ -34,35 +30,22 @@ def point_in_polygon_numba(x, y, poly_coords):
 
 @njit(cache=True)
 def rasterizar_bbox_numba(grid, z_idx, poly_coords, x_min, x_max, y_min, y_max, fator_escala):
-    """
-    Itera sobre a Bounding Box na grelha e escreve os obstáculos na matriz 3D.
-    """
     for x in range(x_min, x_max + 1):
         for y in range(y_min, y_max + 1):
             if grid[z_idx, x, y]:
                 continue
-
             px = x * fator_escala
             py = y * fator_escala
-
             if point_in_polygon_numba(px, py, poly_coords):
                 grid[z_idx, x, y] = True
 
 
-# ==========================================
-# VARIÁVEIS GLOBAIS E CACHE
-# ==========================================
-thread_local_data = threading.local()
 _cache_lock = threading.Lock()
 
 
 def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc, reserva_global, vetor_camadas,
                               t_inicial=0):
-    # ==========================================
-    # PARÂMETRO DE OTIMIZAÇÃO: ESCALA DA GRADE
-    # ==========================================
     FATOR_ESCALA = 2.5
-
     grid_max_x = int(math.ceil(max_x / FATOR_ESCALA))
     grid_max_y = int(math.ceil(max_y / FATOR_ESCALA))
 
@@ -72,31 +55,23 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
 
     if calcular_rota_tea_camadas.cache_cidade_id != id(lotes_gdf):
         with _cache_lock:
-            # Double-checked locking
             if calcular_rota_tea_camadas.cache_cidade_id != id(lotes_gdf):
-                _t0_cache = time.perf_counter()
                 num_camadas = len(vetor_camadas)
-
-                # Matriz gerada com o tamanho reduzido pela escala
                 grid = np.zeros((num_camadas, grid_max_x, grid_max_y), dtype=bool)
                 inflacao = drone.raio + 1.0
 
                 for z_idx, camada in enumerate(vetor_camadas):
                     predios_altos = lotes_gdf[lotes_gdf['altura_z'] >= camada]
-
                     for _, p in predios_altos.iterrows():
                         geom_inflada = p.geometry.buffer(inflacao)
                         b = geom_inflada.bounds
 
-                        # Converte a bound box do polígono real para índices na grade escalada
                         x_min = max(0, int(math.floor(b[0] / FATOR_ESCALA)))
                         x_max = min(grid_max_x - 1, int(math.ceil(b[2] / FATOR_ESCALA)))
                         y_min = max(0, int(math.floor(b[1] / FATOR_ESCALA)))
                         y_max = min(grid_max_y - 1, int(math.ceil(b[3] / FATOR_ESCALA)))
 
-                        # Extração de coordenadas cruas para o Numba
                         geometrias = [geom_inflada] if geom_inflada.geom_type == 'Polygon' else geom_inflada.geoms
-
                         for g in geometrias:
                             coords = np.array(g.exterior.coords)
                             rasterizar_bbox_numba(grid, z_idx, coords, x_min, x_max, y_min, y_max, FATOR_ESCALA)
@@ -104,28 +79,19 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
                 calcular_rota_tea_camadas.cache_grid = grid
                 calcular_rota_tea_camadas.cache_cidade_id = id(lotes_gdf)
 
-    # ATENÇÃO: grid_estatico é PARTILHADO por todas as threads/chamadas.
     grid_estatico = calcular_rota_tea_camadas.cache_grid
 
     z_to_idx = {z: i for i, z in enumerate(vetor_camadas)}
     idx_to_z = {i: z for i, z in enumerate(vetor_camadas)}
-    z_inicial_val = vetor_camadas[0]
     z_idx_inicial = 0
     num_camadas = len(vetor_camadas)
 
-    # Conversão do start e goal para a escala reduzida
     sx = int(round(start_loc[0] / FATOR_ESCALA))
     sy = int(round(start_loc[1] / FATOR_ESCALA))
     gx = int(round(goal_loc[0] / FATOR_ESCALA))
     gy = int(round(goal_loc[1] / FATOR_ESCALA))
 
-    def _guardar_cache(resultado):
-        # Cache de rota removido (hit rate desprezível/instável no uso real
-        # com o GA; o custo de montar a chave + lock global não se pagava).
-        return resultado
-
     raio_limpeza = int(math.ceil(drone.raio / FATOR_ESCALA)) + 1
-
     pixels_livres_locais = set()
     for dx in range(-raio_limpeza, raio_limpeza + 1):
         for dy in range(-raio_limpeza, raio_limpeza + 1):
@@ -143,27 +109,13 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
         return bool(grid_estatico[z_idx, x, y])
 
     try:
-        if esta_bloqueado(z_idx_inicial, sx, sy):
-            return _guardar_cache([])
-        if esta_bloqueado(z_idx_inicial, gx, gy):
-            return _guardar_cache([])
+        if esta_bloqueado(z_idx_inicial, sx, sy) or esta_bloqueado(z_idx_inicial, gx, gy):
+            print(f"      🛑 [TEA 4D] Partida ou Destino Inválido.")
+            return []
 
         v_horiz = drone.velocidade_horiz if drone.velocidade_horiz > 0 else 1.0
         v_sub = drone.velocidade_subida if drone.velocidade_subida > 0 else 1.0
         v_des = drone.velocidade_descida if drone.velocidade_descida > 0 else 1.0
-
-        c_cruzeiro = drone.consumo_cruzeiro + (drone.carga * drone.penalidade_carga)
-        c_subida = drone.consumo_subida + (drone.carga * drone.penalidade_carga)
-        c_descida = drone.consumo_descida + (drone.carga * drone.penalidade_carga)
-
-        PESO_HEURISTICA = 1.2
-
-        def h_fisico(x, y, z_idx):
-            dist_xy_celulas = math.sqrt((gx - x) ** 2 + (gy - y) ** 2)
-            dist_xy_metros = dist_xy_celulas * FATOR_ESCALA
-            dist_z_metros = abs(idx_to_z[z_idx] - z_inicial_val)
-            tempo_ideal = (dist_xy_metros / v_horiz) + (dist_z_metros / v_des)
-            return tempo_ideal * PESO_HEURISTICA
 
         ocupacao_set = set()
         agentes_dict = {}
@@ -178,104 +130,64 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
                     ocupacao_set.add(chave_4d)
                     agentes_dict[chave_4d] = id_agente
 
-        abertos = []
-        heapq.heappush(abertos, (h_fisico(sx, sy, z_idx_inicial), t_inicial, sx, sy, z_idx_inicial))
+        def h_tempo(x, y):
+            dist_xy_celulas = math.sqrt((gx - x) ** 2 + (gy - y) ** 2)
+            dist_xy_metros = dist_xy_celulas * FATOR_ESCALA
+            return dist_xy_metros / v_horiz
 
-        g_score = {(sx, sy, z_idx_inicial, t_inicial): 0.0}
-        g_energia = {(sx, sy, z_idx_inicial, t_inicial): 0.0}
-        veio_de = {}
-
-        # OTIMIZAÇÃO MÁXIMA: Array Numpy estático por Thread + Tracking de Sujeira
-        if not hasattr(thread_local_data, 'melhor_t_espacial') or \
-                thread_local_data.melhor_t_espacial.shape != (grid_max_x, grid_max_y, num_camadas):
-            # Só aloca esta matriz 1 única vez por Thread durante toda a execução do GA
-            thread_local_data.melhor_t_espacial = np.full((grid_max_x, grid_max_y, num_camadas), -1, dtype=np.int32)
-
-        melhor_t_espacial_ref = thread_local_data.melhor_t_espacial
-        celulas_sujas = []  # Regista apenas as coordenadas tocadas para limpar no fim
+        # ==========================================
+        # MOTOR TEA: A* sobre o estado (x, y, z_idx, t)
+        # Custo único: tempo de voo (g)
+        # ==========================================
+        PESO_HEURISTICA = 1.2
+        LIMITE_ITERACOES = 400000000
+        iteracoes = 0
 
         dist_max_t_metros = math.sqrt((gx - sx) ** 2 + (gy - sy) ** 2) * FATOR_ESCALA
         max_t = t_inicial + int(dist_max_t_metros * 6.0) + 150
-
-        LIMITE_ITERACOES = 200_0000
-        iteracoes = 0
 
         movimentos_base = [
             (1, 0, 0, 1.0), (-1, 0, 0, 1.0), (0, 1, 0, 1.0), (0, -1, 0, 1.0),
             (1, 1, 0, 1.414), (-1, -1, 0, 1.414), (1, -1, 0, 1.414), (-1, 1, 0, 1.414)
         ]
 
+        estado_inicial = (sx, sy, z_idx_inicial, t_inicial)
+        g_melhor = {estado_inicial: 0.0}
+        pai = {estado_inicial: None}
+        fechados = set()
+        contador = 0
+        abertos = []
+        heapq.heappush(abertos, (h_tempo(sx, sy) * PESO_HEURISTICA, contador, estado_inicial))
+
+        estado_final = None
+
         while abertos:
             iteracoes += 1
             if iteracoes > LIMITE_ITERACOES:
-                return _guardar_cache([])
+                print(f"      ⏳ [FALHA TEA 4D] Timeout computacional atingido.")
+                break
 
-            f_cur, t, x, y, z_idx = heapq.heappop(abertos)
+            _, _, estado = heapq.heappop(abertos)
+            if estado in fechados:
+                continue
+            fechados.add(estado)
+
+            x, y, z_idx, t = estado
+            g_atual = g_melhor[estado]
 
             if x == gx and y == gy:
-                # 1. Recuperar os nós originais em escala reduzida
-                caminho_reduzido = []
-                curr = (x, y, z_idx, t)
-                while curr in veio_de:
-                    cx, cy, cz_idx, _ = curr
-                    caminho_reduzido.append((cx * FATOR_ESCALA, cy * FATOR_ESCALA, idx_to_z[cz_idx]))
-                    curr = veio_de[curr]
+                estado_final = estado
+                break
 
-                if caminho_reduzido:
-                    # CORREÇÃO 1: Substituir o nó inicial escalado pelo start_loc real
-                    cz_start = caminho_reduzido[-1][2]
-                    caminho_reduzido[-1] = (start_loc[0], start_loc[1], cz_start)
-
-                    caminho_reduzido = caminho_reduzido[::-1]
-
-                    # Garante que o destino final é rigorosamente exato
-                    caminho_reduzido[-1] = (goal_loc[0], goal_loc[1], idx_to_z[z_idx])
-
-                # 2. Interpolar os pontos para restabelecer os frames sem criar hovers falsos
-                caminho_final = []
-                passos_interp = int(FATOR_ESCALA)
-
-                for i in range(len(caminho_reduzido) - 1):
-                    p1 = caminho_reduzido[i]
-                    p2 = caminho_reduzido[i + 1]
-
-                    x1, y1, z1 = p1
-                    x2, y2, z2 = p2
-
-                    if x1 == x2 and y1 == y2:
-                        # É um movimento puramente vertical (Z).
-                        # CORREÇÃO 2: Filtro Anti-Hover
-                        if not caminho_final or caminho_final[-1] != p1:
-                            caminho_final.append(p1)
-                    else:
-                        # Movimento no plano XY: injeta os frames para escalar a distância
-                        for step in range(passos_interp):
-                            f = step / passos_interp
-                            nx = x1 + (x2 - x1) * f
-                            ny = y1 + (y2 - y1) * f
-                            nz = z1 + (z2 - z1) * f
-
-                            p_novo = (int(round(nx)), int(round(ny)), nz)
-
-                            if not caminho_final or caminho_final[-1] != p_novo:
-                                caminho_final.append(p_novo)
-
-                p_fim = caminho_reduzido[-1]
-                if not caminho_final or caminho_final[-1] != p_fim:
-                    caminho_final.append(p_fim)
-
-                return _guardar_cache(caminho_final)
-
-            if t >= max_t: continue
-
-            g_atual = g_score[(x, y, z_idx, t)]
-            g_atual_e = g_energia.get((x, y, z_idx, t), 0.0)
+            if t >= max_t:
+                continue
 
             movimentos = list(movimentos_base)
 
             if z_idx > 0:
                 dist_z_descida = abs(idx_to_z[z_idx] - idx_to_z[z_idx - 1])
                 movimentos.append((0, 0, -1, dist_z_descida))
+
             if z_idx < num_camadas - 1:
                 dist_z_subida = abs(idx_to_z[z_idx + 1] - idx_to_z[z_idx])
                 movimentos.append((0, 0, 1, dist_z_subida))
@@ -288,21 +200,17 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
 
                 if dz_idx == 0:
                     dist_fisica_m = dist * FATOR_ESCALA
-                    custo_fisico = dist_fisica_m / v_horiz
-                    custo_energia = dist_fisica_m * c_cruzeiro
+                    c_t = dist_fisica_m / v_horiz
                     nt = t + int(FATOR_ESCALA)
                 else:
                     dist_fisica_m = dist
                     if dz_idx > 0:
-                        custo_fisico = dist_fisica_m / v_sub
-                        custo_energia = dist_fisica_m * c_subida
+                        c_t = dist_fisica_m / v_sub
                     else:
-                        custo_fisico = dist_fisica_m / v_des
-                        custo_energia = dist_fisica_m * c_descida
+                        c_t = dist_fisica_m / v_des
                     nt = t + 1
 
-                chave_alvo = (nx, ny, nz_idx, nt)
-                if chave_alvo in ocupacao_set: continue
+                if (nx, ny, nz_idx, nt) in ocupacao_set: continue
 
                 chave_origem_alvo = (nx, ny, nz_idx, t)
                 chave_alvo_origem = (x, y, z_idx, nt)
@@ -310,29 +218,63 @@ def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_lo
                     if agentes_dict[chave_origem_alvo] == agentes_dict[chave_alvo_origem]:
                         continue
 
-                # OTIMIZAÇÃO MÁXIMA: Leitura de índice C ultrarrápida
-                melhor = melhor_t_espacial_ref[nx, ny, nz_idx]
+                novo_estado = (nx, ny, nz_idx, nt)
+                if novo_estado in fechados: continue
 
-                if melhor == -1:
-                    melhor_t_espacial_ref[nx, ny, nz_idx] = nt
-                    celulas_sujas.append((nx, ny, nz_idx))  # Marca a célula para limpeza posterior
-                elif nt > melhor + 5:
-                    continue
+                ng = g_atual + c_t
+                if ng < g_melhor.get(novo_estado, float('inf')):
+                    g_melhor[novo_estado] = ng
+                    pai[novo_estado] = estado
+                    contador += 1
+                    f_score_tempo = ng + (h_tempo(nx, ny) * PESO_HEURISTICA)
+                    heapq.heappush(abertos, (f_score_tempo, contador, novo_estado))
 
-                novo_g = g_atual + custo_fisico
+        if estado_final is not None:
+            caminho_reduzido = []
+            curr = estado_final
+            while curr is not None:
+                caminho_reduzido.append((curr[0] * FATOR_ESCALA, curr[1] * FATOR_ESCALA, idx_to_z[curr[2]]))
+                curr = pai[curr]
 
-                if chave_alvo not in g_score or novo_g < g_score[chave_alvo]:
-                    g_score[chave_alvo] = novo_g
-                    g_energia[chave_alvo] = g_atual_e + custo_energia
+            if caminho_reduzido:
+                cz_start = caminho_reduzido[-1][2]
+                caminho_reduzido[-1] = (start_loc[0], start_loc[1], cz_start)
+                caminho_reduzido = caminho_reduzido[::-1]
+                caminho_reduzido[-1] = (goal_loc[0], goal_loc[1], idx_to_z[estado_final[2]])
 
-                    f_novo = novo_g + h_fisico(nx, ny, nz_idx)
-                    veio_de[chave_alvo] = (x, y, z_idx, t)
-                    heapq.heappush(abertos, (f_novo, nt, nx, ny, nz_idx))
+            caminho_final = []
+            passos_interp = int(FATOR_ESCALA)
 
-        return _guardar_cache([])
+            for i in range(len(caminho_reduzido) - 1):
+                p1 = caminho_reduzido[i]
+                p2 = caminho_reduzido[i + 1]
+
+                x1, y1, z1 = p1
+                x2, y2, z2 = p2
+
+                if x1 == x2 and y1 == y2:
+                    if not caminho_final or caminho_final[-1] != p1:
+                        caminho_final.append(p1)
+                else:
+                    for step in range(passos_interp):
+                        f = step / passos_interp
+                        nx = x1 + (x2 - x1) * f
+                        ny = y1 + (y2 - y1) * f
+                        nz = z1 + (z2 - z1) * f
+
+                        p_novo = (int(round(nx)), int(round(ny)), nz)
+
+                        if not caminho_final or caminho_final[-1] != p_novo:
+                            caminho_final.append(p_novo)
+
+            p_fim = caminho_reduzido[-1]
+            if not caminho_final or caminho_final[-1] != p_fim:
+                caminho_final.append(p_fim)
+
+            return caminho_final
+
+        print(f"      🧱 [TEA 4D] Não foi possível encontrar uma rota válida.")
+        return []
+
     finally:
-        # Limpa APENAS os pixels que foram tocados nesta busca específica
-        # Restaurando a matriz reciclável para o seu estado original (-1) num milissegundo
-        if 'celulas_sujas' in locals():
-            for cx, cy, cz in celulas_sujas:
-                melhor_t_espacial_ref[cx, cy, cz] = -1
+        pass
