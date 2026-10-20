@@ -9,7 +9,6 @@ import renderer
 import warnings
 import time
 
-from navegation.pathfinder import calcular_rota_8way
 from navegation.pathfindercamadas import calcular_rota_8way_camadas
 from navegation.pathfinder_tea import calcular_rota_tea
 from navegation.pathfinder_tea_camadas import calcular_rota_tea_camadas
