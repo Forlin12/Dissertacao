@@ -56,7 +56,7 @@ thread_local_data = threading.local()
 _cache_lock = threading.Lock()
 
 
-def calcular_rota_tea_camadas(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc, reserva_global, vetor_camadas,
+def calcular_rota_tea_camadas_4d(max_x, max_y, lotes_gdf, drone, start_loc, goal_loc, reserva_global, vetor_camadas,
                               t_inicial=0):
     # ==========================================
     # PARÂMETRO DE OTIMIZAÇÃO: ESCALA DA GRADE
