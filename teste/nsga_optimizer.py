@@ -10,7 +10,7 @@ import mission_control
 from uav_physics import Drone
 
 from main import roteador_inteligente, analisar_cenario
-from teste.logger_system import TrainingLogger
+from IA.teste import TrainingLogger
 
 
 # ==========================================

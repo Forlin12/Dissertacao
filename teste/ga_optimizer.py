@@ -11,7 +11,7 @@ import mission_control
 from uav_physics import Drone
 
 from main import roteador_inteligente, analisar_cenario
-from teste.logger_system import TrainingLogger
+from IA.teste import TrainingLogger
 
 
 # ==========================================
@@ -38,7 +38,15 @@ def log_tempo(msg, t0): print(f"  ⏱️  {msg}: {time.perf_counter() - t0:.2f}s
 # ==========================================
 # MOTOR PRINCIPAL DO LOTE
 # ==========================================
-def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
+def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
+                              cenario=None, populacao_inicial=None, seed_ga=None):
+    """
+    cenario: dict {'lotes_gdf','max_x','max_y','cds','missoes'}. Se fornecido, o GA usa
+             EXATAMENTE este cenário (em vez de o regenerar com seed 42).
+    populacao_inicial: lista de vetores (warm start da IA). None = chute sequencial (a frio).
+    seed_ga: seed do numpy para o GA (comparações a frio/quente justas).
+    Devolve: (vetor, makespan, esperas, falhas, energia, geracao_de_convergencia)
+    """
     t_total_inicio = time.perf_counter()
 
     log_secao(f"INICIANDO BATCH {teste_idx + 1} | Drones: {num_drones} | Entregas: {num_entregas} | Alg: {algoritmo}")
@@ -50,7 +58,7 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
     cfg.NUM_ENTREGAS_TOTAL = num_entregas
     cfg.TIPO_ALGORITMO = algoritmo
 
-    if not getattr(cfg, 'CENARIO_SEMPRE_NOVO', False):
+    if cenario is None and not getattr(cfg, 'CENARIO_SEMPRE_NOVO', False):
         np.random.seed(42)
 
     NUM_CORES = os.cpu_count() or 4
@@ -58,22 +66,32 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
     VETOR_CAMADAS_VOO = getattr(cfg, 'VETOR_CAMADAS_VOO', [40, 50, 60, 70])
     VETOR_TEMPOS_PARTIDA = getattr(cfg, 'VETOR_TEMPOS_PARTIDA', [0])
 
-    SOL_POP = 10
-    NUM_GERACOES = 8
+    SOL_POP = getattr(cfg, 'GA_SOL_POP', 10)
+    NUM_GERACOES = getattr(cfg, 'GA_NUM_GERACOES', 8)
 
     log_info(f"População GA: {SOL_POP} soluções × {NUM_GERACOES} gerações paralelas")
 
     # ==========================================
     # CARREGAR CENÁRIO
     # ==========================================
-    t0 = time.perf_counter()
-    lotes_gdf, max_x, max_y = gerar_cidade()
-    log_tempo("Cidade gerada", t0)
+    if cenario is not None:
+        lotes_gdf = cenario['lotes_gdf']
+        max_x, max_y = cenario['max_x'], cenario['max_y']
+        cds, missoes = cenario['cds'], cenario['missoes']
+        NUM_PEDIDOS = len(missoes)
+        log_info("Cenário externo recebido (missões e CD fornecidos pelo chamador)")
+    else:
+        t0 = time.perf_counter()
+        lotes_gdf, max_x, max_y = gerar_cidade()
+        log_tempo("Cidade gerada", t0)
 
-    t0 = time.perf_counter()
-    cds, missoes = mission_control.gerar_tarefas_logisticas(max_x, max_y, lotes_gdf)
-    NUM_PEDIDOS = len(missoes)
-    log_tempo("Missões geradas", t0)
+        t0 = time.perf_counter()
+        cds, missoes = mission_control.gerar_tarefas_logisticas(max_x, max_y, lotes_gdf)
+        NUM_PEDIDOS = len(missoes)
+        log_tempo("Missões geradas", t0)
+
+    if seed_ga is not None:
+        np.random.seed(seed_ga)
 
     num_perfis = len(cfg.PERFIS_DRONES)
 
@@ -316,9 +334,22 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
 
         return fitness
 
+    # Geração em que o melhor fitness melhorou pela última vez (0 = população inicial já era a melhor)
+    _estado_conv = {"melhor": -math.inf, "gen": 0}
+
+    def on_start(ga_instance):
+        try:
+            f = ga_instance.cal_pop_fitness()
+            _estado_conv["melhor"] = float(np.max(f))
+        except Exception:
+            _estado_conv["melhor"] = -math.inf
+
     def on_generation(ga_instance):
         gen = ga_instance.generations_completed
         _, best_fit, _ = ga_instance.best_solution()
+        if best_fit > _estado_conv["melhor"] * (1 + 1e-9):
+            _estado_conv["melhor"] = float(best_fit)
+            _estado_conv["gen"] = gen
         custo_aprox = int(1.0 / best_fit)
         t_dec = time.perf_counter() - t_total_inicio
         pct = gen / NUM_GERACOES
@@ -342,6 +373,7 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
     # ==========================================
     # CRIANDO A BASE DO GA A PARTIR DO CHUTE
     # ==========================================
+    pop_externa = populacao_inicial
     populacao_inicial = []
     chute_sequencial = gerar_chute_inicial_heuristico()
     populacao_inicial.append(chute_sequencial)
@@ -369,6 +401,21 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
 
         populacao_inicial.append(chute_mutado)
 
+    if pop_externa is not None and len(pop_externa) > 0:
+        warm = [[int(g) for g in ind] for ind in list(pop_externa)[:max(SOL_POP - 1, 1)]]
+        for ind in warm:
+            if len(ind) != NUM_PEDIDOS or max(ind) >= num_drones or min(ind) < 0:
+                raise ValueError("populacao_inicial incompatível com o cenário "
+                                 f"({len(ind)} genes vs {NUM_PEDIDOS} pedidos)")
+        while len(warm) < SOL_POP - 1:                      # completa com mutações da previsão
+            ind = warm[0].copy()
+            for idx in np.random.choice(NUM_PEDIDOS, size=min(np.random.randint(1, 4), NUM_PEDIDOS), replace=False):
+                ind[idx] = int(np.random.randint(0, num_drones))
+            warm.append(ind)
+        warm.append(chute_sequencial)                       # mantém o chute sequencial como rede de segurança
+        populacao_inicial = warm[:SOL_POP]
+        log_info("🧠 Warm start: população inicial vem da IA")
+
     ga_instance = pygad.GA(
         num_generations=NUM_GERACOES,
         num_parents_mating=max(10, SOL_POP // 4),
@@ -389,6 +436,7 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
         stop_criteria=["saturate_3"],
         initial_population=populacao_inicial,
         parallel_processing=["thread", NUM_CORES],
+        on_start=on_start,
         on_generation=on_generation
     )
 
@@ -417,6 +465,9 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo):
     print(f"📋 RESULTADO DO BATCH {teste_idx + 1}:")
     print(f"VETOR_PEDIDO_DRONE = {vetor_perfeito}")
     print(f"{'=' * 60}\n")
+
+    return (vetor_perfeito, makespan_final, esperas_final, falhas_final,
+            energia_final, _estado_conv["gen"])
 
 
 if __name__ == "__main__":

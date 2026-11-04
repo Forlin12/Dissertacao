@@ -1,0 +1,53 @@
+{
+  "fingerprint": "0d9df9d8a18cc1ba9edc4712d189f99b",
+  "cenarios": {
+    "900000|5|10|MOSP_CAMADAS": {
+      "geracoes": 6,
+      "makespan": 3507,
+      "esperas": 0,
+      "falhas": 0,
+      "energia": 508.04,
+      "tempo_s": 2474.22
+    },
+    "900001|5|20|MOSP_CAMADAS": {
+      "geracoes": 5,
+      "makespan": 7730,
+      "esperas": 0,
+      "falhas": 0,
+      "energia": 1099.51,
+      "tempo_s": 3915.34
+    },
+    "900002|5|40|MOSP_CAMADAS": {
+      "geracoes": 3,
+      "makespan": 16651,
+      "esperas": 0,
+      "falhas": 0,
+      "energia": 2586.39,
+      "tempo_s": 11444.39
+    },
+    "900003|10|20|MOSP_CAMADAS": {
+      "geracoes": 4,
+      "makespan": 4382,
+      "esperas": 0,
+      "falhas": 0,
+      "energia": 1135.7,
+      "tempo_s": 5424.04
+    },
+    "900004|10|40|MOSP_CAMADAS": {
+      "geracoes": 5,
+      "makespan": 10242,
+      "esperas": 0,
+      "falhas": 0,
+      "energia": 2691.77,
+      "tempo_s": 15315.1
+    },
+    "900005|5|10|MOSP_CAMADAS": {
+      "geracoes": 0,
+      "makespan": 7371,
+      "esperas": 0,
+      "falhas": 0,
+      "energia": 838.55,
+      "tempo_s": 2316.25
+    }
+  }
+}

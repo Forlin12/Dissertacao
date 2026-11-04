@@ -22,14 +22,14 @@ TAMANHO_MINI_MAPA = 500
 # Formato: [ [Nº Drones, Nº Entregas, 'ALGORITMO'], ... ]
 MATRIZ_TESTES = [
     # [5, 10, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
-    # [5, 20, 'TEA_STAR_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
+        # [5, 20, 'MOSP_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
     # [5, 40, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
     # [10, 20, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
     # [10, 40, 'TEA_STAR_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
     # [10, 80, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
     # [20, 40, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
-    # [20, 80, 'TEA_STAR_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
-    [20, 160, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
+    [20, 80, 'MOSP_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
+    [20, 160, 'MOSP_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
 ]
 
 # (Valores de fallback caso o loop não sobrescreva)
@@ -48,7 +48,7 @@ CUSTO_ESPERA = 4000
 VETOR_CAMADAS_VOO = [25, 28, 30, 35, 40, 50]
 
 
-VETOR_PEDIDO_DRONE = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 3, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 4, 14, 4, 14, 14, 14, 15, 15, 14, 15, 15, 15, 15, 15, 9, 5, 16, 8, 16, 16, 16, 16, 17, 17, 17, 17, 8, 17, 17, 17, 18, 18, 18, 18, 18, 1, 18, 18, 19, 19, 19, 19, 19, 19, 0, 19]
+VETOR_PEDIDO_DRONE = [0]
 # ==========================================
 # PERFIS DE DRONES (Frota Heterogénea)
 # ==========================================
@@ -85,8 +85,6 @@ TEMPO_DESCARGA = 5
 # 'TEA_STAR'       -> 3D Espaço-Tempo (Desvia de prédios e de outros drones, com penalidade de espera)
 # 'TEA_STAR_CAMADAS'-> 4D Espaço-Tempo Multi-Tier Clássico
 # 'MOSP_CAMADAS'   -> 4D Espaço-Tempo Multi-Objetivo (Minimiza tempo total e consumo de energia)
-
-TIPO_ALGORITMO = 'MOSP_CAMADAS'
 
 # [Caminho de Salvamento de Logs]
 CAMINHO_BASE = os.path.dirname(os.path.abspath(__file__))

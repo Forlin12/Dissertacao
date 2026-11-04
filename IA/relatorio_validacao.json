@@ -1,0 +1,13 @@
+{
+  "cenarios": 51,
+  "pares": 40890,
+  "folds": 5,
+  "ari_agrupamento_medio": 0.0224,
+  "ari_baseline_kmeans": -0.0077,
+  "ari_baseline_aleatorio": 0.002,
+  "ari_modelo_std": 0.0807,
+  "auc_pares": 0.5968,
+  "ap_pares": 0.1513,
+  "prevalencia_pares": 0.1058,
+  "ganho_ari_vs_kmeans": 0.0301
+}

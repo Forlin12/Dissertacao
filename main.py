@@ -1,7 +1,7 @@
 # main.py
 import numpy as np
 import config as cfg
-from teste.logger_system import TrainingLogger
+from IA.teste import TrainingLogger
 from uav_physics import Drone
 from city_builder import gerar_cidade
 import mission_control

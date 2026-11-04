@@ -1,0 +1,30 @@
+[
+  {
+    "quando": "2026-10-31 16:56:53",
+    "cenarios": 51,
+    "entregas": 1620,
+    "folds": 5,
+    "acc_modelo": 0.1439,
+    "acc_modelo_std": 0.0222,
+    "acc_baseline_aleatorio": 0.1311,
+    "acc_baseline_maioria": 0.131,
+    "acc_por_cenario_media": 0.1616,
+    "acc_perfil_drone": 0.5012,
+    "ari_agrupamento_medio": 0.0257,
+    "ganho_vs_aleatorio": 0.0128
+  },
+  {
+    "quando": "2026-10-31 17:09:03",
+    "cenarios": 51,
+    "pares": 40890,
+    "folds": 5,
+    "ari_agrupamento_medio": 0.0224,
+    "ari_baseline_kmeans": -0.0077,
+    "ari_baseline_aleatorio": 0.002,
+    "ari_modelo_std": 0.0807,
+    "auc_pares": 0.5968,
+    "ap_pares": 0.1513,
+    "prevalencia_pares": 0.1058,
+    "ganho_ari_vs_kmeans": 0.0301
+  }
+]
