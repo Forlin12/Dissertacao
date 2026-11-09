@@ -1,7 +1,7 @@
 # main.py
 import numpy as np
 import config as cfg
-from IA.teste import TrainingLogger
+from teste.logger_system import TrainingLogger
 from uav_physics import Drone
 from city_builder import gerar_cidade
 import mission_control
@@ -126,7 +126,20 @@ def executar_simulacao():
 
     TEMPO_DESCARGA = getattr(cfg, 'TEMPO_DESCARGA', 5)
 
-    dict_alocacao = {idx: d_id for idx, d_id in enumerate(getattr(cfg, 'VETOR_PEDIDO_DRONE', []))}
+    vetor_alocacao = getattr(cfg, 'VETOR_PEDIDO_DRONE', [])
+    if getattr(cfg, 'USAR_ALOCACAO_IA', False):
+        try:
+            from IA.dataset_generator import _carregar_pacote, MODELO_PATH, _pos_cd, prever_alocacao
+            pacote_ia = _carregar_pacote(MODELO_PATH)
+            cd_xy = _pos_cd(cds, max_x, max_y)
+            vetor_alocacao = prever_alocacao(
+                pacote_ia["modelo"], missoes, cd_xy, max_x, max_y,
+                cfg.NUM_DRONES_DISPONIVEIS, cfg.PERFIS_DRONES, pacote_ia.get("max_entregas", 160)
+            )
+            print(f"\n🧠 [ALOCAÇÃO IA ATIVA] VETOR_PEDIDO_DRONE = {vetor_alocacao}")
+        except Exception as e_ia:
+            print(f"\n⚠️ [ALOCAÇÃO IA] Falha ao carregar modelo ({e_ia}); a usar VETOR_PEDIDO_DRONE manual.")
+    dict_alocacao = {idx: d_id for idx, d_id in enumerate(vetor_alocacao)}
     disponibilidade_drones = {i: 0 for i in range(cfg.NUM_DRONES_DISPONIVEIS)}
 
     print(f"\n3/6: Despacho Logístico...")

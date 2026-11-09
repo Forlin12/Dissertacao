@@ -21,15 +21,15 @@ TAMANHO_MINI_MAPA = 500
 # ==========================================
 # Formato: [ [Nº Drones, Nº Entregas, 'ALGORITMO'], ... ]
 MATRIZ_TESTES = [
-    # [5, 10, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
-        # [5, 20, 'MOSP_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
-    # [5, 40, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
-    # [10, 20, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
-    # [10, 40, 'TEA_STAR_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
-    # [10, 80, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
+    # [5, 10, 'MOSP_CAMADAS'],  # Teste 1: Otimizado para Tempo
+    # [5, 20, 'MOSP_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
+    [5, 40, 'MOSP_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
+    # [10, 20, 'MOSP_CAMADAS'],  # Teste 1: Otimizado para Tempo
+    # [10, 40, 'MOSP_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
+    # [10, 80, 'MOSP_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
     # [20, 40, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
-    [20, 80, 'MOSP_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
-    [20, 160, 'MOSP_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
+    # [20, 80, 'TEA_STAR_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
+    # [20, 160, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
 ]
 
 # (Valores de fallback caso o loop não sobrescreva)
@@ -48,7 +48,10 @@ CUSTO_ESPERA = 4000
 VETOR_CAMADAS_VOO = [25, 28, 30, 35, 40, 50]
 
 
-VETOR_PEDIDO_DRONE = [0]
+# Se True, o main.py (e o ga_optimizer.py) usa o modelo treinado da IA para alocar as entregas aos drones automaticamente.
+# Se False, usa a lista manual VETOR_PEDIDO_DRONE abaixo.
+USAR_ALOCACAO_IA = True
+VETOR_PEDIDO_DRONE = [0, 0, 2, 3, 0, 0, 4, 2, 3, 4]
 # ==========================================
 # PERFIS DE DRONES (Frota Heterogénea)
 # ==========================================
@@ -85,6 +88,8 @@ TEMPO_DESCARGA = 5
 # 'TEA_STAR'       -> 3D Espaço-Tempo (Desvia de prédios e de outros drones, com penalidade de espera)
 # 'TEA_STAR_CAMADAS'-> 4D Espaço-Tempo Multi-Tier Clássico
 # 'MOSP_CAMADAS'   -> 4D Espaço-Tempo Multi-Objetivo (Minimiza tempo total e consumo de energia)
+
+TIPO_ALGORITMO = 'MOSP_CAMADAS'
 
 # [Caminho de Salvamento de Logs]
 CAMINHO_BASE = os.path.dirname(os.path.abspath(__file__))
