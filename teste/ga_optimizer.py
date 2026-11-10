@@ -11,7 +11,7 @@ import mission_control
 from uav_physics import Drone
 
 from main import roteador_inteligente, analisar_cenario
-from IA.teste import TrainingLogger
+from teste.logger_system import TrainingLogger
 
 
 # ==========================================
@@ -66,7 +66,7 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
     VETOR_CAMADAS_VOO = getattr(cfg, 'VETOR_CAMADAS_VOO', [40, 50, 60, 70])
     VETOR_TEMPOS_PARTIDA = getattr(cfg, 'VETOR_TEMPOS_PARTIDA', [0])
 
-    SOL_POP = getattr(cfg, 'GA_SOL_POP', 10)
+    SOL_POP = getattr(cfg, 'GA_SOL_POP', 24)
     NUM_GERACOES = getattr(cfg, 'GA_NUM_GERACOES', 8)
 
     log_info(f"População GA: {SOL_POP} soluções × {NUM_GERACOES} gerações paralelas")
@@ -104,6 +104,50 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
          'peso_kg': m.get('peso_kg', 1.0)}
         for m in missoes
     ]
+
+    # ==========================================
+    # CACHE DE ROTAS NOMINAIS E DESVIO 3D VIA MOSP (ALTERNATIVA 1)
+    # ==========================================
+    _cache_rotas_nominais = {}
+    _cache_rotas_lock = threading.Lock()
+    _rotas_nominais_usadas = [0]
+    _desvios_mosp_executados = [0]
+
+    def _obter_rota_nominal(drone_ref, p_start, p_goal, carga_kg):
+        """Retorna rota estática nominal (sem tráfego) compartilhada entre todas as threads."""
+        chave = (p_start, p_goal, drone_ref.nome_modelo, round(float(carga_kg), 3))
+        with _cache_rotas_lock:
+            if chave in _cache_rotas_nominais:
+                return _cache_rotas_nominais[chave]
+
+        # Calcula a rota estática nominal usando o roteador inteligente com reserva vazia
+        drone_temp = Drone(drone_ref.perfil)
+        drone_temp.carga = carga_kg
+        cam_nom, _, _ = roteador_inteligente(max_x, max_y, lotes_gdf, drone_temp, p_start, p_goal, {}, 0)
+
+        with _cache_rotas_lock:
+            _cache_rotas_nominais[chave] = cam_nom
+        return cam_nom
+
+    def _verificar_conflito_4d(cam, t_inicio, id_drone_atual, reserva_map, altura_alvo_drone):
+        """Detecta em O(comprimento_rota) se a rota nominal colide com reservas de outros drones."""
+        if not cam or not reserva_map:
+            return False
+        for offset, p in enumerate(cam):
+            z = p[2] if len(p) == 3 else altura_alvo_drone
+            t_momento = t_inicio + offset
+            dono = reserva_map.get((p[0], p[1], z, t_momento))
+            if dono is not None and dono != id_drone_atual:
+                return True
+            # Checagem de colisão frontal cruzada (head-on swap)
+            if offset > 0:
+                p_ant = cam[offset - 1]
+                z_ant = p_ant[2] if len(p_ant) == 3 else altura_alvo_drone
+                dono_ant = reserva_map.get((p[0], p[1], z, t_momento - 1))
+                dono_post = reserva_map.get((p_ant[0], p_ant[1], z_ant, t_momento))
+                if dono_ant is not None and dono_ant == dono_post and dono_ant != id_drone_atual:
+                    return True
+        return False
 
     # ==========================================
     # SIMULAÇÃO FÍSICA ESTRITA
@@ -159,7 +203,14 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
                 t_ida += tempo_de_carga_s
                 drone.carregar_bateria_quantidade(energia_em_falta)
 
-            cam_ida, _, _ = roteador_inteligente(max_x, max_y, lotes_gdf, drone, start, goal, reserva_global, t_ida)
+            # ROTEAMENTO INTELIGENTE IDA: Tenta rota nominal rápida; se houver conflito 4D, invoca MOSP 3D
+            cam_nom_ida = _obter_rota_nominal(drone, start, goal, peso_pacote)
+            if cam_nom_ida and not _verificar_conflito_4d(cam_nom_ida, t_ida, id_drone, reserva_global, drone.altura_alvo):
+                cam_ida = cam_nom_ida
+                _rotas_nominais_usadas[0] += 1
+            else:
+                cam_ida, _, _ = roteador_inteligente(max_x, max_y, lotes_gdf, drone, start, goal, reserva_global, t_ida)
+                _desvios_mosp_executados[0] += 1
 
             if not cam_ida:
                 tentativas[id_pedido] += 1
@@ -206,7 +257,14 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
                 z_descarga = cam_ida[-1][2] if len(cam_ida[-1]) == 3 else drone.altura_alvo
                 reserva_global[(cam_ida[-1][0], cam_ida[-1][1], z_descarga, t_ida + len(cam_ida) + extra)] = id_drone
 
-            cam_volta, _, _ = roteador_inteligente(max_x, max_y, lotes_gdf, drone, goal, start, reserva_global, t_volta)
+            # ROTEAMENTO INTELIGENTE VOLTA: Tenta rota nominal rápida; se houver conflito 4D, invoca MOSP 3D
+            cam_nom_volta = _obter_rota_nominal(drone, goal, start, 0.0)
+            if cam_nom_volta and not _verificar_conflito_4d(cam_nom_volta, t_volta, id_drone, reserva_global, drone.altura_alvo):
+                cam_volta = cam_nom_volta
+                _rotas_nominais_usadas[0] += 1
+            else:
+                cam_volta, _, _ = roteador_inteligente(max_x, max_y, lotes_gdf, drone, goal, start, reserva_global, t_volta)
+                _desvios_mosp_executados[0] += 1
 
             if not cam_volta:
                 missoes_falhadas += 1
@@ -243,9 +301,71 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
                 makespan_frames = t_fim
 
             if not verbose and makespan_frames > teto_makespan + 50:
-                return makespan_frames, esperas_total, missoes_falhadas + len(fila_missoes), energia_total_da_simulacao
+                return makespan_frames, esperas_total, missoes_falhadas + len(fila_missoes), energia_total_da_simulacao, False
 
-        return makespan_frames, esperas_total, missoes_falhadas, energia_total_da_simulacao
+        return makespan_frames, esperas_total, missoes_falhadas, energia_total_da_simulacao, True
+
+    # ==========================================
+    # CACHE PERSISTENTE DE INDIVÍDUOS 4D (BLINDAGEM CONTRA DESLIGAMENTO DA VM)
+    # ==========================================
+    import json
+    _dir_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _caminho_cache_ind = os.path.join(_dir_raiz, "IA", "cache_individuos_4d.json")
+    _modo_tag = "IA" if (populacao_inicial is not None and len(populacao_inicial) > 0) else "FRIO"
+    _chave_cenario_cache = f"{seed_ga or getattr(cfg, 'SEED_CENARIO', 42)}|{num_drones}|{NUM_PEDIDOS}|{algoritmo}|{_modo_tag}"
+    _chave_cenario_legado = f"{seed_ga or getattr(cfg, 'SEED_CENARIO', 42)}|{num_drones}|{NUM_PEDIDOS}|{algoritmo}"
+    _cache_disco_lock = threading.Lock()
+    _cache_disco_mem = {}
+    if os.path.exists(_caminho_cache_ind):
+        try:
+            with open(_caminho_cache_ind, "r", encoding="utf-8") as _f_c:
+                _dados_c = json.load(_f_c)
+                _cache_disco_mem = _dados_c.get(_chave_cenario_cache, _dados_c.get(_chave_cenario_legado, {})).copy()
+        except Exception:
+            _cache_disco_mem = {}
+    _tempo_acum_anterior = float(_cache_disco_mem.get("__tempo_acum_s__", 0.0))
+
+    def _salvar_ind_disco(chave_sol, mk, esp, fal, eng, completo, t_eval):
+        with _cache_disco_lock:
+            _cache_disco_mem[chave_sol] = {
+                "makespan": int(mk),
+                "esperas": int(esp),
+                "falhas": int(fal),
+                "energia": round(float(eng), 3),
+                "completo": bool(completo),
+                "tempo_s": round(float(t_eval), 2),
+            }
+            _cache_disco_mem["__tempo_acum_s__"] = round(_tempo_acum_anterior + (time.perf_counter() - t_total_inicio), 2)
+            try:
+                todos = {}
+                if os.path.exists(_caminho_cache_ind):
+                    with open(_caminho_cache_ind, "r", encoding="utf-8") as f_in:
+                        todos = json.load(f_in)
+                todos[_chave_cenario_cache] = _cache_disco_mem
+                tmp_p = _caminho_cache_ind + f".tmp.{os.getpid()}.{threading.get_ident()}"
+                with open(tmp_p, "w", encoding="utf-8") as f_out:
+                    json.dump(todos, f_out)
+                os.replace(tmp_p, _caminho_cache_ind)
+            except Exception:
+                pass
+
+    _simular_com_tea_raw = simular_com_tea
+
+    def simular_com_tea(solution, teto_makespan=math.inf, verbose=False):
+        chave_sol = ",".join(str(int(g)) for g in solution)
+        with _cache_disco_lock:
+            reg = _cache_disco_mem.get(chave_sol)
+        if reg is not None:
+            if reg.get("completo", True):
+                return reg["makespan"], reg["esperas"], reg["falhas"], reg["energia"]
+            if not verbose and reg["makespan"] > teto_makespan + 50:
+                return reg["makespan"], reg["esperas"], reg["falhas"], reg["energia"]
+
+        t0_ev = time.perf_counter()
+        mk, esp, fal, eng, completo = _simular_com_tea_raw(solution, teto_makespan=teto_makespan, verbose=verbose)
+        t_ev = time.perf_counter() - t0_ev
+        _salvar_ind_disco(chave_sol, mk, esp, fal, eng, completo, t_ev)
+        return mk, esp, fal, eng
 
     # ==========================================
     # ESTRUTURAS HPC SEGURAS E TRACKING AO VIVO
@@ -257,36 +377,36 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
 
     _ga_lock = threading.Lock()
     _fitness_cache = {}
+    FATOR_CONVERSAO_ENERGIA = 3.6  # 1 Wh = 3.6 segundos de penalização (recarga a 1000W)
 
     def fitness_func(ga_instance, solution, solution_idx):
-        sol_tuple = tuple(solution)
+        sol_tuple = tuple(int(g) for g in solution)
 
         with _ga_lock:
             if sol_tuple in _fitness_cache:
                 return _fitness_cache[sol_tuple]
             recorde_atual_custo = _melhor_custo_visual[0]
 
-        # PODA TEÓRICA FÍSICA: Estimativa conservadora de Tempo + Bateria
+        # PODA TEÓRICA FÍSICA: Estimativa conservadora de Tempo + Bateria usando o perfil REAL de cada drone
         tempo_ideal_drones = [0.0] * num_drones
         energia_ideal_drones = 0.0
 
-        for id_pedido, id_drone in enumerate(solution):
+        for id_pedido, id_drone in enumerate(sol_tuple):
+            perfil_d = cfg.PERFIS_DRONES[id_drone % num_perfis]
+            vel_max_d = max(float(perfil_d.get('velocidade_cruzeiro_ms', 15.0)), 1.0)
+            cons_min_d = float(perfil_d.get('consumo_cruzeiro_wh_m', 0.015))
+
             start = pontos_missoes[id_pedido]['start']
             goal = pontos_missoes[id_pedido]['goal']
             dist_reta = math.hypot(goal[0] - start[0], goal[1] - start[1])
 
-            VELOCIDADE_MAX_TEORICA = 15.0
-            CONSUMO_CRUZEIRO_MINIMO = 0.015  # Wh/m otimista
-
-            frames_ideais = (dist_reta / VELOCIDADE_MAX_TEORICA) + (TEMPO_DESCARGA * 2)
-            energia_ideal = (dist_reta * CONSUMO_CRUZEIRO_MINIMO) * 2  # Ida e volta
+            frames_ideais = ((2.0 * dist_reta) / vel_max_d) + TEMPO_DESCARGA
+            energia_ideal = (2.0 * dist_reta * cons_min_d)
 
             tempo_ideal_drones[id_drone] += frames_ideais
             energia_ideal_drones += energia_ideal
 
         makespan_teorico = max(tempo_ideal_drones)
-        FATOR_CONVERSAO_ENERGIA = 3.6  # 1 Wh = 3.6 segundos de penalização (recarga a 1000W)
-
         custo_teorico_perfeito = makespan_teorico + (energia_ideal_drones * FATOR_CONVERSAO_ENERGIA)
 
         if recorde_atual_custo != math.inf and custo_teorico_perfeito >= recorde_atual_custo:
@@ -300,7 +420,7 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
             melhor_fitness = np.max(ga_instance.best_solutions_fitness)
             teto = (1.0 / melhor_fitness)
 
-        makespan, esperas, falhas, energia = simular_com_tea(solution, teto_makespan=teto)
+        makespan, esperas, falhas, energia = simular_com_tea(sol_tuple, teto_makespan=teto)
 
         penalidade = falhas * 50000
 
@@ -326,7 +446,7 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
                     makespan=makespan,
                     energia=energia,
                     esperas=esperas,
-                    vetor_solucao=solution
+                    vetor_solucao=sol_tuple
                 )
             else:
                 print(".", end="", flush=True)
@@ -335,12 +455,14 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
         return fitness
 
     # Geração em que o melhor fitness melhorou pela última vez (0 = população inicial já era a melhor)
-    _estado_conv = {"melhor": -math.inf, "gen": 0}
+    _estado_conv = {"melhor": -math.inf, "gen": 0, "historico_custo": []}
 
     def on_start(ga_instance):
         try:
             f = ga_instance.cal_pop_fitness()
-            _estado_conv["melhor"] = float(np.max(f))
+            best_f = float(np.max(f))
+            _estado_conv["melhor"] = best_f
+            _estado_conv["historico_custo"].append(round(1.0 / best_f, 1))
         except Exception:
             _estado_conv["melhor"] = -math.inf
 
@@ -351,6 +473,7 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
             _estado_conv["melhor"] = float(best_fit)
             _estado_conv["gen"] = gen
         custo_aprox = int(1.0 / best_fit)
+        _estado_conv["historico_custo"].append(round(1.0 / best_fit, 1))
         t_dec = time.perf_counter() - t_total_inicio
         pct = gen / NUM_GERACOES
         barra = "█" * int(pct * 20) + "░" * (20 - int(pct * 20))
@@ -374,18 +497,21 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
     # CRIANDO A BASE DO GA A PARTIR DO CHUTE
     # ==========================================
     pop_externa = populacao_inicial
+    if pop_externa is None and cenario is None and getattr(cfg, 'USAR_ALOCACAO_IA', False):
+        try:
+            from IA.dataset_generator import _carregar_pacote, MODELO_PATH, _pos_cd, prever_alocacao, gerar_populacao_inicial
+            pacote_ia = _carregar_pacote(MODELO_PATH)
+            cd_xy = _pos_cd(cds, max_x, max_y)
+            pred_ia = prever_alocacao(
+                pacote_ia["modelo"], missoes, cd_xy, max_x, max_y,
+                num_drones, cfg.PERFIS_DRONES, pacote_ia.get("max_entregas", 160)
+            )
+            pop_externa = gerar_populacao_inicial(pred_ia, SOL_POP, num_drones)
+        except Exception as e_ia:
+            log_warn(f"Não foi possível carregar warm start da IA ({e_ia}); a usar chute sequencial.")
     populacao_inicial = []
     chute_sequencial = gerar_chute_inicial_heuristico()
     populacao_inicial.append(chute_sequencial)
-
-    makespan_inicial, esperas_ini, falhas_ini, energia_ini = simular_com_tea(chute_sequencial, verbose=False)
-    FATOR_CONVERSAO_ENERGIA = 3.6
-    custo_inicial = makespan_inicial + (esperas_ini * 0.5) + (energia_ini * FATOR_CONVERSAO_ENERGIA) + (
-                falhas_ini * 50000)
-
-    print(
-        f"\n  🎯 [LANCE INICIAL SEQUENCIAL] Makespan: {makespan_inicial}f | Esperas: {esperas_ini} | Falhas: {falhas_ini} | Energia: {energia_ini:.1f}Wh | Custo: {custo_inicial:.1f}",
-        flush=True)
 
     # Preenche TODO o resto da população (SOL_POP - 1) baseada no chute sequencial
     for _ in range(SOL_POP - 1):
@@ -401,24 +527,53 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
 
         populacao_inicial.append(chute_mutado)
 
+    usando_warm = False
     if pop_externa is not None and len(pop_externa) > 0:
         warm = [[int(g) for g in ind] for ind in list(pop_externa)[:max(SOL_POP - 1, 1)]]
         for ind in warm:
             if len(ind) != NUM_PEDIDOS or max(ind) >= num_drones or min(ind) < 0:
                 raise ValueError("populacao_inicial incompatível com o cenário "
                                  f"({len(ind)} genes vs {NUM_PEDIDOS} pedidos)")
-        while len(warm) < SOL_POP - 1:                      # completa com mutações da previsão
+        while len(warm) < SOL_POP - 1:                      # completa com permutações (swaps) preservando balanceamento
             ind = warm[0].copy()
-            for idx in np.random.choice(NUM_PEDIDOS, size=min(np.random.randint(1, 4), NUM_PEDIDOS), replace=False):
-                ind[idx] = int(np.random.randint(0, num_drones))
+            if NUM_PEDIDOS >= 2:
+                i_sw, j_sw = np.random.choice(NUM_PEDIDOS, size=2, replace=False)
+                ind[i_sw], ind[j_sw] = ind[j_sw], ind[i_sw]
             warm.append(ind)
         warm.append(chute_sequencial)                       # mantém o chute sequencial como rede de segurança
         populacao_inicial = warm[:SOL_POP]
+        usando_warm = True
         log_info("🧠 Warm start: população inicial vem da IA")
+
+    # Avalia e coloca em cache o lance líder da população inicial (IA se warm start, ou sequencial se a frio)
+    lance_lider = tuple(int(g) for g in populacao_inicial[0])
+    makespan_inicial, esperas_ini, falhas_ini, energia_ini = simular_com_tea(lance_lider, verbose=False)
+    custo_inicial = makespan_inicial + (esperas_ini * 0.5) + (energia_ini * FATOR_CONVERSAO_ENERGIA) + (
+                falhas_ini * 50000)
+    _simulacoes_reais[0] += 1
+    _fitness_cache[lance_lider] = 1.0 / (custo_inicial + 0.0001)
+    if falhas_ini == 0:
+        _melhor_custo_visual[0] = custo_inicial
+        logger_ga.salvar_novo_recorde_ga(
+            tempo_execucao=time.perf_counter() - t_total_inicio,
+            makespan=makespan_inicial,
+            energia=energia_ini,
+            esperas=esperas_ini,
+            vetor_solucao=lance_lider
+        )
+
+    tag_lance = "LANCE INICIAL WARM START IA" if usando_warm else "LANCE INICIAL SEQUENCIAL"
+    print(
+        f"\n  🎯 [{tag_lance}] Makespan: {makespan_inicial}f | Esperas: {esperas_ini} | Falhas: {falhas_ini} | Energia: {energia_ini:.1f}Wh | Custo: {custo_inicial:.1f}",
+        flush=True)
+
+    num_pais = max(2, min(SOL_POP - 1, max(10, SOL_POP // 4) if SOL_POP >= 20 else SOL_POP // 2))
+    elitismo = max(1, min(num_pais, max(5, SOL_POP // 10) if SOL_POP >= 20 else max(1, SOL_POP // 5)))
+    k_tourn = min(5, max(2, SOL_POP // 2))
 
     ga_instance = pygad.GA(
         num_generations=NUM_GERACOES,
-        num_parents_mating=max(10, SOL_POP // 4),
+        num_parents_mating=num_pais,
         fitness_func=fitness_func,
         sol_per_pop=SOL_POP,
         num_genes=NUM_PEDIDOS,
@@ -428,8 +583,8 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
         mutation_percent_genes=[10, 5],
         crossover_type="two_points",
         parent_selection_type="tournament",
-        K_tournament=5,
-        keep_elitism=max(5, SOL_POP // 10),
+        K_tournament=k_tourn,
+        keep_elitism=elitismo,
         suppress_warnings=True,
         save_solutions=False,
         save_best_solutions=True,
@@ -449,6 +604,13 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
 
     log_info("A validar solução final detalhada...")
     makespan_final, esperas_final, falhas_final, energia_final = simular_com_tea(solution, verbose=True)
+    custo_final = makespan_final + (esperas_final * 0.5) + (energia_final * FATOR_CONVERSAO_ENERGIA) + (falhas_final * 50000)
+
+    # ELITISMO ESTRITO: Garante que GA(8) nunca seja pior em makespan ou custo que o lance inicial GA(0)
+    if falhas_ini == 0 and (custo_final > custo_inicial + 1e-6 or makespan_final > makespan_inicial):
+        vetor_perfeito = list(lance_lider)
+        makespan_final, esperas_final, falhas_final, energia_final = makespan_inicial, esperas_ini, falhas_ini, energia_ini
+        _estado_conv["gen"] = 0
 
     log_secao(f"RELATÓRIO BATCH {teste_idx + 1}")
     gen_reais = ga_instance.generations_completed
@@ -458,8 +620,11 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
     log_ok(f"Algoritmo utilizado:      {algoritmo}")
     log_ok(f"Tempo total de treino:    {t_ga:.1f}s")
     log_ok(f"Cálculos Reais do Físicos:{_simulacoes_reais[0]:,} (Filtros pouparam ~{poupanca} chamadas!)")
-    log_ok(f"Makespan final (FÍSICO):  {makespan_final} frames")
+    log_ok(f"Rotas Nominais (0ms):     {_rotas_nominais_usadas[0]:,} chamadas")
+    log_ok(f"Desvios 3D via MOSP:      {_desvios_mosp_executados[0]:,} chamadas")
+    log_ok(f"Makespan Inicial -> Final:{makespan_inicial}f -> {makespan_final}f")
     log_ok(f"Consumo Energético Total: {energia_final:.2f} Wh")
+    log_ok(f"Histórico de Custo (G0..):{_estado_conv['historico_custo']}")
 
     print(f"\n{'=' * 60}")
     print(f"📋 RESULTADO DO BATCH {teste_idx + 1}:")

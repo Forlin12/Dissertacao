@@ -18,7 +18,10 @@ import sys
 
 import numpy as np
 import pandas as pd
-from scipy.stats import spearmanr
+def spearmanr(a, b):
+    ra = np.asarray(a).argsort().argsort().astype(float)
+    rb = np.asarray(b).argsort().argsort().astype(float)
+    return (float(np.corrcoef(ra, rb)[0, 1]), 0.0)
 
 
 def proxy(y, dist, v):

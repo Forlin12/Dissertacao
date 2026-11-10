@@ -1,0 +1,753 @@
+% ==========================================================================
+% CHAPTER 2 - cap02.tex
+% ==========================================================================
+\chapter{Theoretical Background}\label{cap:conceptual}
+
+The problem addressed in this thesis involves a fleet of Unmanned Aerial Vehicles (UAVs) responsible for deliveries in an urban environment. Its solution requires two distinct types of decisions. The first is the allocation and sequencing of transport tasks to each UAV, a \textit{scheduling} problem. The second is the determination of the four-dimensional trajectories (three spatial coordinates, including altitude, plus time) that each UAV traverses to execute these tasks without colliding with obstacles or other vehicles, a \textit{path planning} problem.
+
+Classic operations research literature usually treats these two dimensions in isolation, considering the travel time between tasks as a fixed parameter. This simplification is not suitable for the studied scenario. The cost of moving a UAV from the destination of one delivery to the origin of the next depends on the geometry of the airspace, the presence of other vehicles in the same altitude layer, and the weight of the transported payload, which in turn affects the energy consumption of the route.
+
+This chapter reviews the theoretical foundations and computational tools necessary to address this integration. Section~\ref{sec:scheduling} presents classic \textit{scheduling} models and discusses why UAV mobility breaks some of their assumptions. Sections~\ref{sec:bnb} and~\ref{sec:evolutivos} describe the optimization methods used in fleet allocation: the exact \textit{Branch and Bound}, and the approximate evolutionary algorithms, Genetic Algorithm (GA) and NSGA-II. Section~\ref{sec:warmstart} introduces the machine-learning-based assisted initialization (\textit{Warm Start}) strategy designed to accelerate evolutionary convergence. Section~\ref{sec:pathplanning} addresses trajectory planning itself, covering airspace modeling and the A*, TEA*, and MOSP algorithms. Section~\ref{sec:ferramentas} presents the computational tools employed in implementing these models. The chapter concludes with a synthesis relating the reviewed methods to one another (Section~\ref{sec:consideracoes}).
+
+\section{Scheduling}\label{sec:scheduling}
+
+The \textit{scheduling} problem consists of determining the allocation of a set of tasks to a set of resources over time, respecting precedence, availability, and capacity constraints, with the objective of optimizing one or more performance metrics. The most common metrics are the completion time of the last task (\textit{makespan}), the total tardiness relative to established deadlines, and the aggregate operational cost. It is one of the most studied classes of problems in operations research and combinatorial optimization, with applications ranging from the shop floor to vehicle routing \cite{Pinedo2016}.
+
+Classic \textit{scheduling} models differ mainly in how tasks relate to available resources, whose topologies are synthesized in Figure~\ref{fig:scheduling_environments}. In the single-machine model, all tasks compete for the same resource and the problem is reduced to determining the best execution order. In the parallel-machines model, multiple identical or heterogeneous units can process tasks simultaneously, introducing the additional decision of allocation (which task goes to which machine) alongside the sequencing decision. The \textit{job shop} and \textit{flow shop} models handle tasks composed of multiple operations that must pass through different machines in a specific order, fixed in the case of the \textit{flow shop} and variable per task in the case of the \textit{job shop}. This characteristic substantially increases the combinatorial complexity of the problem \cite{Garey1976, Xiong2022}.
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        panel/.style={draw=black!40, dashed, rounded corners, thick},
+        ptitle/.style={font=\bfseries\normalsize, align=center},
+        subtitle/.style={font=\small\color{black!70}, align=center},
+        footer/.style={font=\footnotesize\color{black!80}, align=center},
+        machine/.style={rectangle, rounded corners, draw=black!80, thick,
+            minimum width=1.4cm, minimum height=0.9cm, align=center,
+            font=\bfseries\small},
+        queuecirc/.style={circle, draw=black!80, thick, fill=black!10,
+            minimum size=0.4cm, inner sep=0},
+        arrow/.style={->, >=Latex, thick, draw=black!70}
+    ]
+
+    % ==========================================
+    % 1. SINGLE MACHINE
+    % ==========================================
+    \begin{scope}[shift={(0,0)}]
+        \draw[panel] (-3.7,-2.7) rectangle (3.7,2.7);
+        \node[ptitle]    at (0,2.2) {Single Machine};
+        \node[subtitle]  at (0,1.7) {One queue, one machine};
+        \node[footer]    at (0,-2.2) {Only decides execution order};
+
+        \node[font=\footnotesize] (in)  at (-3.1,-0.2) {In};
+        \node[machine, fill=teal!15] (M) at (0.8,-0.2) {Machine};
+        \node[font=\footnotesize] (out) at (2.9,-0.2) {Out};
+
+        \draw[thick] (-2.0,0.15)  -- (-1.0,0.15);
+        \draw[thick] (-2.0,-0.55) -- (-1.0,-0.55);
+        \draw[thick] (-1.0,0.15)  -- (-1.0,-0.55);
+        \node[font=\footnotesize\bfseries] at (-1.5,0.45) {Queue};
+        \node[queuecirc] at (-1.3,-0.2) {};
+        \node[queuecirc] at (-1.7,-0.2) {};
+
+        \draw[arrow] (in.east) -- (-2.0,-0.2);
+        \draw[arrow] (-1.0,-0.2) -- (M.west);
+        \draw[arrow] (M.east) -- (out.west);
+    \end{scope}
+
+    % ==========================================
+    % 2. PARALLEL MACHINES
+    % ==========================================
+    \begin{scope}[shift={(7.9,0)}]
+        \draw[panel] (-3.7,-2.7) rectangle (3.7,2.7);
+        \node[ptitle]    at (0,2.2) {Parallel Machines};
+        \node[subtitle]  at (0,1.7) {Allocation + sequencing};
+        \node[footer]    at (0,-2.2) {Jobs can go to any machine};
+
+        \node[font=\footnotesize] (in) at (-3.1,-0.2) {In};
+        \node[machine, fill=blue!15] (M1) at (0.8,0.9)  {M1};
+        \node[machine, fill=blue!15] (M2) at (0.8,-0.2) {M2};
+        \node[machine, fill=blue!15] (M3) at (0.8,-1.3) {M3};
+        \node[font=\footnotesize] (out) at (3.1,-0.2) {Out};
+
+        \draw[thick] (-2.0,0.15)  -- (-1.0,0.15);
+        \draw[thick] (-2.0,-0.55) -- (-1.0,-0.55);
+        \draw[thick] (-1.0,0.15)  -- (-1.0,-0.55);
+        \node[font=\footnotesize\bfseries] at (-1.5,0.45) {Queue};
+        \node[queuecirc] at (-1.3,-0.2) {};
+        \node[queuecirc] at (-1.7,-0.2) {};
+
+        \draw[arrow] (in.east) -- (-2.0,-0.2);
+        \draw[thick, draw=black!70] (-1.0,-0.2) -- (-0.3,-0.2);
+        \draw[arrow] (-0.3,-0.2) |- (M1.west);
+        \draw[arrow] (-0.3,-0.2) -- (M2.west);
+        \draw[arrow] (-0.3,-0.2) |- (M3.west);
+
+        \draw[thick, draw=black!70] (M1.east) -| (2.0,-0.2);
+        \draw[thick, draw=black!70] (M3.east) -| (2.0,-0.2);
+        \draw[thick, draw=black!70] (M2.east) -- (2.0,-0.2);
+        \draw[arrow] (2.0,-0.2) -- (out.west);
+    \end{scope}
+
+    % ==========================================
+    % 3. FLOW SHOP
+    % ==========================================
+    \begin{scope}[shift={(0,-5.9)}]
+        \draw[panel] (-3.7,-2.7) rectangle (3.7,2.7);
+        \node[ptitle]    at (0,2.2) {Flow Shop};
+        \node[subtitle]  at (0,1.7) {Same route for all jobs};
+        \node[footer]    at (0,-2.2) {M1 $\rightarrow$ M2 $\rightarrow$ M3 (fixed route)};
+
+        \node[font=\footnotesize] (in)  at (-3.2,-0.2) {In};
+        \node[machine, fill=orange!20] (M1) at (-1.8,-0.2) {M1};
+        \node[machine, fill=orange!20] (M2) at (0,-0.2)    {M2};
+        \node[machine, fill=orange!20] (M3) at (1.8,-0.2)  {M3};
+        \node[font=\footnotesize] (out) at (3.2,-0.2) {Out};
+
+        \draw[arrow] (in.east)  -- (M1.west);
+        \draw[arrow] (M1.east)  -- (M2.west);
+        \draw[arrow] (M2.east)  -- (M3.west);
+        \draw[arrow] (M3.east)  -- (out.west);
+    \end{scope}
+
+    % ==========================================
+    % 4. JOB SHOP
+    % ==========================================
+    \begin{scope}[shift={(7.9,-5.9)}]
+        \draw[panel] (-3.7,-2.7) rectangle (3.7,2.7);
+        \node[ptitle]    at (0,2.2) {Job Shop};
+        \node[subtitle]  at (0,1.7) {Variable route per job};
+
+        \node[machine, fill=purple!15] (M1) at (-1.6,0.7)  {M1};
+        \node[machine, fill=purple!15] (M2) at (1.6,0.7)   {M2};
+        \node[machine, fill=purple!15] (M3) at (0,-0.75)   {M3};
+
+        \node[font=\footnotesize, text=teal]   (inA) at (-3.2,0.7) {In A};
+        \node[font=\footnotesize, text=orange] (inB) at (3.2,0.7)  {In B};
+        \node[font=\footnotesize]              (out) at (3.0,-0.75) {Out};
+
+        \draw[->, >=Latex, thick, teal] (inA.east) -- ([yshift=4pt]M1.west);
+        \draw[->, >=Latex, thick, teal] ([yshift=4pt]M1.east) -- ([yshift=4pt]M2.west);
+        \draw[->, >=Latex, thick, teal] ([xshift=-0.35cm]M2.south) -- ([xshift=0.35cm]M3.north);
+        \draw[->, >=Latex, thick, teal] ([yshift=3pt]M3.east) -- ([yshift=3pt]out.west);
+
+        \draw[->, >=Latex, thick, orange] (inB.west) -- ([yshift=-4pt]M2.east);
+        \draw[->, >=Latex, thick, orange] ([yshift=-4pt]M2.west) -- ([yshift=-4pt]M1.east);
+        \draw[->, >=Latex, thick, orange] ([xshift=0.35cm]M1.south) -- ([xshift=-0.35cm]M3.north);
+        \draw[->, >=Latex, thick, orange] ([yshift=-3pt]M3.east) -- ([yshift=-3pt]out.west);
+
+        \node[fill=teal, rectangle, inner sep=2.5pt] at (-2.6,-1.75) {};
+        \node[anchor=west, font=\scriptsize] at (-2.3,-1.75) {Job A: M1 $\rightarrow$ M2 $\rightarrow$ M3};
+        \node[fill=orange, rectangle, inner sep=2.5pt] at (-2.6,-2.25) {};
+        \node[anchor=west, font=\scriptsize] at (-2.3,-2.25) {Job B: M2 $\rightarrow$ M1 $\rightarrow$ M3};
+    \end{scope}
+
+    \end{tikzpicture}%
+    }
+    \caption{Classic classification of routing and production scheduling environments. The \textit{Job Shop} is characterized by route flexibility, approaching the complexity of logistics dispatching.}
+    \label{fig:scheduling_environments}
+\end{figure}
+
+A common assumption across most of these classic models is that the processing time of a task is fixed and independent of the task executed immediately before it. This premise is reasonable when resources are stationary machines, but ceases to hold when resources are mobile agents, such as the UAVs addressed in this thesis. In this case, the time required to initiate a delivery also depends on the physical travel of the vehicle to the pickup point of that delivery, a travel duration that varies according to the delivery executed immediately prior. This phenomenon is formalized in the literature as a \textit{sequence-dependent setup time} \cite{Allahverdi2015, Hosseini2024}. Unlike a fixed processing machine, whose operating time is independent of previous tasks, a UAV changes its position in space upon each completed delivery, which directly conditions the start time of the subsequent task.
+
+The need to move the empty vehicle from the destination point of one delivery to the pickup point of the next, called an \textit{empty repositioning trip}, introduces a hidden cost that classic \textit{scheduling} models do not capture on their own. Simply inverting the execution order of two freights can substantially alter the total operation time, depending on how origins and destinations are spatially distributed. It is this hidden cost that justifies, in the present work, the need to couple the \textit{scheduling} model with an explicit trajectory planning model: solving the fleet allocation problem requires not only deciding which UAV fulfills which order, but also realistically estimating the travel time between consecutive deliveries. This estimate can only be obtained by simulating the actual trajectory of the vehicle in the shared airspace, which is the task of the routing algorithms reviewed in Section~\ref{sec:pathplanning}.
+
+Solving \textit{scheduling} problems can follow two families of approaches. Exact methods, such as mixed-integer linear programming (MILP) and \textit{Branch and Bound}, guarantee the optimality of the found solution, but their computational cost grows prohibitively as the number of tasks and resources increases. Approximate methods, including constructive heuristics, metaheuristics, and evolutionary algorithms, trade this guarantee for execution times compatible with large-scale problems. The following sections detail a representative of each family: \textit{Branch and Bound}, used as a quality benchmark in smaller instances, and Genetic Algorithms and NSGA-II, employed in larger-scale instances and scenarios with multiple conflicting objectives.
+
+\section{Exact Optimization Methods}\label{sec:bnb}
+
+This section presents the \textit{Branch and Bound} method, a classic exact optimization approach used in this thesis to establish an optimality reference value against which the solutions obtained by evolutionary methods are compared.
+
+\subsection{Branch and Bound}
+
+The \textit{Branch and Bound} (B\&B) method is a classic paradigm for the exact resolution of combinatorial optimization and integer programming problems \cite{Land1960, Little1963}. Unlike the heuristic and metaheuristic approaches discussed in the following section, which seek satisfactory solutions within computationally feasible time, B\&B mathematically guarantees the discovery of the global optimal solution of the problem, at the cost of an exploration that, in the worst case, grows exponentially with instance size \cite{Wolsey1998}.
+
+The architecture of the algorithm is based on the systematic exploration of the search space through the construction of a decision tree, as illustrated in Figure~\ref{fig:branch_and_bound_tree}, supported by three fundamental mechanisms:
+
+\begin{itemize}
+    \item \textbf{Branching:} the original problem is recursively partitioned into smaller, disjoint, and mutually exclusive subproblems. Each subdivision corresponds to a node in the search tree, representing a partial decision or an additional constraint that progressively reduces the space of feasible solutions.
+    \item \textbf{Bounding:} for each subproblem, a \textit{Lower Bound} ($LB$) and/or \textit{Upper Bound} ($UB$) is calculated for the objective function value, typically through a relaxation of the original problem. This bound estimates the quality of the best possible solution contained in that branch without requiring its exhaustive exploration.
+    \item \textbf{Pruning:} if the bound calculated for a node demonstrates that it cannot yield a solution better than the best valid solution already found (incumbent solution), the entire branch is discarded. It is this mechanism that confers practical efficiency to the method, avoiding the enumeration of provably suboptimal paths.
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{\textwidth}{!}{
+    \begin{tikzpicture}[
+        node distance=1.8cm and 2.5cm,
+        state/.style={
+            rectangle, rounded corners, draw=black, thick,
+            minimum width=1.8cm, minimum height=1.2cm,
+            align=center, fill=blue!5, font=\small
+        },
+        pruned/.style={
+            rectangle, rounded corners, draw=red!80, thick,
+            minimum width=1.8cm, minimum height=1.2cm,
+            align=center, fill=red!10, font=\small
+        },
+        optimal/.style={
+            rectangle, rounded corners, draw=green!60!black, thick,
+            minimum width=1.8cm, minimum height=1.2cm,
+            align=center, fill=green!10, font=\small
+        },
+        decision/.style={
+            font=\footnotesize, fill=white, inner sep=2pt
+        },
+        arrow/.style={
+            ->, >=Latex, thick, draw=black!70
+        }
+    ]
+
+    % Level 0 (Root)
+    \node[state] (P0) {\textbf{$P_0$}\\$LB = 100$};
+
+    % Level 1
+    \node[state, below left=2cm and 2.5cm of P0] (P1) {\textbf{$P_1$}\\$LB = 110$};
+    \node[state, below right=2cm and 2.5cm of P0] (P2) {\textbf{$P_2$}\\$LB = 120$};
+
+    \draw[arrow] (P0) -- node[decision] {$x_1 = 1$} (P1);
+    \draw[arrow] (P0) -- node[decision] {$x_1 = 0$} (P2);
+
+    % Level 2 - Left Branch
+    \node[optimal, below left=1.8cm and 1cm of P1] (P3) {\textbf{$P_3$} (Integer)\\$UB = 130$};
+    \node[pruned, below right=1.8cm and 1cm of P1] (P4) {\textbf{$P_4$}\\Infeasible};
+
+    \draw[arrow] (P1) -- node[decision] {$x_2 = 1$} (P3);
+    \draw[arrow] (P1) -- node[decision] {$x_2 = 0$} (P4);
+
+    % Level 2 - Right Branch
+    \node[pruned, below left=1.8cm and 1cm of P2] (P5) {\textbf{$P_5$}\\$LB = 135$};
+    \node[state, below right=1.8cm and 1cm of P2] (P6) {\textbf{$P_6$}\\$LB = 115$};
+
+    \draw[arrow] (P2) -- node[decision] {$x_3 = 1$} (P5);
+    \draw[arrow] (P2) -- node[decision] {$x_3 = 0$} (P6);
+
+    % Pruning Annotations
+    \node[below=0.2cm of P5, font=\footnotesize, text=red!80!black] {Pruned ($LB > UB$)};
+    \node[below=0.2cm of P4, font=\footnotesize, text=red!80!black] {Pruned (Constraint)};
+    \node[below=0.2cm of P3, font=\footnotesize, text=green!50!black] {New Incumbent};
+
+    \end{tikzpicture}
+    }
+    \caption{Structural representation of the \textit{Branch and Bound} algorithm search tree. Branching divides the search space, while the lower bound ($LB$) of each subproblem is compared to the upper bound ($UB$) of the best known incumbent solution. Branches that violate system constraints or whose $LB$ exceeds the $UB$ are pruned, avoiding exhaustive exploration.}
+    \label{fig:branch_and_bound_tree}
+\end{figure}
+
+In practice, B\&B is rarely applied directly to large-scale instances of the dispatching and sequencing problem addressed in this thesis, given the combinatorial growth in the number of possible task assignments and orderings to UAVs. Its role in this work is to establish an optimality benchmark for reduced instances, against which the quality of the solutions obtained by the evolutionary algorithms presented next can be evaluated.
+
+\section{Evolutionary Optimization Methods}\label{sec:evolutivos}
+
+\subsection{Genetic Algorithms}
+
+Genetic Algorithms (GAs) consist of a class of heuristic search methods inspired by the principles of natural evolution and genetics. Formally introduced into the computational optimization literature by \citeauthor{Holland1975} \cite{Holland1975}, GAs are based on the Darwinian premise that individuals better adapted to their environment have a higher probability of survival and reproduction. In a computational context, an initial population of candidate solutions evolves iteratively, generation after generation, converging toward optimal or near-optimal solutions, without offering the guarantee of global optimality that characterizes the B\&B described in the previous section. This trade-off between guaranteed optimality and feasible execution time is precisely what motivates the use of GAs when the scale of the \textit{scheduling} problem renders B\&B computationally infeasible.
+
+\paragraph{Representation and encoding.} For a problem to be handled by a GA, its candidate solutions must be mapped into structures manipulable by the algorithm. Each solution is an individual, or chromosome, subdivided into genes. Three encoding schemes predominate in the literature: binary, real-valued, and permutation encoding. Permutation encoding represents the chromosome as an ordered sequence of elements, in which the order itself constitutes the solution, and is the usual choice for pure sequencing problems such as the traveling salesman problem. Allocation problems, in which each task must be assigned to one of several resources, are more naturally represented by an integer (assignment) encoding: the chromosome has one gene per task, and the value of each gene identifies the resource responsible for it. This is the scheme adopted in this thesis, in which each gene corresponds to a delivery and stores the identifier of the UAV assigned to it (Chapter~\ref{cap:desenvolvimento}). Since any combination of values within the valid range corresponds to a complete allocation, every chromosome generated by the genetic operators is feasible by construction.
+
+\paragraph{Fitness function.} The translation from the problem domain to the algorithm domain is performed by the \textit{fitness function}, which assigns a numerical performance value to each chromosome. It is this value that guides the evolutionary process, determining the probability of an individual being selected to generate offspring. In the case of single-objective \textit{scheduling} problems, such as minimizing the \textit{makespan}, this function is straightforward. In the case of multiple conflicting objectives, it ceases to be sufficient, which motivates the multi-objective extension discussed in the following subsection.
+
+\paragraph{Genetic operators.} The evolution of the population occurs through the successive application of stochastic operators:
+
+\begin{itemize}
+    \item \textbf{Selection:} determines which individuals will transmit genetic material to the next generation, favoring the fittest through schemes such as roulette wheel or tournament selection.
+    \item \textbf{Crossover:} the primary search operator, which recombines the genetic material of parents to produce new offspring.
+    \item \textbf{Mutation:} a secondary operator that introduces random perturbations into the chromosomal structure under low probability, promoting diversity and preventing premature convergence. With integer encoding, it consists of reassigning a delivery to a different UAV.
+\end{itemize}
+
+Problems with permutation encoding and hard constraints (such as time windows and precedence) usually also require a \textit{repair} operator, which corrects infeasible offspring before they are reinserted into the population. This is not the case in the present work: the integer encoding never produces invalid allocations, and the problem has neither time windows nor precedence constraints. Mission failures, such as the absence of a collision-free route or predicted battery depletion, are handled instead through penalties in the fitness function, which exclude the corresponding chromosome from reproduction.
+
+The complete evolutionary cycle, synthesized in the flowchart of Figure~\ref{fig:ga_flowchart}, begins with the generation of an initial population, followed by an iterative loop of fitness evaluation, termination criteria verification, parent selection, genetic recombination, and mutation. This process repeats until a pre-established termination criterion is satisfied, such as the maximum number of generations or stagnation in the improvement of the population's average fitness.
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{0.75\textwidth}{!}{%
+    \begin{tikzpicture}[
+        node distance=0.8cm and 1.8cm,
+        process/.style={
+            rectangle, 
+            rounded corners, 
+            draw=black, 
+            thick,
+            minimum width=3.6cm, 
+            minimum height=1.0cm, 
+            align=center, 
+            font=\small,
+            fill=blue!5
+        },
+        decision/.style={
+            diamond, 
+            draw=black, 
+            thick,
+            minimum width=2.4cm, 
+            minimum height=1.8cm, 
+            align=center, 
+            font=\scriptsize,
+            inner sep=0pt,
+            fill=yellow!10
+        },
+        terminator/.style={
+            circle, 
+            draw=black, 
+            thick, 
+            minimum size=1.3cm, 
+            align=center, 
+            font=\small\bfseries,
+            fill=gray!15
+        },
+        arrow/.style={
+            ->, 
+            >=Latex, 
+            thick, 
+            draw=black!80
+        }
+    ]
+
+        % Flow nodes
+        \node (init)    [process]                               {Initialize Population};
+        \node (fitness) [process, below=0.8cm of init]          {Fitness Evaluation};
+        \node (cond)    [decision, below=0.8cm of fitness]      {Termination\\condition\\reached?};
+        \node (end)     [terminator, right=1.8cm of cond]       {END};
+        \node (sel)     [process, below=0.8cm of cond]          {Selection};
+        \node (cross)   [process, below=0.8cm of sel]           {Crossover Operation};
+        \node (mut)     [process, below=0.8cm of cross]         {Mutation Operation};
+
+        % Sequential connections
+        \draw [arrow] (init) -- (fitness);
+        \draw [arrow] (fitness) -- (cond);
+        \draw [arrow] (cond) -- node[above, font=\scriptsize] {Yes} (end);
+        \draw [arrow] (cond) -- node[right, font=\scriptsize] {No} (sel);
+        \draw [arrow] (sel) -- (cross);
+        \draw [arrow] (cross) -- (mut);
+
+        % Evolutionary loop return
+        \draw [arrow] (mut.west) -- ++(-1.8cm,0) |- (fitness.west);
+
+    \end{tikzpicture}%
+    }
+    \caption{Flowchart of the Genetic Algorithm evolutionary cycle.}
+    \label{fig:ga_flowchart}
+\end{figure}
+
+\subsection{Non-dominated Sorting Genetic Algorithm (NSGA-II)}
+
+When the \textit{scheduling} problem involves more than one conflicting objective, for example simultaneously minimizing the \textit{makespan} and the total empty distance traveled by the UAVs, a single-objective GA becomes insufficient. It would require the prior definition of weights or an aggregation function (\textit{scalarization}) to combine the objectives into a single fitness value, which rarely reflects real decision preferences satisfactorily. It is to address this limitation that one resorts to the \textit{Non-dominated Sorting Genetic Algorithm} (NSGA), and in particular to its consolidated and optimized version in the computational literature, NSGA-II.
+
+Instead of converging to a single solution, NSGA-II seeks to approximate a set of trade-off solutions known as the Pareto Front: the set of solutions in which no objective can be improved without degrading at least one other. This result is obtained through three mechanisms:
+
+\begin{itemize}
+    \item \textbf{Non-dominated sorting:} the population is iteratively stratified into dominance fronts. A solution $A$ is said to dominate a solution $B$ if $A$ is strictly superior to $B$ in at least one objective and no worse in any of the others. The first front gathers the solutions not dominated by any other in the current population; the second gathers those that would be non-dominated if the first were removed; and so on, until the entire population is classified.
+    \item \textbf{Crowding distance:} to prevent solutions from clustering in a single region of the Pareto Front, the algorithm estimates, for each solution, the perimeter of the cuboid formed by its two nearest neighbors in the objective space. When two individuals belong to the same front, priority is given to the one with the larger crowding distance, favoring less crowded regions of the solution space.
+    \item \textbf{Fast elitism:} at each generation, the parent population and the offspring population are combined into a single superpopulation, from which the next generation is extracted sequentially, prioritizing better-ranked fronts. This mechanism ensures that the best solutions found are not lost throughout evolution.
+\end{itemize}
+
+This robustness, however, comes at a noticeable computational cost. Because it operates on an expanded population and recalculates non-dominated fronts and crowding distances at every cycle, the convergence of NSGA-II and the conventional Genetic Algorithm can become excessively slow when coupled with 4D route evaluators. This bottleneck is drastically accentuated if the initial population is instantiated in a purely random manner, demanding the introduction of assisted initialization (\textit{Warm Start}) techniques.
+
+\section{Machine-Learning-Assisted Initialization (\textit{Warm Start})}\label{sec:warmstart}
+
+In evolutionary algorithms, the search generally starts from a random population. Although functional, this randomness drastically penalizes convergence speed, especially when evaluating each individual requires computationally expensive simulations and many of the randomly generated initial solutions are infeasible \cite{kazimipour2014}. To mitigate this bottleneck, the \textit{Warm Start} technique is adopted, injecting promising solutions suggested by a predictive model into the initial population. Unlike approaches based on \textit{surrogate models} \cite{jin2005,jin2011}, the predictor does not replace the physical simulation during the evolutionary cycle; it acts only at generation zero, providing an advantageous starting point without compromising the genetic diversity maintained by the crossover and mutation operators.
+
+To perform this prediction efficiently, the system utilizes a hybrid architecture that combines two simple and interpretable machine learning algorithms: linear regression with $L_2$ regularization (Ridge) and shallow decision trees (\textit{decision stumps}).
+
+\paragraph{The global trend model (Ridge).} 
+The linear model evaluates the profile of each delivery and each candidate drone—extracting features such as distance, package weight, and autonomy—to calculate a weighted suitability sum. Applying the $L_2$ penalty to the model weights is fundamental to ensuring the mathematical stability of the prediction, given that variables such as estimated time and energy consumption are highly correlated \cite{hoerl1970}. Furthermore, to handle the severe imbalance inherent to the operation (where only one drone in the fleet is the ideal choice for a given order), compensatory sample weights are applied during training. The continuous output is then converted into an allocation probability via a logistic function.
+
+\paragraph{The physical constraints model (\textit{Decision Stumps}).} 
+While linear regression captures general trends and the trade-offs among variables, it struggles to represent abrupt behavioral shifts. For this purpose, shallow decision trees limited to a single splitting question (so-called \textit{stumps}) are incorporated \cite{iba1992}. This structure is ideal for mapping strict physical thresholds—such as the exact moment when payload mass exceeds the vehicle's maximum lifting capacity—characterizing non-linear operational limits that a purely continuous model fails to penalize immediately.
+
+\paragraph{Model Combination (Residual Fitting).} 
+The union of these two approaches is inspired by the principle of residual fitting, the basis of \textit{boosting} algorithms \cite{friedman2001}. In practice, the linear model establishes the central prediction estimate, and an ensemble of \textit{stumps}—trained with random subsamples via \textit{bagging} \cite{breiman1996}—acts sequentially to correct the errors and residuals of this primary estimate. The final score for each pair (delivery and drone) is the direct sum of these two layers, allowing the system to assign each order to the vehicle that achieves the highest aggregate feasibility.
+
+\paragraph{Architecture Justification.} 
+Choosing this lean hybrid model over complex architectures such as deep neural networks responds directly to the logistical and engineering constraints of the problem:
+\begin{itemize}
+    \item \textbf{Sampling cost and \textit{overfitting} risk:} Because labeling each scenario requires executing a full 4D simulation, the volume of training data is structurally small, which makes simple models much safer against overfitting.
+    \item \textbf{Mathematical robustness:} $L_2$ regularization effectively manages the collinearity of flight metrics, while the \textit{stumps} accurately capture physical constraints (such as overload and battery depletion).
+    \item \textbf{Interpretability and inference cost:} The model allows direct reading of the importance of each variable and has a virtually zero execution cost. Evolutionary search is accelerated by preventing the algorithm from starting blind, saving thousands of costly iterations in the 4D trajectory simulators (TEA* and MOSP).
+\end{itemize}
+
+\section{Path Planning}\label{sec:pathplanning}
+
+The previous sections addressed the decision of \emph{what} each UAV must do and \emph{in what order}. It still remains to determine \emph{how} each vehicle physically moves between the points defined by that decision, a problem known in the literature as trajectory planning, or \textit{path planning}. This is the computational problem of determining a continuous and feasible route between an initial state and a destination state, ensuring that movement avoids collisions with static obstacles and, in multi-agent scenarios, with other vehicles as well. In most applications, the trajectory is also guided by optimization criteria, typically minimizing traveled distance or travel time, but also, in UAVs, energy consumption, which is directly related to the weight of the transported payload and altitude variations along the route.
+
+According to the available knowledge about the environment, trajectory planning is classified into global and local. Global planning applies to static scenarios that are completely known in advance, in which all information about topology and obstacles is available before the start of the mission, allowing the advance calculation of a complete and, in general, optimal trajectory. Local planning applies to dynamic, uncertain, or partially unknown environments, in which the trajectory is continuously updated based on sensory information acquired during execution. The problem addressed in this thesis falls predominantly into the first case, since the airspace is known a priori, but inherits a characteristic typical of dynamic scenarios: the presence of other UAVs whose trajectories must be treated as time-varying obstacles, revisited in the discussion of TEA* (Section~\ref{sec:tea}).
+
+The following subsections first present the modeling of the airspace and then, in increasing order of complexity, the search algorithms employed over this representation: A*, for the static spatial reference case; TEA*, which extends A* to time to allow coordination among multiple UAVs; and MOSP, which extends the problem to a second objective, energy consumption, while maintaining the temporal coordination of TEA*.
+
+\subsection{Environment Modeling}
+
+Prior to any search algorithm, it is necessary to mathematically represent the airspace in a structure that navigation algorithms can interpret, identifying navigable regions, obstacles, and, in the case of UAVs operating across multiple altitude layers, the vertical stratification of space. The quality of this representation directly influences both the quality of the obtained trajectory and the computational cost of planning. Figure~\ref{fig:representacoes_espaciais} compares the two approaches discussed below over the same urban environment.
+
+Two approaches predominate in the literature. Cell decomposition divides the environment into a grid of cells of predefined dimension, each classified as free or occupied (Figure~\ref{fig:representacoes_espaciais}b); in the three-dimensional case, this grid is replicated across multiple altitude layers, one for each permitted flight level. It is simple to implement and facilitates collision checking, but imposes a direct trade-off between accuracy and performance: finer grids represent the environment better at the cost of greater processing and memory, whereas coarser grids reduce this cost but may compromise the representation of narrow passages between buildings.
+
+Topological maps represent the environment by its connectivity rather than discretizing the entire physical space (Figure~\ref{fig:representacoes_espaciais}c). The environment is modeled as a graph of nodes, representing points of interest or strategic positions, and edges, representing feasible flight corridors between them. Methods such as visibility graphs and Voronoi diagrams follow this principle, restricting planning to relevant connections and reducing computational cost in large-scale environments. A common variant in the urban UAV delivery literature uses the street network itself as the graph, restricting flight to corridors above the roads. The price of this reduction is the loss of freedom of movement, since routes can only follow the predefined edges.
+
+This thesis adopts cell decomposition. The street network, extracted from OpenStreetMap, is not used as a flight graph: it serves only to delimit the city blocks (the area outside the road surface), which are then filled with procedurally generated lots and buildings. The resulting urban geometry is rasterized into a three-dimensional boolean grid with 2.5~m cells, replicated across the permitted flight altitude layers. UAVs may therefore cross blocks freely at altitudes above the buildings and are restricted only by occupied cells, which makes the spatiotemporal search of TEA* and MOSP (Sections~\ref{sec:tea} and~\ref{sec:mosp}) operate directly on this grid. The topological representation is kept in Figure~\ref{fig:representacoes_espaciais} as a conceptual reference for comparison.
+
+\begin{figure}[!htbp]
+    \centering
+
+    \tikzset{
+        building/.style={fill=black!60, draw=black!85, thick},
+        roof/.style={fill=black!40, draw=none},
+        building_faded/.style={fill=black!12, draw=black!30, thick},
+        road/.style={fill=black!12, draw=none},
+        roadline/.style={draw=white, dashed, thin},
+        cell_occ/.style={fill=black!70},
+        cell_exp/.style={fill=cyan!18},
+        cell_path/.style={fill=orange!35},
+        grid_line/.style={draw=black!30, very thin},
+        graph_node/.style={circle, fill=blue!70, draw=black!90, thick, inner sep=2.0pt},
+        path_waypoint/.style={circle, fill=orange!90!black, draw=black!80, very thin, inner sep=1.3pt},
+        start_node/.style={circle, fill=green!55!black, draw=black!90, thick,
+            minimum size=0.42cm, inner sep=0, font=\scriptsize\bfseries, text=white},
+        goal_node/.style={circle, fill=red!70!black, draw=black!90, thick,
+            minimum size=0.42cm, inner sep=0, font=\scriptsize\bfseries, text=white},
+        graph_edge/.style={draw=blue!65, line width=1.4pt},
+        graph_path/.style={draw=orange!90!black, line width=2.5pt,
+            -{Latex[length=2.8mm]}, shorten >=5.5pt, rounded corners=1.5pt},
+        wlabel/.style={fill=white, inner sep=0.8pt, font=\tiny\bfseries, text=blue!65!black}
+    }
+
+    % ==========================================
+    % (a) CONTINUOUS
+    % ==========================================
+    \begin{subfigure}[b]{0.31\textwidth}
+        \centering
+        \resizebox{\linewidth}{!}{%
+        \begin{tikzpicture}
+            \fill[black!4] (0,0) rectangle (4.5,4.5);
+
+            \foreach \pos in {0.0, 2.0, 4.0} {
+                \fill[road] (\pos,0) rectangle (\pos+0.5, 4.5);
+                \fill[road] (0,\pos) rectangle (4.5, \pos+0.5);
+            }
+            \foreach \pos in {0.25, 2.25, 4.25} {
+                \draw[roadline] (\pos,0) -- (\pos,4.5);
+                \draw[roadline] (0,\pos) -- (4.5,\pos);
+            }
+
+            \draw[building] (0.55,0.55) rectangle (1.95,1.95);
+            \fill[roof] (0.70,0.70) rectangle (1.80,1.80);
+
+            \draw[building] (2.55,0.55) rectangle (3.45,1.95);
+            \fill[roof] (2.70,0.70) rectangle (3.30,1.80);
+
+            \draw[building] (0.55,2.55) rectangle (1.95,3.45);
+            \fill[roof] (0.70,2.70) rectangle (1.80,3.30);
+
+            \draw[building] (2.55,2.55) rectangle (3.95,3.95);
+            \fill[roof] (2.70,2.70) rectangle (3.80,3.80);
+
+            \node[start_node] at (0.25,0.25) {S};
+            \node[goal_node]  at (4.25,4.25) {G};
+
+            \draw[-{Latex}, thick] (0.25,3.6) -- (0.25,4.15);
+            \node[font=\scriptsize\bfseries, fill=black!12, inner sep=0.5pt] at (0.25,4.32) {N};
+
+            \draw[thick] (0,0) rectangle (4.5,4.5);
+        \end{tikzpicture}%
+        }
+        \caption{Continuous}
+        \label{fig:mapa_continuo}
+    \end{subfigure}
+    \hfill
+    % ==========================================
+    % (b) GRID (DISCRETIZATION + A*)
+    % ==========================================
+    \begin{subfigure}[b]{0.31\textwidth}
+        \centering
+        \resizebox{\linewidth}{!}{%
+        \begin{tikzpicture}
+            \fill[white] (0,0) rectangle (4.5,4.5);
+
+            \fill[cell_exp] (0.0,0.5) rectangle (0.5,2.5);
+            \fill[cell_exp] (0.5,2.0) rectangle (2.0,2.5);
+            \fill[cell_exp] (2.5,0.0) rectangle (4.0,0.5);
+            \fill[cell_exp] (3.5,0.5) rectangle (4.0,2.0);
+            \fill[cell_exp] (2.0,3.5) rectangle (2.5,4.5);
+            \fill[cell_exp] (2.5,2.0) rectangle (3.5,2.5);
+
+            \fill[cell_path] (0.0,0.0) rectangle (2.5,0.5);
+            \fill[cell_path] (2.0,0.5) rectangle (2.5,3.5);
+            \fill[cell_path] (2.0,4.0) rectangle (4.5,4.5);
+
+            \fill[cell_occ] (0.5,0.5) rectangle (2.0,2.0);
+            \fill[cell_occ] (2.5,0.5) rectangle (3.5,2.0);
+            \fill[cell_occ] (0.5,2.5) rectangle (2.0,3.5);
+            \fill[cell_occ] (2.5,2.5) rectangle (4.0,4.0);
+
+            \fill[cell_path] (2.0,3.5) rectangle (2.5,4.0);
+
+            \draw[grid_line, step=0.5] (0,0) grid (4.5,4.5);
+
+            \draw[graph_path] (0.25,0.25) -- (2.25,0.25) -- (2.25,4.25) -- (4.25,4.25);
+
+            \foreach \x/\y in {
+                0.75/0.25, 1.25/0.25, 1.75/0.25, 2.25/0.25,
+                2.25/0.75, 2.25/1.25, 2.25/1.75, 2.25/2.25, 2.25/2.75, 2.25/3.25, 2.25/3.75, 2.25/4.25,
+                2.75/4.25, 3.25/4.25, 3.75/4.25} {
+                \node[path_waypoint] at (\x,\y) {};
+            }
+
+            \node[start_node] at (0.25,0.25) {S};
+            \node[goal_node]  at (4.25,4.25) {G};
+
+            \draw[thick] (0,0) rectangle (4.5,4.5);
+        \end{tikzpicture}%
+        }
+        \caption{Discretized (Grid)}
+        \label{fig:mapa_malha}
+    \end{subfigure}
+    \hfill
+    % ==========================================
+    % (c) GRAPH (TOPOLOGY + A*)
+    % ==========================================
+    \begin{subfigure}[b]{0.31\textwidth}
+        \centering
+        \resizebox{\linewidth}{!}{%
+        \begin{tikzpicture}
+            \fill[black!4] (0,0) rectangle (4.5,4.5);
+
+            \draw[building_faded] (0.55,0.55) rectangle (1.95,1.95);
+            \draw[building_faded] (2.55,0.55) rectangle (3.45,1.95);
+            \draw[building_faded] (0.55,2.55) rectangle (1.95,3.45);
+            \draw[building_faded] (2.55,2.55) rectangle (3.95,3.95);
+
+            \coordinate (S)  at (0.25,0.25);
+            \coordinate (BC) at (2.25,0.25);
+            \coordinate (BR) at (4.25,0.25);
+            \coordinate (ML) at (0.25,2.25);
+            \coordinate (C)  at (2.25,2.25);
+            \coordinate (MR) at (4.25,2.25);
+            \coordinate (TL) at (0.25,4.25);
+            \coordinate (TC) at (2.25,4.25);
+            \coordinate (G)  at (4.25,4.25);
+
+            \draw[graph_edge] (S)  -- (BC);
+            \draw[graph_edge] (BC) -- (BR);
+            \draw[graph_edge] (S)  -- (ML);
+            \draw[graph_edge] (BC) -- (C);
+            \draw[graph_edge] (BR) -- (MR);
+            \draw[graph_edge] (ML) -- (C);
+            \draw[graph_edge] (C)  -- (MR);
+            \draw[graph_edge] (ML) -- (TL);
+            \draw[graph_edge] (C)  -- (TC);
+            \draw[graph_edge] (MR) -- (G);
+            \draw[graph_edge] (TL) -- (TC);
+            \draw[graph_edge] (TC) -- (G);
+
+            \draw[graph_path] (S) -- (BC) -- (C) -- (TC) -- (G);
+
+            \node[wlabel] at (1.25,0.25) {20};
+            \node[wlabel] at (3.25,0.25) {22};
+            \node[wlabel] at (0.25,1.25) {21};
+            \node[wlabel] at (2.25,1.25) {20};
+            \node[wlabel] at (4.25,1.25) {21};
+            \node[wlabel] at (1.25,2.25) {20};
+            \node[wlabel] at (3.25,2.25) {21};
+            \node[wlabel] at (0.25,3.25) {21};
+            \node[wlabel] at (2.25,3.25) {20};
+            \node[wlabel] at (4.25,3.25) {22};
+            \node[wlabel] at (1.25,4.25) {22};
+            \node[wlabel] at (3.25,4.25) {20};
+
+            \foreach \n in {BC, BR, ML, C, MR, TL, TC} {
+                \node[graph_node] at (\n) {};
+            }
+            \node[start_node] at (S) {S};
+            \node[goal_node]  at (G) {G};
+
+            \draw[thick] (0,0) rectangle (4.5,4.5);
+        \end{tikzpicture}%
+        }
+        \caption{Topological (Graph)}
+        \label{fig:mapa_grafo}
+    \end{subfigure}
+
+    \vspace{4mm}
+
+    % ==========================================
+    % COMMON LEGEND
+    % ==========================================
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[font=\normalsize]
+        \draw[building] (0,0) rectangle (0.4,0.4);
+        \node[anchor=west] at (0.55,0.2) {Building};
+
+        \fill[road] (2.8,0) rectangle (3.2,0.4);
+        \draw[black!40] (2.8,0) rectangle (3.2,0.4);
+        \node[anchor=west] at (3.35,0.2) {Road / corridor};
+
+        \fill[cell_occ] (6.4,0) rectangle (6.8,0.4);
+        \node[anchor=west] at (6.95,0.2) {Occupied cell};
+
+        \fill[cell_exp] (10.1,0) rectangle (10.5,0.4);
+        \draw[black!40] (10.1,0) rectangle (10.5,0.4);
+        \node[anchor=west] at (10.65,0.2) {Explored cell (A*)};
+
+        \fill[cell_path] (14.8,0) rectangle (15.2,0.4);
+        \draw[black!40] (14.8,0) rectangle (15.2,0.4);
+        \node[anchor=west] at (15.35,0.2) {Route cell};
+
+        \node[graph_node] at (0.2,-0.7) {};
+        \node[anchor=west] at (0.55,-0.7) {Node (intersection)};
+
+        \draw[graph_edge] (3.6,-0.7) -- (4.1,-0.7);
+        \node[anchor=west] at (4.25,-0.7) {Edge (weight in m)};
+
+        \draw[orange!90!black, line width=2.5pt, -{Latex[length=2.5mm]}] (8.2,-0.7) -- (8.8,-0.7);
+        \node[anchor=west] at (8.95,-0.7) {Optimal A* route ($S \to G$)};
+
+        \node[start_node] at (13.5,-0.7) {S};
+        \node[anchor=west] at (13.85,-0.7) {Start};
+
+        \node[goal_node] at (15.8,-0.7) {G};
+        \node[anchor=west] at (16.15,-0.7) {Goal};
+    \end{tikzpicture}%
+    }
+
+    \caption{Comparison between spatial representations and pathfinding via A*. In (a), the continuous urban environment with buildings of varying dimensions. In (b), the occupancy grid discretization, illustrating cells occupied by buildings, states expanded by the A* algorithm, and the resulting optimal route bypassing obstacles. In (c), the reduction to a topological connectivity graph where A* evaluates only intersection nodes and edge weights, obtaining the equivalent trajectory with a drastic reduction in the state space.}
+    \label{fig:representacoes_espaciais}
+\end{figure}
+
+\subsection{A* Algorithm}
+
+Once the physical environment is translated into a navigable structure, a search method is applied to determine the route. The A* (A-star) algorithm, an extension of Dijkstra's algorithm, is one of the most consolidated approaches to this problem. Its central contribution is the use of a heuristic function that directs the search preferentially toward the most promising routes to the destination, in contrast to uninformed search methods, which explore the environment radially and exhaustively.
+
+The total estimated cost for each node is given by $f(n) = g(n) + h(n)$, where $g(n)$ is the actual cost already accumulated from the starting point to the current node, and $h(n)$ is the heuristic estimate of the remaining cost to the destination. Provided that $h(n)$ never overestimates the actual cost, a property known as admissibility, A* guarantees the discovery of the optimal route. In two-dimensional or three-dimensional spaces, the Euclidean and Manhattan distances are commonly employed heuristics.
+
+Classic A* operates over a purely spatial domain: it does not distinguish whether a cell is occupied now or at a future instant, making it insufficient for the simultaneous planning of multiple agents in the same environment. It is this limitation that motivates the extension described next.
+
+\subsection{Time-Extended A*}\label{sec:tea}
+
+The \textit{Time-Extended A*} (TEA*) algorithm extends the A* formulation to coordinate the simultaneous navigation of multiple agents in a shared environment by introducing the temporal variable explicitly. The conventional two-dimensional grid is treated as a three-dimensional search structure, combining spatial coordinates with time layers. Every transition to a neighboring position is mandatorily mapped to the subsequent temporal layer, as illustrated in Figure~\ref{fig:tea_espaco_tempo_3d}.
+ 
+This spatiotemporal modeling alters how the algorithm handles obstacles. Permanent structural barriers in the environment block their coordinates across the entire temporal spectrum. The routes planned for the remaining agents in the fleet, on the other hand, are treated as ephemeral obstacles: a spatial cell becomes inaccessible only during the specific time window in which another agent occupies it. Figure~\ref{fig:tea_espaco_tempo_3d} illustrates this situation: vehicle $V_1$ occupies cell $(1,1)$ at $t=2$, which prevents the immediate advance of the agent and leads it to wait one step before proceeding. To prevent structural deadlocks caused by parked agents, the model treats inactive vehicles as obstacles for a limited number of time layers, under the premise that it is up to the idle agent to clear the space subsequently.
+ 
+\begin{figure}[!htbp]
+    \centering
+    \definecolor{v1vec}{RGB}{0,128,128}
+    \tikzset{
+        n_start/.style={circle, fill=green!55!black, draw=white, thick, text=white, font=\scriptsize\bfseries, minimum size=0.40cm, inner sep=0pt},
+        n_state/.style={circle, fill=orange!90!black, draw=white, thick, minimum size=0.22cm, inner sep=0pt},
+        n_wait/.style={circle, fill=blue!80!black, draw=white, thick, minimum size=0.22cm, inner sep=0pt},
+        lbl_box/.style={rounded corners=2pt, inner sep=2pt, font=\scriptsize\bfseries},
+        mv_arrow/.style={orange!90!black, line width=1.8pt, -{Latex[length=2.6mm,width=2.2mm]}},
+        wait_arrow/.style={blue!80!black, line width=1.8pt, -{Latex[length=2.6mm,width=2.2mm]}},
+        block_arrow/.style={red!75!black, line width=1.4pt, densely dashed, -{Latex[length=2.6mm,width=2.2mm]}},
+        v1_arrow/.style={v1vec, line width=1.4pt, dashed, -{Latex[length=2.6mm,width=2.2mm]}}
+    }
+ 
+    \resizebox{!}{7.5cm}{%
+    \begin{tikzpicture}[
+        x={(0.9cm,-0.25cm)},
+        y={(0.55cm,0.38cm)},
+        z={(0cm,1.5cm)}
+    ]
+        \draw[-{Latex[length=3.5mm]}, very thick, black!85] (-0.7,0,0) -- (-0.7,0,3.6)
+            node[above, font=\small\bfseries] {Time ($t$)};
+ 
+        \foreach \t in {0,1,2,3} {
+            \draw[dashed, black!35] (-0.7,0,\t) -- (0,0,\t);
+            \node[left, lbl_box, fill=black!5, draw=black!20] at (-0.75,0,\t) {$t = \t$};
+ 
+            \fill[white, fill opacity=0.85, draw=black!60, thin]
+                (0,0,\t) -- (3,0,\t) -- (3,3,\t) -- (0,3,\t) -- cycle;
+            \foreach \i in {1,2} {
+                \draw[black!15, very thin] (\i,0,\t) -- (\i,3,\t);
+                \draw[black!15, very thin] (0,\i,\t) -- (3,\i,\t);
+            }
+        }
+ 
+        \draw[-{Latex[length=2.5mm]}, thick, black!75] (0,0,0) -- (3.5,0,0) node[right, font=\footnotesize\bfseries] {$x$};
+        \draw[-{Latex[length=2.5mm]}, thick, black!75] (0,0,0) -- (0,3.5,0) node[above right, font=\footnotesize\bfseries] {$y$};
+        \foreach \i in {0,1,2} {
+            \node[font=\tiny, text=black!60] at (\i+0.5, -0.25, 0) {$\i$};
+            \node[font=\tiny, text=black!60] at (-0.25, \i+0.5, 0) {$\i$};
+        }
+ 
+        \foreach \t/\rx/\ry/\lw in {1/2/1/thin, 2/1/1/thick, 3/2/1/thin} {
+            \fill[purple!60, fill opacity=0.6, draw=purple!80!black, \lw]
+                (\rx,\ry,\t) -- (\rx+1,\ry,\t) -- (\rx+1,\ry+1,\t) -- (\rx,\ry+1,\t) -- cycle;
+            \node[font=\tiny\bfseries, text=white] at (\rx+0.25,\ry+0.78,\t) {$V_1$};
+        }
+        \draw[v1_arrow, shorten >=2pt] (2.5,1.5,1) -- (1.5,1.5,2);
+        \draw[v1_arrow, shorten >=2pt] (1.5,1.5,2) -- (2.5,1.5,3);
+ 
+        \draw[mv_arrow,   shorten <=6.5pt, shorten >=4.5pt] (0.5,0.5,0) -- (1.5,0.5,1);
+        \draw[wait_arrow, shorten <=4.5pt, shorten >=4.5pt] (1.5,0.5,1) -- (1.5,0.5,2);
+        \draw[mv_arrow,   shorten <=4.5pt, shorten >=4.5pt] (1.5,0.5,2) -- (1.5,1.5,3);
+ 
+        \draw[block_arrow, shorten <=4.5pt, shorten >=2pt] (1.5,0.5,1) -- (1.5,1.5,2);
+        \node[red!75!black, font=\large\bfseries, fill=white, fill opacity=0.8, text opacity=1, inner sep=0.5pt] at (1.5,1.0,1.5) {$\times$};
+ 
+        \node[n_start] at (0.5,0.5,0) {S};
+        \node[n_wait]  at (1.5,0.5,1) {};
+        \node[n_wait]  at (1.5,0.5,2) {};
+        \node[n_state] at (1.5,1.5,3) {};
+    \end{tikzpicture}%
+    }
+ 
+    \vspace{4mm}
+ 
+    \begin{tikzpicture}[font=\small]
+        \draw[mv_arrow] (0,0) -- (0.8,0);
+        \node[anchor=west] at (0.95,0) {Move};
+ 
+        \draw[wait_arrow] (3.2,-0.3) -- (3.2,0.3);
+        \node[anchor=west] at (3.45,0) {Wait};
+ 
+        \draw[block_arrow] (5.8,0) -- (6.6,0);
+        \node[anchor=west] at (6.75,0) {Blocked movement};
+ 
+        \fill[purple!60, fill opacity=0.6, draw=purple!80!black, thin] (0,-1.0) rectangle (0.4,-0.6);
+        \node[anchor=west] at (0.55,-0.8) {Moving obstacle $V_1$};
+ 
+        \draw[v1_arrow] (4.9,-0.8) -- (5.7,-0.8);
+        \node[anchor=west] at (5.85,-0.8) {Trajectory of $V_1$};
+ 
+        \node[n_start] at (9.6,-0.8) {S};
+        \node[anchor=west] at (9.9,-0.8) {Start};
+    \end{tikzpicture}
+ 
+    \caption{Spatiotemporal graph $M(t,x,y)$ of TEA*. The moving obstacle $V_1$ (purple) occupies $(2,1)$ at $t=1$, $(1,1)$ at $t=2$, and $(2,1)$ at $t=3$, and its trajectory is indicated by the dashed teal vector. Movements are slanted arrows ($\Delta t=1,\ |\Delta x|+|\Delta y|=1$); waiting (\textit{Wait}) is the vertical blue arrow ($\Delta t=1,\ \Delta x=\Delta y=0$). Going from $(1,0)$ to $(1,1)$ at $t=2$ would collide with $V_1$ (dashed red arrow); waiting one step clears the cell, and the agent advances at $t=3$.}
+    \label{fig:tea_espaco_tempo_3d}
+\end{figure}
+ 
+It is TEA* that provides the sequence-sensitive travel cost estimate identified in Section~\ref{sec:scheduling} as necessary. By simulating the actual trajectory of each UAV while considering the other already scheduled vehicles, the algorithm produces the effective travel time, including detours and waits caused by conflicts, which feeds the fitness function of the evolutionary algorithms described in Section~\ref{sec:evolutivos}. TEA*, however, remains a single-objective algorithm: its search is guided exclusively by minimizing flight time, without explicitly considering the energy consumption of the trajectory. This limitation motivates the extension described next.
+
+\subsection{Multi-Objective Shortest Path (MOSP)}\label{sec:mosp}
+
+In UAV operations, flight time is not the only critical resource. Battery energy autonomy imposes a second constraint, whose consumption depends not only on the distance traveled, but also on the weight of the transported payload and altitude variations along the route. Minimizing only time, as TEA* does, may produce faster yet energetically inefficient trajectories, for instance by traversing shorter but more congested corridors that require frequent vertical detours. The \textit{Multi-Objective Shortest Path} (MOSP) algorithm extends the spatiotemporal formulation of TEA* to treat time and energy as simultaneous and, in general, conflicting objectives.
+
+Unlike a single-objective search algorithm, in which each node stores a single accumulated cost value, MOSP maintains, for each node of the spatiotemporal graph, a set of non-dominated labels: cost vectors $(time, energy)$ such that no label in the set dominates another, meaning none is simultaneously better or equal in both objectives and strictly better in at least one. At each node expansion, new labels are generated by combining the accumulated cost of the predecessor node with the transition cost—the latter calculated by incorporating the transported payload weight into the energy term—and compared against the labels already stored. Dominated labels are discarded, and only the set of efficient labels is propagated forward.
+
+This mechanism is known in the literature as label-setting or label-correcting propagation \cite{Martins1984, Raith2009}. It is the natural generalization of the edge relaxation principle of Dijkstra's algorithm to the multi-objective case, and allows MOSP to recover, at the end of the search, not a single trajectory, but the set of efficient trajectories between origin and destination. This set constitutes a local Pareto Front, analogous in spirit to that obtained by NSGA-II in Section~\ref{sec:evolutivos}, yet in the space of routes rather than in the space of scheduling solutions.
+
+This generalization carries a direct computational cost: since the number of non-dominated labels per node can grow substantially throughout the search, MOSP tends to be more expensive in execution time than the equivalent TEA*.
+
+\section{Computational Tools}\label{sec:ferramentas}
+
+The implementation of the models described in the previous sections relies on a set of open-source libraries from the Python ecosystem, chosen for jointly covering the three computational needs of the work: evolutionary optimization, geospatial data representation and manipulation, and performance in intensive simulation loops.
+
+\subsection{PyGAD}
+
+The \texttt{pygad} library \cite{Gad2021} is used to implement the Genetic Algorithms and NSGA-II described in Section~\ref{sec:evolutivos}. Its architecture provides a parameterizable ecosystem that manages the complete evolutionary cycle (population initialization, fitness evaluation, selection, crossover, and mutation), with support for adaptive mutation—in which the mutation rate varies according to solution convergence—and vectorized operations over multidimensional arrays, relevant for higher-complexity search spaces such as the one addressed in this work.
+
+\subsection{OSMnx and GeoPandas}
+
+The geometric basis of the environment modeling described in Section~\ref{sec:pathplanning} is obtained through the \texttt{osmnx} library \cite{Boeing2017}, specialized in extracting and converting OpenStreetMap data into mathematical graphs, including topological correction algorithms that mitigate redundancies and overlaps present in the raw data. In this work, the extracted street network is used to delimit the city blocks, and not as a flight graph. The \texttt{geopandas} library \cite{Jordahl2020} extends the \texttt{pandas} data structure with \textit{GeoDataFrames}, capable of storing coordinates and spatial attributes and supporting vector operations directly over the extracted geographic data.
+
+\subsection{Shapely}
+
+The analytical manipulation of the resulting spatial entities, such as pickup and delivery points, obstacle cells, and zone polygons, is performed with the \texttt{shapely} library \cite{Gillies2007}, a Python interface to the GEOS geometry engine. The library operates independently of Coordinate Reference Systems (CRS), restricting itself to planar geometry, and provides the spatial predicates (intersection, union, containment, difference) necessary to build the bounding matrices employed in environment modeling.
+
+\subsection{Numba}
+
+The search and simulation algorithms described in this chapter, in particular TEA* and MOSP, executed repeatedly throughout the fitness evaluation of the evolutionary algorithms, involve intensive iterative loops that, in interpreted Python, become a performance bottleneck. To mitigate this limitation, the \texttt{numba} library \cite{Lam2015} is used, an LLVM-based \textit{Just-In-Time} (JIT) compiler that converts iterative functions and operations over \texttt{NumPy} arrays into machine code at runtime. Using the restricted mode (\textit{nopython}) also allows the code to execute outside Python's \textit{Global Interpreter Lock} (GIL), bringing the performance of critical loops close to that of a natively compiled language.
+
+\section{Final Remarks}\label{sec:consideracoes}
+
+This chapter reviewed the foundations necessary to address, in an integrated manner, the dispatching and routing problem of a UAV fleet, organized into two distinct decision layers. In the high-level layer, referring to the allocation and sequencing of tasks among vehicles, three optimization architectures were reviewed: \textit{Branch and Bound}, which guarantees optimality but scales poorly, and the evolutionary algorithms GA and NSGA-II, which trade this guarantee for computational feasibility in larger instances, the latter being applicable when time and energy are treated as independent objectives in this layer. Additionally, a hybrid machine learning architecture (\textit{Warm Start}) combining Ridge regression and decision stumps was introduced to mitigate the convergence bottleneck of random population initialization. In the low-level layer, referring to the physical navigation of each vehicle, A* was reviewed as a static single-objective reference case, TEA* as the extension introducing the temporal coordination necessary for multiple vehicles, and MOSP as the extension incorporating a second objective, payload-dependent energy consumption.
+
+These two layers are not independent. As discussed in Section~\ref{sec:scheduling}, the true cost of a sequence of tasks can only be estimated by simulating the effective trajectory of each vehicle, which necessarily couples the output of the routing layer to the fitness function of the scheduling layer. The gap that this thesis seeks to fill lies in the systematic evaluation of how the combinations between these two decision layers affect the joint performance of the operation, a theme revisited in the Methodology chapter.

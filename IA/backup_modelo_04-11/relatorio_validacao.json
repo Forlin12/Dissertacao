@@ -1,0 +1,19 @@
+{
+  "versao_modelo": 4,
+  "cenarios": 51,
+  "n_features_fisicas": 8,
+  "folds": 5,
+  "acuracia_perfil_velocidade": 0.6522,
+  "reducao_makespan_gen0_vs_seq_pct": 28.07,
+  "reducao_custo_gen0_vs_seq_pct": 18.31,
+  "importancia_features": {
+    "dist_cd_norm": 0.0346,
+    "peso_rel_capacidade": 0.052,
+    "flag_sobrecarga": 0.0039,
+    "vel_rel_frota": 0.2348,
+    "tempo_voo_norm": 0.0,
+    "energia_rel_bateria": 0.2444,
+    "carga_acum_rel": 0.2737,
+    "acrescimo_makespan": 0.1567
+  }
+}

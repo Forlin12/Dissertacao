@@ -23,6 +23,10 @@ def mascara_nao_dominados(pontos):
 # 1. Diretório onde este script está salvo
 diretorio = os.path.dirname(os.path.abspath(__file__))
 
+# Pasta de saída (subpasta, para que os novos CSVs não sejam relidos numa próxima execução)
+pasta_saida = os.path.join(diretorio, 'nao_dominados')
+os.makedirs(pasta_saida, exist_ok=True)
+
 # 2. Busca e ordena todos os .csv do diretório
 arquivos = sorted([f for f in os.listdir(diretorio) if f.endswith('.csv')])
 num_arquivos = len(arquivos)
@@ -45,26 +49,35 @@ else:
 
             # Usa os nomes das colunas se existirem; senão, cai no fallback por posição
             if 'Makespan_Frames' in df.columns and 'Energia_Total_Wh' in df.columns:
-                df_otimizacao = df[['Makespan_Frames', 'Energia_Total_Wh']]
+                cols_obj = ['Makespan_Frames', 'Energia_Total_Wh']
             else:
-                df_otimizacao = df.iloc[:, 1:3]
+                cols_obj = list(df.columns[1:3])
 
-            # Remove pontos duplicados (mesmo makespan e energia)
-            df_otimizacao = df_otimizacao.drop_duplicates().reset_index(drop=True)
+            # Remove pontos duplicados (mesmo makespan e energia), mantendo a LINHA COMPLETA
+            df_unico = df.drop_duplicates(subset=cols_obj).reset_index(drop=True)
 
-            valores = df_otimizacao.values.astype(float)
-            makespan_todos = valores[:, 0]
-            energia_todos = valores[:, 1]
+            valores = df_unico[cols_obj].values.astype(float)
 
             # ---------------------------------------------------
             # FILTRO DE DOMINÂNCIA
             # ---------------------------------------------------
             mascara = mascara_nao_dominados(valores)
-            pareto = valores[mascara]
-            dominados = valores[~mascara]
 
-            # Ordena a fronteira por makespan (para desenhar a linha)
-            pareto = pareto[np.argsort(pareto[:, 0])]
+            # DataFrame só com as soluções não-dominadas (todas as colunas originais),
+            # ordenado por makespan
+            df_pareto = (df_unico[mascara]
+                         .sort_values(by=cols_obj[0])
+                         .reset_index(drop=True))
+
+            # ---------------------------------------------------
+            # SALVA O NOVO CSV (sem as soluções dominadas)
+            # ---------------------------------------------------
+            nome_base, ext = os.path.splitext(nome_arquivo)
+            caminho_saida = os.path.join(pasta_saida, f'{nome_base}_pareto{ext}')
+            df_pareto.to_csv(caminho_saida, index=False)
+
+            pareto = df_pareto[cols_obj].values.astype(float)
+            n_dominados = len(valores) - len(pareto)
             makespan = pareto[:, 0]
             energia = pareto[:, 1]
 
@@ -103,7 +116,7 @@ else:
             ax.legend(fontsize=9)
 
             print(f"{nome_arquivo}: {len(valores)} pontos -> {len(pareto)} não-dominados, "
-                  f"{len(dominados)} dominados")
+                  f"{n_dominados} dominados | salvo em: {caminho_saida}")
 
         except Exception as e:
             axes[i].set_title(f'Erro ao processar {nome_arquivo}')

@@ -1,0 +1,140 @@
+\chapter{Desenvolvimento}\label{cap:development}
+
+
+Este capítulo descreve a implementação do sistema de gestão logística para a frota de VANTs, detalhando como os fundamentos teóricos revisados no Capítulo~\ref{cap:conceptual} foram traduzidos em componentes de software concretos. A apresentação segue a ordem em que esses componentes atuam durante uma execução do sistema, do pré-processamento do ambiente até a otimização final da frota.
+
+A Seção~\ref{sec:ambiente-agente} descreve a construção do ambiente físico simulado e a parametrização do agente autônomo, etapa que antecede qualquer cálculo de trajetória. A Seção~\ref{sec:tarefas} apresenta a geração da demanda logística que o sistema deve atender. As Seções~\ref{sec:dev-tea} e~\ref{sec:dev-mosp} detalham a implementação dos dois algoritmos de roteamento de baixo nível revisados na Seção~\ref{sec:pathplanning}, o TEA* e o MOSP, incluindo decisões de projeto não cobertas pela formulação teórica geral, como o tratamento de tolerância numérica e os critérios de seleção de rota final no caso multiobjetivo. Por fim, as Seções~\ref{sec:dev-ga}, \ref{sec:dev-nsga} e~\ref{sec:dev-bb} descrevem a implementação das três arquiteturas de escalonamento de alto nível revisadas no capítulo anterior: o Algoritmo Genético mono-objetivo, sua extensão multiobjetivo via NSGA-II, e o \textit{Branch and Bound}, incluindo os mecanismos de otimização estrutural que tornam cada uma computacionalmente viável diante do custo elevado de simular fisicamente cada candidato a solução.
+
+Um fio condutor comum a todas as seções deste capítulo é o custo computacional das simulações físicas de voo. Como o cálculo de uma trajetória quadridimensional livre de colisões, seja via TEA* ou via MOSP, é a operação mais custosa do sistema, as três arquiteturas de escalonamento foram implementadas com mecanismos explícitos para evitar invocar essa simulação sempre que possível, seja por meio de limites inferiores otimistas, cortes parciais durante a própria simulação, poda estrutural ou reaproveitamento de estados já calculados. Essa preocupação, detalhada em cada seção específica, é o que diferencia a implementação aqui descrita de uma aplicação direta dos algoritmos clássicos apresentados no capítulo anterior.
+
+\section{Inicialização do Ambiente e Parâmetros do Agente}\label{sec:ambiente-agente}
+
+Antes de iniciar qualquer algoritmo de planejamento de trajetória, o sistema requer a modelagem rigorosa do ambiente físico e a parametrização do agente autônomo que realizará as tarefas de transporte. Os dados de entrada fundamentais do sistema dividem-se entre a geração do cenário espacial e as restrições cinemáticas do veículo. O agente operatório é instanciado através da classe \textit{Drone}, que atua como o núcleo das variáveis de decisão físicas. Esta classe fornece ao sistema parâmetros como o raio físico, utilizado posteriormente para inflar obstáculos e calcular margens de segurança, as velocidades operacionais máximas de deslocamento horizontal, ascensão e descida, e as taxas nominais de consumo energético. Para refletir com exatidão a logística de transportes industriais, a classe integra um fator dinâmico de penalidade mecânica, que permite aos algoritmos calcular como a variação da massa da carga transportada acelera a exaustão da bateria em cada fase do voo.
+
+A base fundacional da simulação é a criação do mundo físico operatório, projetado para importar plantas reais e traduzi-las em polígonos navegáveis %[cite: 3].
+Este processo é ancorado na biblioteca \texttt{OSMnx}, que realiza a extração topológica da malha viária real a partir de uma coordenada geográfica central e um raio de atuação predefinido %[cite: 3].
+A rede de ruas extraída é imediatamente convertida para estruturas de dados geoespaciais através da biblioteca \texttt{GeoPandas}, o que permite a manipulação matricial das propriedades geográficas %[cite: 3].
+Com o uso intensivo da biblioteca \texttt{Shapely}, o algoritmo estabelece uma caixa delimitadora (\textit{bounding box}) para todo o ambiente e computa a área equivalente ao asfalto, aplicando uma expansão geométrica (\textit{buffer}) sobre as linhas das ruas com base na largura viária estipulada %[cite: 3].
+A subtração matemática da área do asfalto em relação à caixa delimitadora resulta na extração precisa dos quarteirões da cidade %[cite: 3].
+
+Para popular o interior desses quarteirões com lotes e edificações realistas, o sistema adota uma abordagem de geração procedural %[cite: 3].
+O algoritmo distribui pontos aleatórios no interior de cada quarteirão, proporcionalmente à sua área total, e submete essas coordenadas a um Diagrama de Voronoi %[cite: 3].
+Os polígonos resultantes dessa triangulação são intersectados com os limites físicos do quarteirão e reduzidos por uma margem de segurança, o que cria o espaçamento natural entre os lotes urbanos %[cite: 3].
+Após a consolidação geométrica do plano bidimensional, todo o sistema de coordenadas é transladado para que a origem do mapa coincida com o ponto $(0,0)$, padronizando o espaço de busca para as etapas seguintes %[cite: 3].
+
+A tridimensionalidade do cenário é introduzida por meio de um processo probabilístico de extrusão vertical %[cite: 3].
+Com base em uma densidade predefinida, o algoritmo itera sobre o conjunto de lotes e determina quais fundações receberão estruturas verticais %[cite: 3].
+Aos lotes selecionados é atribuída uma altura aleatória, contida rigorosamente dentro de limites estipulados de altura mínima e máxima, o que transforma os polígonos planos em prismas que atuarão como zonas de exclusão de voo %[cite: 3].
+
+Por fim, para converter essas representações geométricas contínuas em uma malha tridimensional estática e navegável pelos algoritmos de roteamento, o sistema aplica um processo de discretização espacial. As estruturas urbanas levantadas são rasterizadas em uma matriz booleana multidimensional por meio de um algoritmo de \textit{Ray-Casting} vetorizado. Para contornar as limitações nativas de desempenho da linguagem Python, esse processo computacionalmente intensivo foi compilado diretamente em linguagem C com o auxílio da biblioteca Numba, o que permite que a geometria inflada dos obstáculos bloqueie instantaneamente as respectivas células da grade estática em todas as camadas de altitude interceptadas pela sua altura.
+
+\section{Geração de Tarefas Logísticas}\label{sec:tarefas}
+
+A etapa de controle de missões é responsável por instanciar a demanda logística estocástica que os algoritmos de roteamento e escalonamento deverão resolver. O sistema gera automaticamente um conjunto de tarefas, definindo para cada pedido a sua origem, o destino e as características físicas da carga.
+
+Para garantir que as operações ocorram de forma segura, o sistema primeiro estabelece a localização do Centro de Distribuição, que atua como a base operacional da frota, posicionando-o dentro das margens de navegação do cenário. A partir dessa base, as coordenadas dos destinos de entrega são distribuídas pela malha urbana de forma radial e aleatória, respeitando os limites do ambiente.
+
+Uma restrição fundamental nesta modelagem é a garantia de zonas de aterrissagem livres de colisões. Ao definir um ponto de entrega, o algoritmo calcula um raio de segurança estrito, que engloba as dimensões físicas dos VANTs e as margens operacionais exigidas pelas matrizes de busca espacial, e planifica o terreno no local de destino, garantindo que nenhum edifício invada o perímetro de pouso.
+
+Por fim, a cada tarefa gerada é atribuída uma massa aleatória para a mercadoria, tipicamente entre $0.5\text{ kg}$ e $3.5\text{ kg}$. A inclusão dessa variável é crucial para o sistema integrado, pois o peso atua diretamente no cálculo da penalidade de carga do veículo durante o voo. É essa assimetria no consumo energético que justifica a tomada de decisão da camada de otimização multiobjetivo, forçando o algoritmo a equilibrar dinamicamente o tempo de entrega com o desgaste da bateria.
+
+\section{Modelagem do TEA*}\label{sec:dev-tea}
+
+Com o ambiente físico estático devidamente construído e escalonado na memória, o algoritmo TEA* (Time-Extended A*) é acionado para calcular trajetórias quadridimensionais livres de colisões %[cite: 1, 3].
+A expansão dos nós de navegação fundamenta-se na equação clássica de busca heurística $f(n) = g(n) + h(n)$ %[cite: 1, 3].
+O custo real acumulado, $g(n)$, é calculado dinamicamente com base no tempo de deslocamento físico extraído da classe do drone, refletindo as distinções entre as velocidades de cruzeiro horizontal, de subida e de descida %[cite: 1].
+A heurística $h(n)$ utiliza o tempo ideal euclidiano até o destino, ponderado por um fator de aceleração de $1.2$, o que induz o algoritmo a priorizar ativamente as rotas mais diretas %[cite: 1].
+
+O diferencial operatório do TEA* reside na sua gestão temporal de ocupação %[cite: 3].
+O trajeto dos outros veículos ativos no mesmo espaço aéreo é tratado pelo algoritmo como uma série de obstáculos temporários %[cite: 3].
+Durante a expansão de nós, o sistema cruza as coordenadas geradas com um dicionário global de reservas de frotas, identificando potenciais conflitos de tráfego por meio de chaves quadridimensionais exatas $(x, y, z, t)$ %[cite: 1].
+Estados temporalmente ocupados, assim como movimentos que desencadeiem colisões frontais cruzadas em transições de células, são prontamente descartados da fila de prioridade %[cite: 1].
+
+Ao atingir o destino, o caminho reduzido é submetido a uma interpolação escalar para restaurar as proporções reais da cidade estipuladas no pré-processamento %[cite: 1].
+Neste estágio final, aplica-se um filtro cinemático para suprimir frames repetidos (\textit{hovering} redundante) gerados durante transições puramente verticais, assegurando um perfil de voo realista e contínuo %[cite: 1].
+
+\section{Modelagem do MOSP}\label{sec:dev-mosp}
+
+A integração de múltiplos critérios de otimização na logística de drones dá origem ao problema de caminho mais curto multiobjetivo (\textit{Multiple Objective Shortest Path}, MOSP) %[cite: 3].
+Neste trabalho, a formulação do MOSP expande a arquitetura quadridimensional do TEA* para equilibrar simultaneamente a minimização do tempo de voo e a redução do consumo energético, herdando a mesma malha estática gerada pelo Numba e a mesma verificação cronológica de colisões contra outros agentes %[cite: 2].
+
+Para viabilizar essa busca divergente, a matriz de custos única é substituída por um método de ramificação baseado na propagação de rótulos (\textit{Label Setting Algorithm}) %[cite: 2].
+Cada rótulo gerado encapsula o estado quadridimensional do agente, isto é, suas coordenadas espaciais e o instante de tempo, acoplado aos respectivos custos acumulados de tempo e energia, esta última agravada pelo peso da mercadoria %[cite: 2].
+A gestão populacional desses rótulos em cada célula espacial é governada pelo princípio da dominância de Pareto %[cite: 2].
+Sempre que múltiplos caminhos convergem para a mesma coordenada, o algoritmo compara os rótulos e descarta sumariamente aqueles que são dominados em ambas as métricas %[cite: 2].
+Para evitar a eliminação precoce de rotas promissoras devido a flutuações decimais microscópicas decorrentes da cinemática em 3D, a avaliação incorpora uma margem de tolerância heurística flexível ($\epsilon$) e restringe rigidamente o armazenamento a um máximo de oito rótulos permanentes por nó, o que previne a explosão combinatória %[cite: 2].
+
+Diferentemente das buscas que encerram a execução no exato momento em que atingem o destino, o MOSP estende a exploração até compilar um acervo de soluções independentes e não dominadas no nó final %[cite: 2].
+Para selecionar a rota definitiva que retornará ao escalonador do Algoritmo Genético, o sistema normaliza os valores absolutos de tempo e energia dessas soluções, em uma escala de 0 a 1, e calcula a distância euclidiana em direção ao ponto ideal matemático teórico %[cite: 2].
+A trajetória selecionada para interpolação é aquela que apresenta a menor distância a esse ponto ótimo, garantindo o melhor compromisso tático entre a celeridade da entrega e a preservação da bateria do veículo %[cite: 2].
+
+\section{Otimização via Algoritmo Genético}\label{sec:dev-ga}
+
+Para solucionar o problema de alocação de frota e distribuição de tarefas de forma escalável, o sistema de gerenciamento implementa uma camada de otimização de alto nível baseada em Algoritmos Genéticos (GA) %[cite: 4].
+Desenvolvida com o suporte da biblioteca PyGAD, esta arquitetura é responsável por orquestrar a distribuição das missões logísticas entre os múltiplos drones disponíveis, buscando o arranjo que resulte no menor custo operacional global %[cite: 4].
+Devido à elevada complexidade computacional das simulações físicas quadridimensionais do TEA* e do MOSP, a modelagem do GA foi projetada com forte ênfase em heurísticas de aceleração, paralelismo e poda de caminhos ineficientes %[cite: 4].
+
+A codificação cromossômica, decisão fundamental na modelagem genética, afasta-se de matrizes complexas e adota um arranjo unidimensional de inteiros para garantir rapidez na decodificação %[cite: 4].
+O tamanho do cromossomo é estritamente igual ao número total de entregas cadastradas no lote %[cite: 4].
+Cada gene individual representa um pedido específico, e o seu valor numérico armazena o identificador único do drone alocado para aquela missão, variando de zero até o número máximo de veículos na frota %[cite: 4].
+Para formar a população inicial, em vez de depender de uma geração puramente aleatória que atrasaria a convergência, o algoritmo constrói um chute heurístico matricial %[cite: 4].
+A primeira solução é gerada dividindo as tarefas sequencialmente em blocos contíguos para cada drone, garantindo uma distribuição inicial de carga equilibrada %[cite: 4].
+Os demais indivíduos da população inicial são gerados por meio de mutações controladas sobre esse cromossomo base, alterando aleatoriamente a alocação de uma a três entregas, o que injeta a diversidade genética necessária para a fase de exploração matemática sem perder o esqueleto lógico do balanceamento %[cite: 4].
+
+A função de avaliação de aptidão (\textit{fitness function}) constitui o núcleo computacional do sistema e introduz um mecanismo severo de poda teórica para preservar recursos de processamento %[cite: 4].
+Antes de invocar o simulador de voo tridimensional, o otimizador calcula um limite inferior otimista para o custo daquele cromossomo, considerando um cenário puramente ideal de voos em linha reta, na velocidade máxima teórica e com o consumo elétrico mínimo de cruzeiro %[cite: 4].
+Se esse custo teórico perfeito já for superior ao recorde do melhor custo físico encontrado em gerações anteriores, a solução é imediatamente rejeitada e recebe uma pontuação de aptidão mínima, pulando completamente o custoso processo de roteamento com o TEA* %[cite: 4].
+Para as soluções que sobrevivem a esse filtro, o sistema aplica um mecanismo de \textit{caching} (\textit{memoization}) amparado por travas de concorrência (\textit{thread locks}), assegurando que arranjos genéticos idênticos nunca sejam simulados duas vezes ao longo das iterações, o que otimiza o uso dos múltiplos núcleos de processamento do sistema %[cite: 4].
+
+Quando a simulação física é exigida, o modelo não se limita a avaliar o tempo de conclusão (\textit{makespan}) %[cite: 4].
+O custo final do cromossomo é uma função multiobjetivo agregada que penaliza ineficiências em várias frentes: contabiliza-se o \textit{makespan} bruto, adiciona-se uma penalidade moderada pelos tempos de espera no ar (\textit{hovering} para evitar colisões frontais), e converte-se a energia total consumida pela frota em uma métrica de tempo equivalente, baseada nas taxas de recarga das baterias %[cite: 4].
+Falhas de missão, como a impossibilidade de encontrar uma rota livre ou o esgotamento de energia previsto, adicionam uma penalidade matemática severa, banindo virtualmente o cromossomo de repassar a sua carga genética %[cite: 4].
+A aptidão final é então calculada como o inverso desse custo total %[cite: 4].
+
+O ciclo evolutivo repete-se por um número predefinido de gerações, utilizando seleção por torneio para eleger os parentais e cruzamento de dois pontos (\textit{two-point crossover}) para a geração de descendentes %[cite: 4].
+As mutações comportam-se de maneira adaptativa, reduzindo a taxa de modificação nos cromossomos de alta aptidão e aumentando a agressividade da mutação nos piores indivíduos, o que força a saída de ótimos locais %[cite: 4].
+O processo é resguardado pelo elitismo, que transplanta automaticamente as melhores soluções inalteradas para a geração seguinte, garantindo que o recorde de eficiência da frota seja monotonicamente decrescente até a finalização do escalonamento %[cite: 4].
+
+\section{Otimização via NSGA-II}\label{sec:dev-nsga}
+
+Quando o \textit{makespan} e o consumo energético da frota passam a ser tratados como objetivos independentes na camada de escalonamento, a arquitetura descrita na Seção~\ref{sec:dev-ga} deixa de ser suficiente, pois sua função de aptidão agrega tempo e energia em um único custo escalar por meio de uma soma ponderada. A implementação do NSGA-II reaproveita integralmente a infraestrutura do Algoritmo Genético (a mesma codificação cromossômica, a mesma população inicial heurística, os mesmos operadores de cruzamento e mutação, e a mesma rotina de simulação física via TEA*), alterando apenas dois pontos: a forma como a aptidão é calculada e o mecanismo de seleção dos pais.
+
+A função de aptidão passa a retornar um vetor de dois valores em vez de um escalar único. O primeiro componente é o inverso de um custo de tempo, calculado a partir do \textit{makespan}, dos tempos de espera no ar e de uma penalidade por falhas de missão. O segundo componente é o inverso de um custo de energia, obtido convertendo o consumo elétrico total da frota para uma unidade de custo compatível, também penalizado por falhas de missão. Ambos os componentes derivam da mesma execução de \texttt{simular\_com\_tea}, de modo que cada avaliação de cromossomo produz simultaneamente as duas métricas, sem exigir simulações físicas adicionais em relação à versão mono-objetivo.
+
+A seleção dos indivíduos que constituirão a próxima geração é delegada ao mecanismo NSGA-II nativo da biblioteca PyGAD, acionado ao configurar o parâmetro de seleção de pais do algoritmo genético como \texttt{"nsga2"}. Internamente, esse mecanismo executa a ordenação por não dominância e o cálculo da distância de aglomeração descritos na Seção~\ref{sec:evolutivos}, sem que a implementação precise reimplementar esses procedimentos. O restante da arquitetura evolutiva (cruzamento de dois pontos, mutação adaptativa e elitismo) permanece idêntico ao da Seção~\ref{sec:dev-ga}, com exceção do número de gerações e do tamanho da população, reduzidos em relação ao GA mono-objetivo devido ao custo adicional de manter e ordenar duas frentes de aptidão a cada geração.
+
+O mecanismo de poda anterior à simulação, empregado no GA mono-objetivo para descartar cromossomos com custo teórico já superior ao recorde atual sem invocar o simulador de voo, não é reaplicado nesta arquitetura. Em seu lugar, a implementação recorre a um corte parcial durante a própria simulação: a cada missão processada, se o \textit{makespan} acumulado já ultrapassar em uma margem fixa o melhor valor de aptidão de tempo registrado nas gerações anteriores, a simulação da solução corrente é interrompida antes de processar as missões restantes, e o cromossomo recebe uma penalidade proporcional ao número de missões ainda não avaliadas. Essa margem é recalculada a cada avaliação a partir do histórico de melhores soluções mantido pela própria instância do algoritmo genético.
+
+Para evitar a repetição de simulações idênticas ao longo das gerações, a implementação mantém um cache de aptidão indexado pelo vetor de alocação do cromossomo, protegido por uma trava de concorrência, no mesmo padrão empregado na Seção~\ref{sec:dev-ga}. Sempre que uma avaliação sem falhas de missão melhora o menor \textit{makespan} ou o menor consumo energético já observados, o evento é registrado como uma expansão da fronteira de Pareto corrente, permitindo o acompanhamento da evolução da frente de soluções não dominadas ao longo do treinamento.
+
+Ao final da execução, a instância do algoritmo genético retorna não uma única solução, mas um conjunto de soluções não dominadas, correspondente à aproximação final da fronteira de Pareto. A implementação seleciona a primeira solução desse conjunto para validação física detalhada e para reporte no lote de testes, o que representa uma simplificação em relação ao critério de seleção por distância ao ponto ideal empregado na escolha de rota do MOSP (Seção~\ref{sec:dev-mosp}); a análise do conjunto completo de soluções da fronteira, e não apenas de seu primeiro elemento, é retomada na avaliação experimental.
+
+\section{Otimização Exata via Branch and Bound}\label{sec:dev-bb}
+
+Para fornecer um contraponto determinístico à natureza estocástica do Algoritmo Genético, o sistema implementa paralelamente uma abordagem de otimização baseada no método \textit{Branch and Bound} (B\&B) %[cite: 5].
+Esta arquitetura constrói uma árvore de decisão que explora sistematicamente as combinações viáveis de alocação de tarefas aos veículos, garantindo matematicamente a descoberta da solução ótima absoluta caso o tempo computacional permita a varredura completa %[cite: 5].
+Contudo, devido à severa explosão combinatória inerente aos problemas logísticos de roteamento e escalonamento, a exequibilidade computacional deste algoritmo depende estritamente da aplicação de três mecanismos avançados de otimização estrutural: inicialização a quente (\textit{Warm Start}), quebra de simetria e simulação incremental do estado físico %[cite: 5].
+
+O mecanismo de \textit{Warm Start} atua estabelecendo um limite superior de custo (\textit{upper bound}) rigoroso antes do início da expansão da árvore de busca %[cite: 5].
+Em vez de iniciar a exploração com um teto de custo infinito, o sistema recebe um vetor de solução de alta qualidade previamente calculado por um método heurístico, como o melhor indivíduo gerado pelo Algoritmo Genético, e simula a sua execução completa para definir o primeiro recorde de eficiência da frota %[cite: 5].
+Essa estratégia é fundamental, pois permite que o B\&B realize podas agressivas em extensas ramificações da árvore de busca logo em suas raízes, descartando prematuramente qualquer caminho cujo custo acumulado já demonstre ser incapaz de superar o teto inicial estipulado %[cite: 5].
+
+Para mitigar o desperdício de processamento com redundâncias exploratórias, a modelagem introduz uma restrição de quebra de simetria completa %[cite: 5].
+Em um cenário no qual os veículos iniciam a operação com capacidades e restrições idênticas, a simples permutação dos identificadores dos drones alocados a uma sequência de tarefas geraria milhares de arranjos simétricos e equivalentes em custo %[cite: 5].
+O algoritmo elimina essa ineficiência forçando uma regra estrita de ativação: um veículo específico só se torna elegível para ser alocado a uma nova tarefa caso todos os veículos de índice numérico inferior a ele já possuam tarefas atribuídas no ramo atual da árvore %[cite: 5].
+Ao bloquear as permutações desnecessárias, essa técnica reduz drasticamente a largura da árvore matemática sem perder nenhum estado válido único %[cite: 5].
+
+A avaliação física dos nós durante o aprofundamento da árvore é suportada por um motor de simulação incremental acoplado ao algoritmo de roteamento TEA* %[cite: 5].
+Para evitar o imenso custo de reavaliar desde a primeira tarefa a cada novo nó gerado, o sistema executa a propagação do estado do nó pai para o nó filho por meio da cópia profunda das variáveis essenciais, herdando intactos o dicionário global de reservas espaço-temporais e os instantes de disponibilidade de cada drone %[cite: 5].
+Dessa forma, o algoritmo calcula apenas a rota e os conflitos físicos estritamente relacionados à última tarefa adicionada ao arranjo %[cite: 5].
+O custo do novo estado parcial é então atualizado incorporando as penalidades de atrasos, voo estacionário e \textit{makespan}, assegurando que a ramificação seja sumariamente podada assim que esse custo ultrapassar a melhor solução global encontrada até o momento %[cite: 5].
+
+\section{Conclusão do Capítulo}
+
+Este capítulo apresentou a implementação completa do sistema de gestão logística proposto, desde a construção procedural do ambiente urbano tridimensional até as duas camadas de otimização que operam sobre ele. Três aspectos da implementação merecem destaque por sua influência direta sobre a avaliação experimental apresentada nos capítulos seguintes.
+
+O primeiro é a fidelidade física do ambiente simulado. Ao derivar o espaço navegável diretamente de dados reais do OpenStreetMap e discretizá-lo em uma grade tridimensional por meio de \textit{ray-casting} compilado em Numba, o sistema garante que as trajetórias calculadas pelo TEA* e pelo MOSP respondam a uma geometria urbana plausível, e não a um cenário sintético simplificado.
+
+O segundo é a correspondência estrutural entre o TEA* e o MOSP. Por herdarem a mesma malha estática, a mesma verificação cronológica de colisões e a mesma equação de custo acumulado como ponto de partida, os dois algoritmos diferem essencialmente na forma como tratam o espaço de custos: um único valor escalar no caso do TEA*, um conjunto de rótulos não dominados no caso do MOSP. Essa correspondência é o que torna sua comparação, conduzida na avaliação experimental, uma comparação isolada do efeito da multiobjetividade, sem a interferência de diferenças de modelagem do ambiente ou da dinâmica do voo.
+
+O terceiro é a estratégia comum às três arquiteturas de escalonamento (GA, NSGA-II e B\&B) de evitar, sempre que possível, a simulação física completa de uma trajetória. O limite inferior otimista do GA mono-objetivo, o corte parcial durante a simulação empregado pelo NSGA-II, e o \textit{Warm Start} combinado à simulação incremental do B\&B partem do mesmo diagnóstico: a operação de roteamento quadridimensional é a mais custosa do sistema, e a viabilidade computacional de cada arquitetura depende diretamente de quão bem ela consegue reduzir o número de vezes que essa operação precisa ser executada. Vale notar que a extensão do GA para o NSGA-II não altera essa infraestrutura de simulação nem a codificação do problema; ela reaproveita ambas integralmente, modificando apenas a função de aptidão, que passa a retornar dois objetivos em vez de um, e o mecanismo de seleção dos pais, delegado à ordenação por não dominância nativa da biblioteca utilizada. É esse mesmo custo compartilhado que torna a comparação entre as três arquiteturas, e entre TEA* e MOSP na camada de roteamento, um objeto de investigação relevante, e não apenas uma escolha de implementação: à medida que a escala do problema aumenta, os mecanismos de aceleração descritos neste capítulo determinam até que ponto cada arquitetura permanece praticável. A avaliação sistemática desse limite é o objeto do capítulo seguinte.

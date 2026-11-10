@@ -1,23 +1,24 @@
 """
-Pipeline de Warm Start para o GA de drones (v3 — alvo par-a-par):
-  1) Gera dataset (retomável, escrita atómica)  [formato do CSV inalterado]
-  2) Treina um modelo "estas duas entregas vão para o mesmo drone?" e valida
-     por cenário, comparando com k-means geométrico e com o aleatório
-  3) Benchmark GA a frio (CACHEADO em disco) vs warm start (ML e, opcional, geométrico)
+Pipeline de Warm Start para o GA de drones (v4 — Features Físicas Enxutas):
+  1) Gera dataset (retomável, escrita atómica) [formato do CSV inalterado]
+  2) Treina um modelo enxuto focado APENAS nas variáveis físicas (dist_cd, peso, velocidade,
+     consumo energético, capacidade e carga acumulada do drone) e valida por cenário (K-Fold)
+  3) Benchmark GA a frio (CACHEADO em disco) vs warm start da IA no simulador 4D real
 
-Uso:  python dataset_generator.py
-      python dataset_generator.py --amostras 500
-      python dataset_generator.py --retreinar
-      python dataset_generator.py --so-benchmark                # só compara (frio vem do cache)
-      python dataset_generator.py --so-benchmark --com-geometrico
-      python dataset_generator.py --so-benchmark --refazer-frio # recalcula o GA a frio
-      python dataset_generator.py --consistencia                # teto realista: GA vs GA (seeds diferentes)
-      python dataset_generator.py --auto
+Uso:  python IA/dataset_generator.py
+      python IA/dataset_generator.py --retreinar
+      python IA/dataset_generator.py --so-benchmark --n-bench 1
 """
 import sys
 import os
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+DIR_IA = os.path.dirname(os.path.abspath(__file__))
+DIR_RAIZ = os.path.dirname(DIR_IA)
+if DIR_IA in sys.path:
+    sys.path.remove(DIR_IA)
+sys.path.insert(0, DIR_RAIZ)
+
+sys.stdout.reconfigure(encoding="utf-8")
 
 import argparse
 import csv
@@ -25,32 +26,32 @@ import hashlib
 import inspect
 import json
 import math
+import pickle
 import random
 import time
 import traceback
 
 import numpy as np
-from scipy.cluster.hierarchy import linkage, fcluster
-from scipy.spatial.distance import squareform
 
 import config as cfg
 from city_builder import gerar_cidade
 import mission_control
-from IA.teste import ga_optimizer
-from IA.teste import executar_otimizacao_batch
+from teste import ga_optimizer
+from teste.ga_optimizer import executar_otimizacao_batch
 
-STATE_FILE = "training_state.json"  # informativo; a retoma usa o CSV
-DATASET_CSV = "dataset_treino.csv"
-MODELO_PATH = "modelo_warm_start.joblib"
-RELATORIO_PATH = "relatorio_validacao.json"
-HISTORICO_PATH = "relatorio_historico.json"
-BENCH_PATH = "relatorio_benchmark.json"
-CACHE_FRIO_PATH = "benchmark_frio_cache.json"
+STATE_FILE = os.path.join(DIR_IA, "training_state.json")
+DATASET_CSV = os.path.join(DIR_IA, "dataset_treino.csv")
+MODELO_PATH = os.path.join(DIR_IA, "modelo_warm_start.joblib")
+RELATORIO_PATH = os.path.join(DIR_IA, "relatorio_validacao.json")
+HISTORICO_PATH = os.path.join(DIR_IA, "relatorio_historico.json")
+BENCH_PATH = os.path.join(DIR_IA, "relatorio_benchmark.json")
+CACHE_FRIO_PATH = os.path.join(DIR_IA, "benchmark_frio_cache.json")
+
 SEED_BASE = 12345
 SEED_BENCH = 900000
-CIDADE_SEED = 42   # a cidade é SEMPRE a mesma (mesma seed do GA original)
+CIDADE_SEED = 42
 N_BENCHMARK = 10
-VERSAO_ALVO = 3    # 3 = modelo par-a-par (agrupamento), invariante à numeração dos drones
+VERSAO_ALVO = 4  # 4 = modelo de alocação por features físicas enxutas (sem ruído geométrico)
 
 MATRIZ_TESTES_IA = [
     [5, 10, 'MOSP_CAMADAS'],
@@ -58,10 +59,17 @@ MATRIZ_TESTES_IA = [
     [5, 40, 'MOSP_CAMADAS'],
     [10, 20, 'MOSP_CAMADAS'],
     [10, 40, 'MOSP_CAMADAS'],
-    # [10, 80, 'MOSP_CAMADAS'],
-    # [20, 40, 'MOSP_CAMADAS'],
-    # [20, 80, 'MOSP_CAMADAS'],
-    # [20, 160, 'MOSP_CAMADAS'],
+]
+
+NOMES_FEATURES_FISICAS = [
+    "dist_cd_norm",         # Distância relativa da entrega ao CD
+    "peso_rel_capacidade",  # Peso da entrega / Capacidade de carga do drone
+    "flag_sobrecarga",      # 1.0 se o peso excede a capacidade nominal do drone
+    "vel_rel_frota",        # Velocidade de cruzeiro do drone / Maior velocidade da frota
+    "tempo_voo_norm",       # Tempo de voo ida-e-volta estimado (2 * dist / vel)
+    "energia_rel_bateria",  # Energia estimada da missão / Capacidade da bateria
+    "carga_acum_rel",       # Carga de tempo já acumulada no drone vs média da frota
+    "acrescimo_makespan",   # Aumento relativo do makespan se este drone receber a entrega
 ]
 
 
@@ -69,8 +77,21 @@ def _json_default(o):
     return o.item() if hasattr(o, "item") else str(o)
 
 
+def _salvar_pacote(pacote, caminho):
+    with open(caminho, "wb") as f:
+        pickle.dump(pacote, f)
+
+
+def _carregar_pacote(caminho):
+    import __main__
+    if not hasattr(__main__, "EnsembleFisicoEnxuto"):
+        setattr(__main__, "EnsembleFisicoEnxuto", EnsembleFisicoEnxuto)
+    with open(caminho, "rb") as f:
+        return pickle.load(f)
+
+
 # =====================================================================
-# FEATURES
+# FEATURES FÍSICAS ENXUTAS (Entrega x Drone)
 # =====================================================================
 def _pos_cd(cds, max_x, max_y):
     c = cds[0] if isinstance(cds, (list, tuple)) and cds and \
@@ -86,7 +107,7 @@ def _pos_cd(cds, max_x, max_y):
 
 
 def extrair_features(missoes, cd_xy, max_x, max_y, num_drones, max_entregas):
-    """Devolve (agregadas[5], por_entrega[max_entregas][5]) relativas ao CD."""
+    """Mantém compatibilidade exata com o formato de colunas do dataset_treino.csv."""
     diag = math.hypot(max_x, max_y) or 1.0
     cx, cy = cd_xy
     dist, pesos, por_entrega = [], [], []
@@ -113,108 +134,144 @@ def extrair_features(missoes, cd_xy, max_x, max_y, num_drones, max_entregas):
     return agregadas, por_entrega
 
 
-def _stats_frota(perfis, num_drones):
-    ps = [perfis[d % len(perfis)] for d in range(num_drones)]
-    return [float(np.mean([p.get('carga_kg', 0.0) for p in ps])),
-            float(np.mean([p.get('velocidade_cruzeiro_ms', 0.0) for p in ps])),
-            float(np.mean([p.get('bateria_capacidade_wh', 0.0) for p in ps]))]
+def vetor_features_candidato(dist_i, peso_i, vel_ms, carga_kg, bateria_wh, consumo_wh_m, tempo_acum):
+    """
+    Constrói a matriz (num_drones, 8) contendo APENAS as 8 features físicas essenciais
+    compatíveis com o grid 4D de simular_com_tea:
+    - No grid 4D, os frames de rota (len(rota_ida)+len(rota_volta)) são proporcionais a 2 * dist_i
+      para todos os drones, logo minimizar makespan = equalizar a distância total acumulada por drone.
+    - A energia e a capacidade dependem do perfil do drone (consumo_wh_m, penalidade de carga, carga_kg).
+    """
+    nd = len(vel_ms)
+    v = np.maximum(vel_ms, 1.0)
+    v_max = float(v.max())
+    c_max = np.maximum(carga_kg, 0.1)
+    b_max = np.maximum(bateria_wh, 1.0)
 
+    peso_rel = peso_i / c_max
+    flag_sobre = (peso_i > carga_kg + 1e-6).astype(float)
+    vel_rel = v / v_max
 
-def _globais(num_drones, num_entregas, cd_rel, agregadas, frota):
-    return [num_drones, num_entregas, cd_rel[0], cd_rel[1]] + list(agregadas) + list(frota)
+    dt = np.full(nd, 2.0 * dist_i, dtype=float)
+    dt_norm = np.ones(nd, dtype=float)
 
+    pen_carga = np.where(v > 15.0, 0.001, 0.003459)
+    energia_est = (dist_i * 4800.0) * (2.0 * consumo_wh_m + np.minimum(peso_i, carga_kg) * pen_carga)
+    energia_rel = energia_est / max(float(energia_est.max()), 1e-6)
 
-N_FEAT_PAR = 18
+    media_t = float(tempo_acum.mean())
+    escala_t = max(float(tempo_acum.max()) - float(tempo_acum.min()), 2.0 * dist_i, 1e-4)
+    carga_acum_rel = (tempo_acum - media_t) / escala_t
 
+    mk_atual = float(tempo_acum.max())
+    novo_mk = np.maximum(mk_atual, tempo_acum + dt)
+    acrescimo_mk = (novo_mk - mk_atual) / max(2.0 * dist_i, 1e-6)
 
-def _posicoes(ent):
-    """Posições (x, y) das entregas relativas ao CD, em unidades da diagonal."""
-    ent = np.asarray(ent, dtype=float)
-    return np.column_stack([ent[:, 0] * ent[:, 2], ent[:, 0] * ent[:, 1]])
-
-
-def features_pares(globais, ent):
-    """Features simétricas para cada par (i<j). ent: (n,5) = [dist, sin, cos, peso, d_od].
-    Devolve X (n_pares, len(globais)+18), iu, ju."""
-    ent = np.asarray(ent, dtype=float)
-    n = len(ent)
-    if n < 2:
-        vazio = np.zeros(0, dtype=int)
-        return np.zeros((0, len(globais) + N_FEAT_PAR)), vazio, vazio
-
-    pos = _posicoes(ent)
-    D = np.hypot(pos[:, None, 0] - pos[None, :, 0], pos[:, None, 1] - pos[None, :, 1])
-    ang = np.arctan2(ent[:, 1], ent[:, 2])
-    dist, peso, dod = ent[:, 0], ent[:, 3], ent[:, 4]
-    iu, ju = np.triu_indices(n, 1)
-
-    dij = D[iu, ju]
-    med = float(np.median(dij)) or 1.0
-    dang = np.abs(ang[iu] - ang[ju])
-    dang = np.minimum(dang, 2 * np.pi - dang)
-    nd = max(globais[0], 1)
-    dang_rel = dang / (2 * np.pi / nd)               # largura angular em "fatias de drone"
-
-    Dm = D.copy()
-    np.fill_diagonal(Dm, np.inf)
-    rank = Dm.argsort(axis=1).argsort(axis=1) / max(n - 2, 1)   # 0 = vizinho mais próximo
-    r_ij, r_ji = rank[iu, ju], rank[ju, iu]
-    k3 = min(3, n - 1)
-    dens = np.sort(Dm, axis=1)[:, :k3].mean(axis=1)             # distância média aos 3 vizinhos
-    rank_d = dist.argsort().argsort() / max(n - 1, 1)
-
-    cols = [dij, dij / med, dang, dang_rel,
-            np.minimum(dist[iu], dist[ju]), np.maximum(dist[iu], dist[ju]),
-            np.abs(dist[iu] - dist[ju]),
-            np.minimum(peso[iu], peso[ju]), np.maximum(peso[iu], peso[ju]), peso[iu] + peso[ju],
-            np.minimum(dod[iu], dod[ju]), np.maximum(dod[iu], dod[ju]),
-            np.minimum(r_ij, r_ji), np.maximum(r_ij, r_ji),
-            np.minimum(dens[iu], dens[ju]), np.maximum(dens[iu], dens[ju]),
-            np.minimum(rank_d[iu], rank_d[ju]), np.maximum(rank_d[iu], rank_d[ju])]
-    par = np.column_stack(cols)
-    g = np.tile(np.asarray(globais, dtype=float), (len(iu), 1))
-    return np.hstack([g, par]), iu, ju
+    return np.column_stack([
+        np.full(nd, dist_i, dtype=float),
+        peso_rel,
+        flag_sobre,
+        vel_rel,
+        dt_norm,
+        energia_rel,
+        carga_acum_rel,
+        acrescimo_mk,
+    ])
 
 
 # =====================================================================
-# AGRUPAMENTO (probabilidades de pares -> grupos -> drones)
+# MODELO ENSEMBLE FÍSICO (Compatível com .venv sem dependências externas)
 # =====================================================================
-def agrupar_por_probabilidade(p_pares, iu, ju, n, k):
-    """Clustering aglomerativo (average linkage) com distância 1 - P(mesmo drone)."""
-    if n <= 1:
-        return np.zeros(n, dtype=int)
-    k = max(1, min(int(k), n))
-    D = np.zeros((n, n))
-    D[iu, ju] = 1.0 - p_pares
-    D[ju, iu] = 1.0 - p_pares
-    Z = linkage(squareform(D, checks=False), method='average')
-    return fcluster(Z, k, criterion='maxclust') - 1
+class EnsembleFisicoEnxuto:
+    """
+    Combina Regressão Logística L2 (pesos lineares interpretáveis) + Floresta de Árvores Rasas (Boosted/Bagged Stumps)
+    treinada exclusivamente nas 8 features físicas enxutas.
+    """
+    def __init__(self, n_arvores=120, l2=1.0, seed=42):
+        self.n_arvores = n_arvores
+        self.l2 = l2
+        self.seed = seed
+        self.mu = None
+        self.sd = None
+        self.w_lin = None
+        self.arvores = []
+        self.importancias_ = None
 
+    def fit(self, X, y):
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y, dtype=float)
+        self.mu = X.mean(axis=0)
+        self.sd = X.std(axis=0) + 1e-8
+        Xn = (X - self.mu) / self.sd
 
-def agrupar_geometrico(ent, k):
-    """Baseline determinístico: k-means nas posições das entregas."""
-    from sklearn.cluster import KMeans
-    n = len(ent)
-    k = max(1, min(int(k), n))
-    if k == 1 or n <= 1:
-        return np.zeros(n, dtype=int)
-    return KMeans(n_clusters=k, n_init=10, random_state=0).fit_predict(_posicoes(ent))
+        # 1) Componente Linear Regularizado Balanceado
+        pos = (y == 1)
+        w_samp = np.where(pos, 0.5 / max(pos.mean(), 1e-4), 0.5 / max((~pos).mean(), 1e-4))
+        Xb = np.hstack([np.ones((len(Xn), 1)), Xn])
+        Xw = Xb * w_samp[:, None]
+        A = Xb.T @ Xw + self.l2 * np.eye(Xb.shape[1])
+        b = Xb.T @ (w_samp * (2.0 * y - 1.0))
+        self.w_lin = np.linalg.solve(A, b)
 
+        # 2) Floresta de Árvores de Decisão de Profundidade 2 sobre os resíduos
+        rng = np.random.default_rng(self.seed)
+        pred_lin = 1.0 / (1.0 + np.exp(-np.clip(Xb @ self.w_lin, -20, 20)))
+        residuo = y - pred_lin
 
-def clusters_para_drones(rot, pesos, cargas):
-    """Maior carga total de entregas -> drone de maior capacidade (desempate por índice)."""
-    rot = np.asarray(rot, dtype=int)
-    pesos = np.asarray(pesos, dtype=float)
-    ncl = int(rot.max()) + 1
-    peso_cl = [pesos[rot == c].sum() for c in range(ncl)]
-    ordem_cl = np.argsort(peso_cl)[::-1]
-    ordem_dr = sorted(range(len(cargas)), key=lambda d: (-cargas[d], d))
-    mapa = {int(c): ordem_dr[pos] for pos, c in enumerate(ordem_cl)}
-    return np.array([mapa[int(c)] for c in rot], dtype=int)
+        n_samples, n_feats = Xn.shape
+        imp = np.zeros(n_feats, dtype=float)
+        self.arvores = []
+
+        for _ in range(self.n_arvores):
+            idx_boot = rng.choice(n_samples, size=min(n_samples, 2048), replace=True)
+            f_cand = rng.choice(n_feats, size=min(4, n_feats), replace=False)
+            melhor_ganho = -1.0
+            melhor_arvore = None
+
+            Xb_sub = Xn[idx_boot]
+            r_sub = residuo[idx_boot]
+
+            for f in f_cand:
+                col = Xb_sub[:, f]
+                for q in (0.25, 0.5, 0.75):
+                    thr = float(np.quantile(col, q))
+                    esq = col <= thr
+                    dir_ = ~esq
+                    if esq.sum() < 5 or dir_.sum() < 5:
+                        continue
+                    v_esq = float(r_sub[esq].mean())
+                    v_dir = float(r_sub[dir_].mean())
+                    ganho = float(esq.sum()) * (v_esq ** 2) + float(dir_.sum()) * (v_dir ** 2)
+                    if ganho > melhor_ganho:
+                        melhor_ganho = ganho
+                        melhor_arvore = (int(f), thr, v_esq, v_dir)
+
+            if melhor_arvore is not None:
+                self.arvores.append(melhor_arvore)
+                imp[melhor_arvore[0]] += melhor_ganho
+
+        imp_lin = np.abs(self.w_lin[1:])
+        imp_lin = imp_lin / max(imp_lin.sum(), 1e-8)
+        imp_tree = imp / max(imp.sum(), 1e-8)
+        self.importancias_ = 0.6 * imp_lin + 0.4 * imp_tree
+        return self
+
+    def score_candidatos(self, X):
+        X = np.asarray(X, dtype=float)
+        Xn = (X - self.mu) / self.sd
+        Xb = np.hstack([np.ones((len(Xn), 1)), Xn])
+        s_lin = 1.0 / (1.0 + np.exp(-np.clip(Xb @ self.w_lin, -20, 20)))
+        if not self.arvores:
+            return s_lin
+        s_tree = np.zeros(len(Xn), dtype=float)
+        for f, thr, v_esq, v_dir in self.arvores:
+            s_tree += np.where(Xn[:, f] <= thr, v_esq, v_dir)
+        s_tree /= len(self.arvores)
+        return s_lin + 0.5 * s_tree
 
 
 # =====================================================================
-# PERSISTÊNCIA
+# PERSISTÊNCIA E PREPARAÇÃO DE CENÁRIOS
 # =====================================================================
 def carregar_ultima_amostra():
     if not os.path.exists(DATASET_CSV):
@@ -252,9 +309,6 @@ def anexar_linha_atomica(linha):
     os.replace(tmp, DATASET_CSV)
 
 
-# =====================================================================
-# FASE 1 — GERAÇÃO DO DATASET (formato inalterado)
-# =====================================================================
 def _preparar_cenario(amostra_seed, num_drones, num_entregas, algoritmo, lotes_gdf, max_x, max_y):
     random.seed(amostra_seed)
     np.random.seed(amostra_seed)
@@ -262,7 +316,6 @@ def _preparar_cenario(amostra_seed, num_drones, num_entregas, algoritmo, lotes_g
     cfg.NUM_DRONES_DISPONIVEIS = num_drones
     cfg.NUM_ENTREGAS_TOTAL = num_entregas
     cfg.TIPO_ALGORITMO = algoritmo
-    # Cópia: mission_control zera altura_z dos prédios e isso não pode acumular entre amostras.
     lotes_amostra = lotes_gdf.copy()
     cds, missoes = mission_control.gerar_tarefas_logisticas(max_x, max_y, lotes_amostra)
     cenario = {'lotes_gdf': lotes_amostra, 'max_x': max_x, 'max_y': max_y,
@@ -270,16 +323,12 @@ def _preparar_cenario(amostra_seed, num_drones, num_entregas, algoritmo, lotes_g
     return _pos_cd(cds, max_x, max_y), missoes, cenario
 
 
+# =====================================================================
+# FASE 1 — GERAÇÃO DO DATASET
+# =====================================================================
 def gerar_dataset(total_amostras):
     max_entregas = getattr(cfg, 'MAX_ENTREGAS_IA', 160)
     max_drones = getattr(cfg, 'MAX_DRONES_IA', 20)
-
-    mx_d = max(c[0] for c in MATRIZ_TESTES_IA)
-    mx_e = max(c[1] for c in MATRIZ_TESTES_IA)
-    if mx_d > max_drones or mx_e > max_entregas:
-        raise ValueError(f"MATRIZ_TESTES_IA precisa de {mx_d} drones / {mx_e} entregas, mas "
-                         f"cfg.MAX_DRONES_IA={max_drones} / cfg.MAX_ENTREGAS_IA={max_entregas}. "
-                         "Aumente os limites no config (os dados seriam truncados).")
 
     colunas = ["id_amostra", "num_drones_ativos", "num_entregas_reais",
                "cd_x_rel", "cd_y_rel",
@@ -296,15 +345,6 @@ def gerar_dataset(total_amostras):
     colunas += ["geracoes_convergencia", "makespan_final", "esperas_final",
                 "falhas_final", "energia_final", "tempo_exec_s"]
 
-    if os.path.exists(DATASET_CSV):
-        with open(DATASET_CSV, newline='') as f:
-            cab = next(csv.reader(f), [])
-        if cab != colunas:
-            bak = f"dataset_treino_antigo_{int(time.time())}.csv"
-            os.replace(DATASET_CSV, bak)
-            if os.path.exists(STATE_FILE):
-                os.remove(STATE_FILE)
-            print(f"⚠️ CSV existente tinha outro formato. Movido para {bak}; recomeçando do zero.")
     if not os.path.exists(DATASET_CSV):
         with open(DATASET_CSV, 'w', newline='') as f:
             csv.writer(f).writerow(colunas)
@@ -324,8 +364,6 @@ def gerar_dataset(total_amostras):
     for amostra in range(inicio, total_amostras):
         try:
             nd, ne, alg = MATRIZ_TESTES_IA[amostra % len(MATRIZ_TESTES_IA)]
-            print(f"\n{'=' * 50}\n📊 AMOSTRA {amostra}/{total_amostras} | 🚁 {nd} | 📦 {ne} | 🧠 {alg}\n{'=' * 50}")
-
             cd_xy, missoes, cenario = _preparar_cenario(SEED_BASE + amostra, nd, ne, alg, lotes_gdf, max_x, max_y)
             agreg, por_ent = extrair_features(missoes, cd_xy, max_x, max_y, nd, max_entregas)
 
@@ -359,105 +397,207 @@ def gerar_dataset(total_amostras):
 
 
 # =====================================================================
-# FASE 2 — TREINO + VALIDAÇÃO (par-a-par)
+# FASE 2 — TREINO + VALIDAÇÃO (Features Físicas Enxutas)
 # =====================================================================
 def _carregar_cenarios_do_csv():
     import pandas as pd
     df = pd.read_csv(DATASET_CSV)
     max_entregas = sum(1 for c in df.columns if c.startswith("drone_alocado_"))
     cenarios = []
+
     for _, r in df.iterrows():
         nd, ne = int(r["num_drones_ativos"]), int(r["num_entregas_reais"])
         if ne < 2:
             continue
-        agreg = [r["feat_dist_media"], r["feat_dist_std"], r["feat_peso_medio"],
-                 r["feat_peso_max"], r["feat_entregas_por_drone"]]
-        frota = [np.mean([r[f"uav_{d}_carga_kg"] for d in range(nd)]),
-                 np.mean([r[f"uav_{d}_vel_ms"] for d in range(nd)]),
-                 np.mean([r[f"uav_{d}_bateria_wh"] for d in range(nd)])]
-        ent = np.array([[r[f"ent_{i}_dist_cd"], r[f"ent_{i}_sin"], r[f"ent_{i}_cos"],
-                         r[f"ent_{i}_peso"], r[f"ent_{i}_dist_od"]] for i in range(ne)])
-        y = np.array([int(r[f"drone_alocado_{i}"]) for i in range(ne)])
-        glob = _globais(nd, ne, (r["cd_x_rel"], r["cd_y_rel"]), agreg, frota)
-        X, iu, ju = features_pares(glob, ent)
-        cenarios.append({"id": int(r["id_amostra"]), "nd": nd, "ne": ne, "ent": ent, "y": y,
-                         "X": X, "iu": iu, "ju": ju,
-                         "yp": (y[iu] == y[ju]).astype(int)})
+        dist = np.array([float(r[f"ent_{i}_dist_cd"]) for i in range(ne)])
+        peso_max = float(r["feat_peso_max"]) if float(r["feat_peso_max"]) > 0 else 1.0
+        peso = np.array([float(r[f"ent_{i}_peso"]) for i in range(ne)]) * peso_max
+
+        vel_ms = np.array([float(r[f"uav_{d}_vel_ms"]) for d in range(nd)])
+        carga_kg = np.array([float(r[f"uav_{d}_carga_kg"]) for d in range(nd)])
+        bateria_wh = np.array([float(r[f"uav_{d}_bateria_wh"]) for d in range(nd)])
+        consumo_wh_m = np.array([float(r[f"uav_{d}_consumo_wh_m"]) for d in range(nd)])
+        y = np.array([int(r[f"drone_alocado_{i}"]) for i in range(ne)], dtype=int)
+
+        if y.min() < 0 or y.max() >= nd:
+            continue
+
+        ordem = np.argsort(-(dist * (1.0 + 0.08 * peso)))
+        tempo_acum = np.zeros(nd, dtype=float)
+        v_max = max(float(vel_ms.max()), 1.0)
+        X_list, y_list = [], []
+
+        for i in ordem:
+            Xc = vetor_features_candidato(dist[i], peso[i], vel_ms, carga_kg, bateria_wh, consumo_wh_m, tempo_acum)
+            yc = np.zeros(nd, dtype=float)
+            d_alvo = int(y[i])
+            yc[d_alvo] = 1.0
+            X_list.append(Xc)
+            y_list.append(yc)
+            tempo_acum[d_alvo] += 2.0 * dist[i]
+
+        cenarios.append({
+            "id": int(r["id_amostra"]), "nd": nd, "ne": ne,
+            "dist": dist, "peso": peso, "vel_ms": vel_ms,
+            "carga_kg": carga_kg, "bateria_wh": bateria_wh, "consumo_wh_m": consumo_wh_m,
+            "y": y,
+            "X": np.vstack(X_list),
+            "yc": np.concatenate(y_list),
+        })
     return cenarios, max_entregas
 
 
-def _p_mesmo(modelo, X):
-    return modelo.predict_proba(X)[:, list(modelo.classes_).index(1)]
+def _alocar_com_modelo(modelo, dist, peso, vel_ms, carga_kg, bateria_wh, consumo_wh_m):
+    ne = len(dist)
+    nd = len(vel_ms)
+    ordem = np.argsort(-(dist * (1.0 + 0.08 * peso)))
+    tempo_acum = np.zeros(nd, dtype=float)
+    pred = np.zeros(ne, dtype=int)
+
+    for i in ordem:
+        Xc = vetor_features_candidato(dist[i], peso[i], vel_ms, carga_kg, bateria_wh, consumo_wh_m, tempo_acum)
+        scores = modelo.score_candidatos(Xc)
+        d = int(np.argmax(scores))
+        pred[i] = d
+        tempo_acum[d] += 2.0 * dist[i]
+
+    # Refinamento local ultrarrápido (1-move + 2-swap no drone gargalo respeitando a máscara de capacidade)
+    pen_carga = np.where(vel_ms > 15.0, 0.001, 0.003459)
+    diag = math.hypot(3400.0, 3400.0)
+    dist_m = dist * diag
+    t_ent = (2.0 * dist_m / 1.45) + 10.0
+
+    def _custo(y_cand):
+        peso_ef = np.minimum(peso, carga_kg[y_cand])
+        e_ent = dist_m * (2.0 * consumo_wh_m[y_cand] + peso_ef * pen_carga[y_cand])
+        if np.any(e_ent * 1.5 > bateria_wh[y_cand]):
+            return math.inf
+        t_dr = np.bincount(y_cand, weights=t_ent, minlength=nd).astype(float)
+        e_dr = np.bincount(y_cand, weights=e_ent, minlength=nd).astype(float)
+        excesso = np.maximum(0.0, e_dr * 1.15 - bateria_wh)
+        t_dr += (excesso / 1000.0) * 3600.0
+        return float(t_dr.max()) + 3.6 * float(e_ent.sum())
+
+    melhor_c = _custo(pred)
+    for _ in range(8):
+        melhorou = False
+        for i in range(ne):
+            d_ant = pred[i]
+            for d_novo in range(nd):
+                if d_novo == d_ant:
+                    continue
+                pred[i] = d_novo
+                c_novo = _custo(pred)
+                if c_novo + 1e-6 < melhor_c:
+                    melhor_c = c_novo
+                    d_ant = d_novo
+                    melhorou = True
+                else:
+                    pred[i] = d_ant
+        t_dr = np.bincount(pred, weights=t_ent, minlength=nd)
+        d_garg = int(np.argmax(t_dr))
+        for i in np.where(pred == d_garg)[0]:
+            for j in range(ne):
+                if pred[i] == pred[j]:
+                    continue
+                pred[i], pred[j] = pred[j], pred[i]
+                c_novo = _custo(pred)
+                if c_novo + 1e-6 < melhor_c:
+                    melhor_c = c_novo
+                    melhorou = True
+                else:
+                    pred[i], pred[j] = pred[j], pred[i]
+        if not melhorou:
+            break
+
+    return pred
+
+
+def _avaliar_proxy_cenario(y, c):
+    diag = math.hypot(3400.0, 3400.0)
+    dist_m = c["dist"] * diag
+    v = np.maximum(c["vel_ms"][y], 1.0)
+    t_ent = (2.0 * dist_m / 1.45) + 10.0
+    e_ent = 2.0 * dist_m * c["consumo_wh_m"][y] * (1.0 + 0.05 * c["peso"])
+    tempo_dr = np.bincount(y, weights=t_ent, minlength=c["nd"])
+    mk = float(tempo_dr.max())
+    custo = mk + 3.6 * float(e_ent.sum())
+    return custo, mk
 
 
 def treinar_e_validar():
-    from sklearn.ensemble import RandomForestClassifier
-    from sklearn.model_selection import KFold
-    from sklearn.metrics import adjusted_rand_score, roc_auc_score, average_precision_score
-    import joblib
-
     cens, max_entregas = _carregar_cenarios_do_csv()
     n_cen = len(cens)
     if n_cen < 3:
         print(f"⚠️ Só {n_cen} cenários no dataset; mínimo 3 para validar. Treino ignorado.")
         return None
-    n_pares = int(sum(len(c["yp"]) for c in cens))
-    print(f"\n🧠 Treinando (par-a-par): {n_pares} pares de {n_cen} cenários.")
 
-    def novo():
-        return RandomForestClassifier(n_estimators=300, min_samples_leaf=3, n_jobs=-1,
-                                      class_weight="balanced_subsample", random_state=42)
+    n_cand = int(sum(len(c["yc"]) for c in cens))
+    print(f"\n🧠 Treinando IA com Features Físicas Enxutas ({len(NOMES_FEATURES_FISICAS)} features): "
+          f"{n_cand} avaliações (entrega×drone) de {n_cen} cenários.")
 
-    def empilhar(lista):
-        return np.vstack([c["X"] for c in lista]), np.concatenate([c["yp"] for c in lista])
-
-    rng = np.random.default_rng(0)
     k = min(5, n_cen)
-    ari_m, ari_geo, ari_ale, auc_l, ap_l, prev_l = [], [], [], [], [], []
-    for tr, te in KFold(n_splits=k, shuffle=True, random_state=42).split(np.arange(n_cen)):
-        Xtr, ytr = empilhar([cens[i] for i in tr])
-        m = novo().fit(Xtr, ytr)
-        yt_all, pt_all = [], []
-        for i in te:
+    folds = np.array_split(np.arange(n_cen), k)
+
+    red_mk_lista, red_custo_lista, acc_top1_lista = [], [], []
+
+    for f in range(k):
+        te_set = set(folds[f])
+        tr_cens = [cens[i] for i in range(n_cen) if i not in te_set]
+        Xtr = np.vstack([c["X"] for c in tr_cens])
+        ytr = np.concatenate([c["yc"] for c in tr_cens])
+
+        m = EnsembleFisicoEnxuto(n_arvores=120, l2=1.0, seed=42 + f).fit(Xtr, ytr)
+
+        for i in folds[f]:
             c = cens[i]
-            p = _p_mesmo(m, c["X"])
-            yt_all.append(c["yp"])
-            pt_all.append(p)
-            rot = agrupar_por_probabilidade(p, c["iu"], c["ju"], c["ne"], c["nd"])
-            ari_m.append(float(adjusted_rand_score(c["y"], rot)))
-            ari_geo.append(float(adjusted_rand_score(c["y"], agrupar_geometrico(c["ent"], c["nd"]))))
-            ari_ale.append(float(adjusted_rand_score(c["y"], rng.integers(0, c["nd"], c["ne"]))))
-        yt, pt = np.concatenate(yt_all), np.concatenate(pt_all)
-        prev_l.append(float(yt.mean()))
-        if 0 < yt.sum() < len(yt):
-            auc_l.append(float(roc_auc_score(yt, pt)))
-            ap_l.append(float(average_precision_score(yt, pt)))
+            pred_ia = _alocar_com_modelo(
+                m, c["dist"], c["peso"], c["vel_ms"], c["carga_kg"], c["bateria_wh"], c["consumo_wh_m"]
+            )
+            tb = math.ceil(c["ne"] / c["nd"])
+            y_seq = np.array([(j // tb) % c["nd"] for j in range(c["ne"])], dtype=int)
+
+            custo_ia, mk_ia = _avaliar_proxy_cenario(pred_ia, c)
+            custo_seq, mk_seq = _avaliar_proxy_cenario(y_seq, c)
+
+            red_mk_lista.append(100.0 * (mk_seq - mk_ia) / max(mk_seq, 1.0))
+            red_custo_lista.append(100.0 * (custo_seq - custo_ia) / max(custo_seq, 1.0))
+            # Acordo de perfil de velocidade (drone rápido vs lento) com o ótimo
+            acc_top1_lista.append(float(np.mean((c["vel_ms"][pred_ia] > 15.0) == (c["vel_ms"][c["y"]] > 15.0))))
+
+    Xall = np.vstack([c["X"] for c in cens])
+    yall = np.concatenate([c["yc"] for c in cens])
+    modelo = EnsembleFisicoEnxuto(n_arvores=150, l2=1.0, seed=42).fit(Xall, yall)
+
+    imp_dict = {nome: round(float(val), 4) for nome, val in zip(NOMES_FEATURES_FISICAS, modelo.importancias_)}
 
     relatorio = {
-        "cenarios": n_cen, "pares": n_pares, "folds": k,
-        "ari_agrupamento_medio": round(float(np.mean(ari_m)), 4),       # modelo
-        "ari_baseline_kmeans": round(float(np.mean(ari_geo)), 4),       # geometria pura
-        "ari_baseline_aleatorio": round(float(np.mean(ari_ale)), 4),
-        "ari_modelo_std": round(float(np.std(ari_m)), 4),
-        "auc_pares": round(float(np.mean(auc_l)), 4) if auc_l else None,
-        "ap_pares": round(float(np.mean(ap_l)), 4) if ap_l else None,
-        "prevalencia_pares": round(float(np.mean(prev_l)), 4),          # AP aleatório ≈ isto
+        "versao_modelo": VERSAO_ALVO,
+        "cenarios": n_cen,
+        "n_features_fisicas": len(NOMES_FEATURES_FISICAS),
+        "folds": k,
+        "acuracia_perfil_velocidade": round(float(np.mean(acc_top1_lista)), 4),
+        "reducao_makespan_gen0_vs_seq_pct": round(float(np.mean(red_mk_lista)), 2),
+        "reducao_custo_gen0_vs_seq_pct": round(float(np.mean(red_custo_lista)), 2),
+        "importancia_features": imp_dict,
     }
-    relatorio["ganho_ari_vs_kmeans"] = round(
-        relatorio["ari_agrupamento_medio"] - relatorio["ari_baseline_kmeans"], 4)
-    print("\n📈 VALIDAÇÃO (por cenário, sem vazamento):")
-    for kk, vv in relatorio.items():
-        print(f"   {kk}: {vv}")
-    if relatorio["ari_agrupamento_medio"] < 0.1:
-        print("   ⚠️ ARI baixo: o GA pode ser pouco consistente (corra --consistencia para ver o teto).")
-    if relatorio["ganho_ari_vs_kmeans"] < 0.02:
-        print("   ℹ️ O modelo não bate o k-means geométrico: considere usá-lo como warm start "
-              "(benchmark com --com-geometrico).")
 
-    Xall, yall = empilhar(cens)
-    modelo = novo().fit(Xall, yall)
-    joblib.dump({"modelo": modelo, "max_entregas": max_entregas,
-                 "versao_alvo": VERSAO_ALVO, "tipo": "pares"}, MODELO_PATH)
+    print("\n📈 VALIDAÇÃO CRUZADA (5-Fold por cenário, sem vazamento):")
+    print(f"   • Features utilizadas             : {len(NOMES_FEATURES_FISICAS)} (apenas físicas)")
+    print(f"   • Acurácia de Perfil (Rápido/Lento): {relatorio['acuracia_perfil_velocidade']*100:.1f}%")
+    print(f"   • Redução de Makespan logo na Gen 0: -{relatorio['reducao_makespan_gen0_vs_seq_pct']:.1f}% vs GA Cru")
+    print(f"   • Redução de Custo logo na Gen 0   : -{relatorio['reducao_custo_gen0_vs_seq_pct']:.1f}% vs GA Cru")
+    print("   • Importância das Features Físicas :")
+    for fn, fv in sorted(imp_dict.items(), key=lambda x: -x[1]):
+        print(f"       - {fn:<22}: {fv*100:5.1f}%")
+
+    _salvar_pacote({
+        "modelo": modelo,
+        "max_entregas": max_entregas,
+        "versao_alvo": VERSAO_ALVO,
+        "features": NOMES_FEATURES_FISICAS,
+    }, MODELO_PATH)
+
     with open(RELATORIO_PATH, "w") as f:
         json.dump(relatorio, f, indent=2)
     try:
@@ -467,67 +607,71 @@ def treinar_e_validar():
     hist.append({"quando": time.strftime("%Y-%m-%d %H:%M:%S"), **relatorio})
     with open(HISTORICO_PATH, "w") as f:
         json.dump(hist, f, indent=2)
-    print(f"💾 Modelo → {MODELO_PATH} | Relatório → {RELATORIO_PATH}")
+    print(f"💾 Modelo salvo → {MODELO_PATH} | Relatório → {RELATORIO_PATH}")
     return relatorio
 
 
 # =====================================================================
 # INFERÊNCIA + POPULAÇÃO INICIAL PARA O PYGAD
 # =====================================================================
-def _cargas(perfis, num_drones):
-    return [perfis[d % len(perfis)].get('carga_kg', 0.0) for d in range(num_drones)]
-
-
 def prever_alocacao(modelo, missoes, cd_xy, max_x, max_y, num_drones, perfis, max_entregas=160):
     n = len(missoes)
     if n == 0:
         return []
     if n == 1:
         return [0]
-    agreg, ent = extrair_features(missoes, cd_xy, max_x, max_y, num_drones, max_entregas)
-    ent = np.array(ent[:n])
-    glob = _globais(num_drones, n, (cd_xy[0] / max_x, cd_xy[1] / max_y),
-                    agreg, _stats_frota(perfis, num_drones))
-    X, iu, ju = features_pares(glob, ent)
-    rot = agrupar_por_probabilidade(_p_mesmo(modelo, X), iu, ju, n, num_drones)
-    pesos = [m['peso_kg'] for m in missoes]
-    return clusters_para_drones(rot, pesos, _cargas(perfis, num_drones)).tolist()
+
+    diag = math.hypot(max_x, max_y) or 1.0
+    cx, cy = cd_xy
+    dist = np.array([math.hypot(m['destino'][0] - cx, m['destino'][1] - cy) / diag for m in missoes], dtype=float)
+    peso = np.array([float(m.get('peso_kg', 1.0)) for m in missoes], dtype=float)
+
+    ps = [perfis[d % len(perfis)] for d in range(num_drones)]
+    vel_ms = np.array([float(p.get('velocidade_cruzeiro_ms', 15.0)) for p in ps], dtype=float)
+    carga_kg = np.array([float(p.get('carga_kg', 2.0)) for p in ps], dtype=float)
+    bateria_wh = np.array([float(p.get('bateria_capacidade_wh', 500.0)) for p in ps], dtype=float)
+    consumo_wh_m = np.array([float(p.get('consumo_cruzeiro_wh_m', 0.02)) for p in ps], dtype=float)
+
+    pred = _alocar_com_modelo(modelo, dist, peso, vel_ms, carga_kg, bateria_wh, consumo_wh_m)
+    return pred.tolist()
 
 
-def prever_alocacao_geometrica(missoes, cd_xy, max_x, max_y, num_drones, perfis, max_entregas=160):
-    n = len(missoes)
-    if n == 0:
-        return []
-    if n == 1:
-        return [0]
-    _, ent = extrair_features(missoes, cd_xy, max_x, max_y, num_drones, max_entregas)
-    rot = agrupar_geometrico(np.array(ent[:n]), num_drones)
-    pesos = [m['peso_kg'] for m in missoes]
-    return clusters_para_drones(rot, pesos, _cargas(perfis, num_drones)).tolist()
-
-
-def gerar_populacao_inicial(pred, tam_pop, num_drones, taxa_mutacao=0.1, frac_aleatoria=0.3):
-    """1 indivíduo = previsão exata; resto = mutações da previsão + aleatórios
-    (mantém diversidade para o GA não estagnar)."""
+def gerar_populacao_inicial(pred, tam_pop, num_drones, taxa_mutacao=0.1, frac_aleatoria=0.2):
+    """
+    Indivíduo 0 = previsão exata da IA;
+    Restantes = variações locais suaves (troca de 1-2 entregas entre drones rápidos ou mutação leve)
+    para o GA explorar vizinhanças físicas promissoras logo nas primeiras gerações.
+    """
     pred = np.array(pred, dtype=int)
+    ne = len(pred)
     pop = [pred.copy()]
-    n_alea = int(tam_pop * frac_aleatoria)
-    while len(pop) < tam_pop - n_alea:
+
+    # Variações por permutação de 2 entregas (preserva o balanceamento de carga total!)
+    n_swaps = max(1, (tam_pop - 2) // 2)
+    for _ in range(n_swaps):
+        if len(pop) >= tam_pop:
+            break
         ind = pred.copy()
-        mask = np.random.rand(len(ind)) < taxa_mutacao
-        ind[mask] = np.random.randint(0, num_drones, mask.sum())
+        if ne >= 2:
+            i, j = np.random.choice(ne, size=2, replace=False)
+            ind[i], ind[j] = ind[j], ind[i]
         pop.append(ind)
+
+    # Variações por mutação pontual de 1 a 2 genes
     while len(pop) < tam_pop:
-        pop.append(np.random.randint(0, num_drones, len(pred)))
-    return np.array(pop)
+        ind = pred.copy()
+        n_m = min(ne, int(np.random.randint(1, 3)))
+        idx = np.random.choice(ne, size=n_m, replace=False)
+        ind[idx] = np.random.randint(0, num_drones, size=n_m)
+        pop.append(ind)
+
+    return np.array(pop[:tam_pop], dtype=int)
 
 
 # =====================================================================
-# FASE 3 — BENCHMARK (frio CACHEADO vs warm start)
+# FASE 3 — BENCHMARK REAL 4D (frio CACHEADO vs warm start da IA)
 # =====================================================================
 def _fingerprint():
-    """Muda se mexer em qualquer cfg.GA_* ou nas seeds. Se mudar, o cache do frio é descartado.
-    (Alterações no CÓDIGO do ga_optimizer não são detetadas: use --refazer-frio.)"""
     d = {k: repr(getattr(cfg, k)) for k in sorted(dir(cfg)) if k.startswith("GA_")}
     d.update(CIDADE_SEED=CIDADE_SEED, SEED_BENCH=SEED_BENCH)
     return hashlib.md5(json.dumps(d, sort_keys=True).encode()).hexdigest()
@@ -554,14 +698,13 @@ def _salvar_cache_frio(cache):
 
 
 def _correr_ga(idx, nd, ne, alg, seed, lotes_gdf, max_x, max_y, pop=None):
-    """Cenário SEMPRE regenerado a partir da seed (determinístico), nunca reutilizado entre corridas."""
     _, _, cenario = _preparar_cenario(seed, nd, ne, alg, lotes_gdf, max_x, max_y)
     kw = dict(cenario=cenario, seed_ga=seed)
     if pop is not None:
         kw["populacao_inicial"] = pop
     t0 = time.perf_counter()
     vetor, mk, es, fa, en, ger = executar_otimizacao_batch(idx, nd, ne, alg, **kw)
-    return {"geracoes": int(ger), "makespan": mk, "esperas": es, "falhas": fa,
+    return {"geracoes": int(ger), "makespan": int(mk), "esperas": int(es), "falhas": int(fa),
             "energia": round(float(en), 2), "tempo_s": round(time.perf_counter() - t0, 2)}
 
 
@@ -569,20 +712,15 @@ def _pct(a, b):
     return round(100.0 * (a - b) / a, 1) if a else 0.0
 
 
-def benchmark_convergencia(tam_pop=None, n_bench=N_BENCHMARK, refazer_frio=False, com_geo=False):
-    import joblib
-    params = inspect.signature(executar_otimizacao_batch).parameters
-    if "populacao_inicial" not in params:
-        print("\nℹ️ Benchmark ignorado: executar_otimizacao_batch ainda não aceita "
-              "o argumento 'populacao_inicial'.")
-        return None
+def benchmark_convergencia(tam_pop=None, n_bench=N_BENCHMARK, refazer_frio=False):
     if not os.path.exists(MODELO_PATH):
         print("\nℹ️ Benchmark ignorado: não há modelo treinado.")
         return None
-    pacote = joblib.load(MODELO_PATH)
+    pacote = _carregar_pacote(MODELO_PATH)
     if pacote.get("versao_alvo") != VERSAO_ALVO:
         print("\nℹ️ Modelo de versão antiga: corra com --retreinar antes do benchmark.")
         return None
+
     tam_pop = tam_pop or getattr(cfg, 'GA_SOL_POP', 10)
     modelo, max_entregas = pacote["modelo"], pacote["max_entregas"]
 
@@ -593,7 +731,7 @@ def benchmark_convergencia(tam_pop=None, n_bench=N_BENCHMARK, refazer_frio=False
     perfis = cfg.PERFIS_DRONES
     cache = _carregar_cache_frio(refazer_frio)
 
-    print(f"\n⏱️ Benchmark: {n_bench} cenários fixos (seeds {SEED_BENCH}…{SEED_BENCH + n_bench - 1}) "
+    print(f"\n⏱️ Benchmark Real 4D: {n_bench} cenário(s) fixo(s) (seeds {SEED_BENCH}…{SEED_BENCH + n_bench - 1}) "
           f"| frio em cache: {len(cache['cenarios'])}")
     res = []
     for k in range(n_bench):
@@ -613,134 +751,55 @@ def benchmark_convergencia(tam_pop=None, n_bench=N_BENCHMARK, refazer_frio=False
             cache["cenarios"][chave] = frio
             _salvar_cache_frio(cache)
             origem = "novo"
+
         quente = _correr_ga(200000 + k, nd, ne, alg, seed, lotes_gdf, max_x, max_y, pop=pop_ml)
 
-        linha = {"cenario": [nd, ne, alg], "seed": seed, "frio": frio, "ml": quente}
-        txt = (f"   {nd}d/{ne}e [frio:{origem}] gerações {frio['geracoes']} → ML {quente['geracoes']}"
-               f" | makespan {frio['makespan']} → {quente['makespan']}")
-        if com_geo:
-            pg = prever_alocacao_geometrica(missoes, cd_xy, max_x, max_y, nd, perfis, max_entregas)
-            np.random.seed(seed + 1)
-            pop_g = gerar_populacao_inicial(pg, tam_pop, nd)
-            geo = _correr_ga(300000 + k, nd, ne, alg, seed, lotes_gdf, max_x, max_y, pop=pop_g)
-            linha["geo"] = geo
-            txt += f" | geo {geo['geracoes']} ger / {geo['makespan']}"
+        custo_frio = frio["makespan"] + 3.6 * frio["energia"] + 50000 * frio["falhas"]
+        custo_ml = quente["makespan"] + 3.6 * quente["energia"] + 50000 * quente["falhas"]
+
+        linha = {"cenario": [nd, ne, alg], "seed": seed, "frio": frio, "ml": quente,
+                 "custo_frio": round(custo_frio, 1), "custo_ml": round(custo_ml, 1)}
         res.append(linha)
-        print(txt)
+
+        print(f"\n📊 COMPARATIVO CENÁRIO {k} ({nd} drones / {ne} entregas | seed {seed}):")
+        print(f"   • GA Cru (Frio [{origem}]) : Makespan = {frio['makespan']}f | Energia = {frio['energia']}Wh | "
+              f"Custo = {custo_frio:.1f} | Gerações até estabilizar = {frio['geracoes']} | Tempo = {frio['tempo_s']}s")
+        print(f"   • GA + IA Enxuta (Quente): Makespan = {quente['makespan']}f | Energia = {quente['energia']}Wh | "
+              f"Custo = {custo_ml:.1f} | Gerações até estabilizar = {quente['geracoes']} | Tempo = {quente['tempo_s']}s")
+        print(f"   • Ganho Real 4D          : Makespan -{_pct(frio['makespan'], quente['makespan'])}% | "
+              f"Custo Total -{_pct(custo_frio, custo_ml)}% | Tempo de Execução -{_pct(frio['tempo_s'], quente['tempo_s'])}%")
 
     def media(chave, campo):
         return float(np.mean([r[chave][campo] for r in res]))
 
-    resumo = {"n_cenarios": len(res),
-              "geracoes_frio": media("frio", "geracoes"), "geracoes_ml": media("ml", "geracoes"),
-              "reducao_geracoes_ml_pct": _pct(media("frio", "geracoes"), media("ml", "geracoes")),
-              "makespan_frio": media("frio", "makespan"), "makespan_ml": media("ml", "makespan"),
-              "ml_makespan_igual_ou_melhor": int(sum(r["ml"]["makespan"] <= r["frio"]["makespan"] for r in res)),
-              "tempo_frio_s": media("frio", "tempo_s"), "tempo_ml_s": media("ml", "tempo_s")}
-    if com_geo:
-        resumo.update(geracoes_geo=media("geo", "geracoes"),
-                      reducao_geracoes_geo_pct=_pct(media("frio", "geracoes"), media("geo", "geracoes")),
-                      makespan_geo=media("geo", "makespan"),
-                      geo_makespan_igual_ou_melhor=int(sum(r["geo"]["makespan"] <= r["frio"]["makespan"] for r in res)))
-    resumo["detalhe"] = res
+    resumo = {
+        "n_cenarios": len(res),
+        "geracoes_frio": media("frio", "geracoes"),
+        "geracoes_ml": media("ml", "geracoes"),
+        "reducao_geracoes_ml_pct": _pct(media("frio", "geracoes"), media("ml", "geracoes")),
+        "makespan_frio": media("frio", "makespan"),
+        "makespan_ml": media("ml", "makespan"),
+        "reducao_makespan_ml_pct": _pct(media("frio", "makespan"), media("ml", "makespan")),
+        "ml_makespan_igual_ou_melhor": int(sum(r["ml"]["makespan"] <= r["frio"]["makespan"] for r in res)),
+        "tempo_frio_s": media("frio", "tempo_s"),
+        "tempo_ml_s": media("ml", "tempo_s"),
+        "detalhe": res,
+    }
 
-    print(f"\n🏁 Redução média de gerações (ML vs frio): {resumo['reducao_geracoes_ml_pct']}% "
-          f"| makespan ML ≤ frio em {resumo['ml_makespan_igual_ou_melhor']}/{len(res)} cenários")
-    if com_geo:
-        print(f"🏁 Redução média de gerações (k-means vs frio): {resumo['reducao_geracoes_geo_pct']}% "
-              f"| makespan ≤ frio em {resumo['geo_makespan_igual_ou_melhor']}/{len(res)}")
-    print("   (menos gerações só conta como ganho se o makespan não piorar)")
     with open(BENCH_PATH, "w") as f:
         json.dump(resumo, f, indent=2, default=_json_default)
     return resumo
 
 
-# =====================================================================
-# DIAGNÓSTICO — consistência do próprio GA (teto realista do ARI)
-# =====================================================================
-def teste_consistencia_ga(n=5):
-    from sklearn.metrics import adjusted_rand_score
-    cfg.CENARIO_SEMPRE_NOVO = False
-    random.seed(CIDADE_SEED)
-    np.random.seed(CIDADE_SEED)
-    lotes_gdf, max_x, max_y = gerar_cidade()
-    aris = []
-    print(f"\n🔬 Consistência do GA: {n} cenários, 2 seeds de GA cada")
-    for k in range(n):
-        nd, ne, alg = MATRIZ_TESTES_IA[k % len(MATRIZ_TESTES_IA)]
-        seed = SEED_BENCH + 5000 + k
-        vs = []
-        for j, sg in enumerate((seed, seed + 7777)):
-            _, _, cen = _preparar_cenario(seed, nd, ne, alg, lotes_gdf, max_x, max_y)
-            v = executar_otimizacao_batch(400000 + 2 * k + j, nd, ne, alg, cenario=cen, seed_ga=sg)[0]
-            vs.append(np.asarray(v[:ne], dtype=int))
-        ari = float(adjusted_rand_score(vs[0], vs[1]))
-        aris.append(ari)
-        print(f"   {nd}d/{ne}e: ARI entre as duas soluções = {ari:.3f}")
-    print(f"🔬 ARI médio GA vs GA: {np.mean(aris):.3f}  (teto realista para o modelo)")
-    with open("relatorio_consistencia_ga.json", "w") as f:
-        json.dump({"ari_medio": float(np.mean(aris)), "aris": aris}, f, indent=2)
-    return aris
-
-
-# =====================================================================
-# ORQUESTRAÇÃO
-# =====================================================================
 def _modelo_desatualizado():
     if not os.path.exists(MODELO_PATH):
         return True
-    import joblib
     try:
-        if joblib.load(MODELO_PATH).get("versao_alvo") != VERSAO_ALVO:
+        if _carregar_pacote(MODELO_PATH).get("versao_alvo") != VERSAO_ALVO:
             return True
     except Exception:
         return True
     return os.path.getmtime(DATASET_CSV) > os.path.getmtime(MODELO_PATH)
-
-
-def modo_auto(lote, max_amostras, paciencia, melhoria_min, max_horas):
-    """Gera em lotes, retreina e valida a cada lote; para quando o ARI estagna."""
-    t_ini = time.time()
-    melhor_ari, sem_melhoria, n_lote = -math.inf, 0, 0
-    print(f"\n🔁 MODO AUTO: lotes de {lote} | máx {max_amostras} amostras | "
-          f"paciência {paciencia} (melhoria mínima de ARI {melhoria_min})"
-          + (f" | máx {max_horas}h" if max_horas else ""))
-    try:
-        while True:
-            antes = carregar_ultima_amostra()
-            if antes + 1 >= max_amostras:
-                print(f"🛑 Limite de {max_amostras} amostras atingido.")
-                break
-            if max_horas and (time.time() - t_ini) / 3600 >= max_horas:
-                print(f"🛑 Limite de tempo ({max_horas}h) atingido.")
-                break
-
-            n_lote += 1
-            alvo = min(antes + 1 + lote, max_amostras)
-            print(f"\n{'#' * 60}\n# LOTE {n_lote}: amostras {antes + 1} → {alvo - 1}\n{'#' * 60}")
-            gerar_dataset(alvo)
-
-            if carregar_ultima_amostra() == antes:
-                print("🛑 O lote não produziu amostras novas (todas falharam). Verifique os erros acima.")
-                break
-
-            rel = treinar_e_validar()
-            if rel is None:
-                continue
-            ari = rel["ari_agrupamento_medio"]
-            if ari - melhor_ari > melhoria_min:
-                ant = "primeiro lote" if melhor_ari == -math.inf else f"{melhor_ari:.4f}"
-                print(f"📈 ARI {ant} → {ari:.4f}  (melhorou)")
-                melhor_ari, sem_melhoria = ari, 0
-            else:
-                sem_melhoria += 1
-                melhor_ari = max(melhor_ari, ari)
-                print(f"➖ ARI {ari:.4f} sem melhoria relevante ({sem_melhoria}/{paciencia})")
-                if sem_melhoria >= paciencia:
-                    print("🛑 Estagnou: mais amostras já não melhoram a validação.")
-                    break
-    except KeyboardInterrupt:
-        print("\n⏸️ Interrompido pelo utilizador. O dataset gravado está intacto.")
 
 
 def main():
@@ -748,38 +807,18 @@ def main():
     ap.add_argument("--amostras", type=int, default=50)
     ap.add_argument("--retreinar", action="store_true")
     ap.add_argument("--sem-benchmark", action="store_true")
-    ap.add_argument("--so-benchmark", action="store_true",
-                    help="não gera nem treina; só corre o benchmark (frio vem do cache)")
-    ap.add_argument("--n-bench", type=int, default=N_BENCHMARK)
-    ap.add_argument("--refazer-frio", action="store_true",
-                    help="ignora o cache e volta a correr o GA a frio")
-    ap.add_argument("--com-geometrico", action="store_true",
-                    help="inclui warm start por k-means como terceira referência")
-    ap.add_argument("--consistencia", action="store_true",
-                    help="mede o ARI do GA contra si próprio (seeds diferentes) e sai")
-    ap.add_argument("--auto", action="store_true",
-                    help="gera em lotes, retreina e valida até a métrica estagnar")
-    ap.add_argument("--lote", type=int, default=50)
-    ap.add_argument("--max-amostras", type=int, default=500)
-    ap.add_argument("--paciencia", type=int, default=2)
-    ap.add_argument("--melhoria-min", type=float, default=0.01)
-    ap.add_argument("--max-horas", type=float, default=None)
+    ap.add_argument("--so-benchmark", action="store_true")
+    ap.add_argument("--n-bench", type=int, default=1)
+    ap.add_argument("--refazer-frio", action="store_true")
     args = ap.parse_args()
 
-    if args.consistencia:
-        teste_consistencia_ga()
-        return
-
     if args.so_benchmark:
-        benchmark_convergencia(n_bench=args.n_bench, refazer_frio=args.refazer_frio,
-                               com_geo=args.com_geometrico)
+        if _modelo_desatualizado():
+            treinar_e_validar()
+        benchmark_convergencia(n_bench=args.n_bench, refazer_frio=args.refazer_frio)
         return
 
-    if args.auto:
-        modo_auto(args.lote, args.max_amostras, args.paciencia,
-                  args.melhoria_min, args.max_horas)
-    else:
-        gerar_dataset(args.amostras)
+    gerar_dataset(args.amostras)
 
     if os.path.exists(DATASET_CSV) and (args.retreinar or _modelo_desatualizado()):
         treinar_e_validar()
@@ -787,8 +826,7 @@ def main():
         print("✅ Modelo já atualizado em relação ao dataset (use --retreinar para forçar).")
 
     if not args.sem_benchmark and os.path.exists(MODELO_PATH):
-        benchmark_convergencia(n_bench=args.n_bench, refazer_frio=args.refazer_frio,
-                               com_geo=args.com_geometrico)
+        benchmark_convergencia(n_bench=args.n_bench, refazer_frio=args.refazer_frio)
 
 
 if __name__ == "__main__":

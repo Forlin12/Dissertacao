@@ -1,0 +1,34 @@
+[2026-11-05 02:23:48] 🤖 Agente VM iniciado em APEREIRA-A69613 (CPUs: 8)
+[2026-11-05 02:23:48] Candidatos Python encontrados na VM: ['C:\\Users\\a69613\\PycharmProjects\\Dissertacao\\.venv\\Scripts\\python.exe', 'C:\\Users\\a69613\\AppData\\Local\\Programs\\Python\\Python311\\python.exe']
+[2026-11-05 02:24:07] ✅ Python completo com todas as bibliotecas encontrado: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe
+[2026-11-05 02:24:08] 📡 Aguardando e processando tarefas automaticamente (deixe esta janela aberta)...
+[2026-11-05 02:24:09] ▶️ Executando tarefa #2: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe X:\Users\Forlin\Dissertação\IA\teste_todos_cenarios_vm.py 
+[2026-11-05 10:59:32] 🤖 Agente VM iniciado em APEREIRA-A69613 (CPUs: 8)
+[2026-11-05 10:59:33] Candidatos Python encontrados na VM: ['C:\\Users\\a69613\\PycharmProjects\\Dissertacao\\.venv\\Scripts\\python.exe', 'C:\\Users\\a69613\\AppData\\Local\\Programs\\Python\\Python311\\python.exe']
+[2026-11-05 10:59:51] ✅ Python completo com todas as bibliotecas encontrado: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe
+[2026-11-05 10:59:51] 📡 Aguardando e processando tarefas automaticamente (deixe esta janela aberta)...
+[2026-11-05 10:59:53] ▶️ Executando tarefa #4: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe W:\Users\Forlin\Dissertação\IA\teste_todos_cenarios_vm.py 
+[2026-11-05 11:16:30] 🤖 Agente VM iniciado em APEREIRA-A69613 (CPUs: 8)
+[2026-11-05 11:16:30] Candidatos Python encontrados na VM: ['C:\\Users\\a69613\\PycharmProjects\\Dissertacao\\.venv\\Scripts\\python.exe', 'C:\\Users\\a69613\\AppData\\Local\\Programs\\Python\\Python311\\python.exe']
+[2026-11-05 11:16:49] ✅ Python completo com todas as bibliotecas encontrado: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe
+[2026-11-05 11:16:50] 📡 Aguardando e processando tarefas automaticamente (deixe esta janela aberta)...
+[2026-11-05 11:16:51] ▶️ Executando tarefa #5: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe -u V:\Users\Forlin\Dissertação\IA\teste_todos_cenarios_vm.py 
+[2026-11-05 13:04:24] ⏹️ Tarefa #5 finalizada com status: CONCLUIDO
+[2026-11-05 14:37:14] ▶️ Executando tarefa #6: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe -u V:\Users\Forlin\Dissertação\IA\teste_todos_cenarios_vm.py 
+[2026-11-05 16:21:19] 🤖 Agente VM iniciado em APEREIRA-A69613 (CPUs: 8)
+[2026-11-05 16:21:20] ✅ Python VENV principal encontrado instantaneamente: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe
+[2026-11-05 16:21:20] 📡 Aguardando e processando tarefas automaticamente (deixe esta janela aberta)...
+[2026-11-05 16:21:22] ▶️ Executando tarefa #7: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe -u S:\IA\teste_todos_cenarios_vm.py 
+[2026-11-05 19:06:36] 🤖 Agente VM iniciado em APEREIRA-A69613 (CPUs: 8)
+[2026-11-05 19:06:36] ✅ Python VENV principal encontrado instantaneamente: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe
+[2026-11-05 19:06:37] 📡 Aguardando e processando tarefas automaticamente (deixe esta janela aberta)...
+[2026-11-05 19:06:38] ▶️ Executando tarefa #7: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe -u R:\IA\teste_todos_cenarios_vm.py 
+[2026-11-05 21:01:03] 🤖 Agente VM iniciado em APEREIRA-A69613 (CPUs: 8)
+[2026-11-05 21:01:04] ✅ Python VENV principal encontrado instantaneamente: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe
+[2026-11-05 21:01:04] 📡 Aguardando e processando tarefas automaticamente (deixe esta janela aberta)...
+[2026-11-05 21:01:06] ▶️ Executando tarefa #7: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe -u Q:\IA\teste_todos_cenarios_vm.py 
+[2026-11-05 21:13:34] 🤖 Agente VM iniciado em APEREIRA-A69613 (CPUs: 8)
+[2026-11-05 21:13:35] ✅ Python VENV principal encontrado instantaneamente: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe
+[2026-11-05 21:13:35] 📡 Aguardando e processando tarefas automaticamente (deixe esta janela aberta)...
+[2026-11-05 21:13:37] ▶️ Executando tarefa #7: C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe -u P:\IA\teste_todos_cenarios_vm.py 
+[2026-11-05 21:42:27] ⏹️ Tarefa #7 finalizada com status: CONCLUIDO

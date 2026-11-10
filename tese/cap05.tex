@@ -1,0 +1,330 @@
+\chapter{Testes e Resultados}\label{cap:test}
+
+Este capítulo apresenta a avaliação experimental do sistema implementado no Capítulo~\ref{cap:development}, seguindo a metodologia de isolamento de variáveis do Capítulo~\ref{cap:metodology}. O objetivo é medir o compromisso entre qualidade da solução e custo computacional em cada camada de decisão, o escalonamento de tarefas e o planejamento de trajetórias 4D, à medida que a operação cresce, e assim responder às questões de pesquisa da Seção~\ref{sec:problema_pesquisa}. A Seção~\ref{sec:ambiente_protocolo} descreve o ambiente e o protocolo, e as Seções~\ref{sec:caso1} a \ref{sec:caso3} trazem os três casos de teste. A Seção~\ref{sec:discussao_limitacoes} reúne as conclusões e as limitações.
+
+\section{Ambiente e protocolo experimental}\label{sec:ambiente_protocolo}
+
+\subsection{Ambiente computacional e execução}
+
+Os testes foram executados em uma máquina virtual sobre o hipervisor Proxmox VE, com Windows 11 Enterprise LTSC, CPU virtual QEMU a 2400~MHz com 8 núcleos lógicos e 16~GB de RAM. Como a CPU é virtual e genérica, os tempos absolutos valem apenas para esta configuração e devem ser lidos de forma comparativa.
+
+A semente aleatória foi fixada em \texttt{np.random.seed(42)}, o que torna reproduzíveis a malha urbana, os pontos de entrega, as massas das encomendas e a população inicial (Seções~\ref{sec:ambiente-agente} e \ref{sec:tarefas}). O GA, \textit{Branch and Bound} e o NSGA-II avaliam a população em paralelo, com 8 \textit{threads}.
+
+Cada configuração foi executada uma única vez, porque uma só instância chega a cerca de $4\times10^{4}$ segundos. Por isso, diferenças percentuais pequenas não são tratadas como prova de superioridade, e as conclusões se apoiam em padrões que se repetem entre cenários.
+
+\subsection{Parâmetros dos algoritmos e critério de estabilidade}
+
+A Tabela~\ref{tab:parametros} resume os parâmetros do GA e do NSGA-II na biblioteca \texttt{pygad} (Seções~\ref{sec:dev-ga} e \ref{sec:dev-nsga}). A população é pequena, com 35 indivíduos e no máximo 8 gerações, porque cada avaliação exige planejar e simular dezenas a centenas de trajetórias 4D de ida e volta. Além disso, a população parte de soluções já balanceadas (\textit{warm start}), de modo que a evolução funciona como refinamento de uma base viável.
+
+% VERIFICAR: o codigo enviado (nsga_optimizer.py) usa SOL_POP = 10, nao 35.
+\begin{table}[htbp]
+\centering
+\small
+\caption{Parâmetros do Algoritmo Genético e do NSGA-II.}
+\label{tab:parametros}
+\begin{tabular}{p{4.2cm}p{4.6cm}p{4.6cm}}
+\toprule
+\textbf{Parâmetro} & \textbf{GA} & \textbf{NSGA-II} \\
+\midrule
+Tamanho da população & 35 & 35 \\
+Máximo de gerações & 8 & 8 (fixas) \\
+Seleção de pais & Torneio ($K=5$) & \texttt{nsga2} (não dominância e \textit{crowding distance}) \\
+Cruzamento & Dois pontos & Dois pontos \\
+Mutação & Adaptativa: 10\% (baixa aptidão) e 5\% (alta aptidão) & Idem \\
+Elitismo & Preservado entre gerações & Preservado entre gerações \\
+População inicial & \textit{Warm start} em blocos sequenciais de pedidos, mais indivíduos com 1 a 3 genes mutados & 1 indivíduo \textit{round-robin}, 3 mutados (até 3 genes) e os demais aleatórios \\
+Critério de parada & Saturação em 3 gerações ou 8 gerações & 8 gerações \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Como o GA não tem critério de otimalidade comprovável, a parada é por estabilidade (\texttt{stop\_criteria=["saturate\_3"]}): a busca termina quando o melhor \textit{fitness} não melhora por três gerações seguidas, respeitado o teto de 8 gerações. O ``tempo até a estabilidade'' citado nos resultados é o tempo decorrido até esse ponto.
+
+Os mecanismos de aceleração das Seções~\ref{sec:dev-mosp} a \ref{sec:dev-nsga} foram configurados assim. No MOSP, cada célula guarda até 8 rótulos não dominados (tolerâncias $\epsilon_t = 0{,}5$~s e $\epsilon_e = 0{,}2$~Wh) e a busca para ao coletar 5 soluções no destino. No filtro de poda teórica do GA, a velocidade de referência é de 15~m/s e o consumo mínimo, de 0,015~Wh/m. No corte parcial durante a simulação, a avaliação é interrompida quando o \textit{makespan} acumulado passa do melhor teto vigente em mais de 50 \textit{frames}.
+
+\subsection{Parametrização física, energética e temporal}
+
+Em todos os casos, o espaço aéreo foi discretizado nas camadas $\text{VETOR\_CAMADAS\_VOO} = [25, 28, 30, 35, 40, 50]$~m, sobre uma malha de 2,5~m. O \textit{makespan} é medido em \textit{frames}, equivalentes a segundos, e a ele se somam o tempo de descarga ($T_{\text{desc}} = 5$~s) e as eventuais recargas na base.
+
+% VERIFICAR: no pathfinder enviado, uma celula de 2,5 m consome 2 frames
+% (cerca de 1,25 m por frame, independente do modelo de drone). Confirmar
+% se "1 frame = 1 s" vale para a versao usada nos experimentos.
+
+Sejam, $c_{\text{sub}}$, $c_{\text{desc}}$ e $c_{\text{cru}}$ as taxas de consumo do drone em voo estacionário, subida, descida e cruzeiro, e $c_{\text{peso}} = m_{\text{pacote}} \cdot p_{\text{carga}}$ o acréscimo causado pela massa da encomenda, com $m_{\text{pacote}} \in [0{,}5;\,3{,}5]$~kg, limitada à capacidade de cada aeronave e aplicada só na viagem de ida:
+\begin{align}
+E_{\text{subida}} &= |\Delta z|\,(c_{\text{sub}} + c_{\text{peso}}) \\
+E_{\text{descida}} &= |\Delta z|\,(c_{\text{desc}} + c_{\text{peso}}) \\
+E_{\text{cruzeiro}} &= d_{xy}\,(c_{\text{cru}} + c_{\text{peso}}) \\
+E_{\text{descarga}} &= T_{\text{desc}}\left(c_{\text{hover}} + m_{\text{pacote}}\, p_{\text{carga}}\, v_{\text{horiz}}\right)
+\end{align}
+Antes de partir, a bateria precisa cobrir $1{,}5\times$ a energia estimada da missão (ida, descarga e volta em linha reta). Se não cobrir, o drone recarrega a diferença $E_{\text{falta}}$ na base, à taxa $P_{\text{rec}}$ (W), e a partida atrasa $\lfloor 3600\,E_{\text{falta}}/P_{\text{rec}} \rfloor + 1$ segundos.
+
+A Tabela~\ref{tab:resumo_casos} resume os três casos, e a Figura~\ref{fig:mapas_braganca} mostra os dois recortes urbanos gerados a partir do centro de Bragança: o reduzido, de 200~m de raio (Caso~1), e o expandido, de 1700~m (Casos~2 e~3). Em todos os casos, a carga foi escalonada em nove combinações de drones e pedidos: 5-10, 5-20, 5-40, 10-20, 10-40, 10-80, 20-40, 20-80 e 20-160.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Configuração dos três casos de teste.}
+\label{tab:resumo_casos}
+\begin{tabular}{p{2.6cm}p{3.6cm}p{3.6cm}p{4.2cm}}
+\toprule
+ & \textbf{Caso 1 (Cenário 1)} & \textbf{Caso 2 (Cenário 2)} & \textbf{Caso 3 (Cenário 3)} \\
+\midrule
+Foco de avaliação & Escalonamento (BB $\times$ GA) & Roteamento 4D (MOSP $\times$ TEA*) & Escalonamento multiobjetivo (GA $\times$ NSGA-II) \\
+Algoritmo fixo & Roteamento TEA* & Escalonamento GA & Roteamento MOSP \\
+Dimensão urbana & Raio de 200 m (Bragança) & Raio de 1700 m (Bragança) & Raio de 1700 m (Bragança) \\
+Frota de VANTs & Homogênea (genérico) & Heterogênea (DJI Matrice 300 RTK e Wingcopter 198) & Heterogênea (DJI Matrice 300 RTK e Wingcopter 198) \\
+Objetivos & \textit{Makespan} & \textit{Makespan} e energia & \textit{Makespan} e energia \\
+Métrica principal & \textit{Makespan} e tempo de CPU & \textit{Makespan}, energia e tempo até a estabilidade & Fronteira de Pareto (\textit{makespan} e energia) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{chapters/myplot200.png}
+        \par\vspace{2pt}
+        {\footnotesize (a) Recorte reduzido (raio de 200~m, Caso~1).}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{chapters/myplot1700.png}
+        \par\vspace{2pt}
+        {\footnotesize (b) Malha expandida (raio de 1700~m, Casos~2 e~3).}
+    \end{minipage}
+    \caption{Vista em planta 2D dos cenários simulados em Bragança, com os quarteirões e lotes gerados por diagrama de Voronoi, a base operacional (azul), os destinos de entrega (amarelo) e exemplos de rotas da frota.}
+    \label{fig:mapas_braganca}
+\end{figure}
+
+\section{Caso 1: Branch and Bound e Algoritmo Genético}\label{sec:caso1}
+
+O Caso~1 implementa o Cenário~1 (Seção~\ref{sec:cenario1}). Com o roteamento fixo no TEA*, compara-se o método exato (\textit{Branch and Bound}, Seção~\ref{sec:dev-bb}) com o evolutivo (GA, Seção~\ref{sec:dev-ga}). Para isolar o custo combinatório da alocação, usou-se o recorte de 200~m (Figura~\ref{fig:mapas_braganca}a) e uma frota homogênea de drones genéricos, sem recargas nem heterogeneidade.
+
+Os dois algoritmos minimizam a mesma função de custo:
+\begin{equation}
+\text{custo} = \text{makespan} + \text{penalidade}, \qquad \text{fitness} = \frac{1{,}0}{\text{custo} + 0{,}0001}
+\end{equation}
+A penalidade vale $\text{falhas} \times 50000$, muito acima de qualquer \textit{makespan} viável, e cada falha é uma missão para a qual o roteador não encontra trajetória livre de colisão após uma nova tentativa.
+
+O BB teve um teto de 6 horas (21\,600~s). O fator de aceleração ($\textit{speedup} = t_{\text{BB}} / t_{\text{GA}}$) deve ser lido com cuidado: o GA para por estabilidade e entrega uma solução heurística, enquanto o BB gasta tempo tentando provar a otimalidade depois de já ter boas soluções. A qualidade do GA frente à melhor solução do BB é medida pelo desvio
+\begin{equation}
+\text{GAP} (\%) = \left( \frac{\text{makespan}_{\text{GA}} - \text{makespan}_{\text{BB}}}{\text{makespan}_{\text{BB}}} \right) \times 100
+\end{equation}
+em que valores negativos indicam que o GA superou a busca exata truncada. A Tabela~\ref{tab:comparacao_bb_ga} traz os resultados.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Comparação de desempenho entre \textit{Branch and Bound} (BB) e Algoritmo Genético (GA).}
+\label{tab:comparacao_bb_ga}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{cccccccc}
+\toprule
+\textbf{Drones} & \textbf{Pedidos} & \textbf{Makespan BB} & \textbf{Makespan GA} & \textbf{GAP (\%)} & \textbf{Tempo BB (s)} & \textbf{Tempo GA (s)} & \textbf{\textit{Speedup}} \\
+\midrule
+5  & 10  & 651  & 671  & +3{,}07 & 400       & 171{,}1  & 2{,}3$\times$ \\
+5  & 20  & 1409 & 1515 & +7{,}52 & 21\,600$^*$ & 182{,}9  & 118{,}1$\times$ \\
+5  & 40  & 3089 & 3050 & -1{,}26 & 21\,600$^*$ & 1162{,}0 & 18{,}6$\times$ \\
+\midrule
+10 & 20  & 875  & 934  & +6{,}74 & 21\,600$^*$ & 352{,}1  & 61{,}3$\times$ \\
+10 & 40  & 1720 & 1753 & +1{,}92 & 21\,600$^*$ & 933{,}4  & 23{,}1$\times$ \\
+10 & 80  & 3483 & 3476 & -0{,}20 & 21\,600$^*$ & 2819{,}9 & 7{,}7$\times$ \\
+\midrule
+20 & 40  & 1106 & 1207 & +9{,}13 & 21\,600$^*$ & 355{,}5  & 60{,}8$\times$ \\
+20 & 80  & 2126 & 2226 & +4{,}70 & 21\,600$^*$ & 1976{,}8 & 10{,}9$\times$ \\
+20 & 160 & 4012 & 3965 & -1{,}17 & 21\,600$^*$ & 7957{,}4 & 2{,}7$\times$ \\
+\bottomrule
+\multicolumn{8}{l}{\footnotesize $^*$Execução interrompida no limite de 6 horas (21\,600 s); o \textit{makespan} do BB é o da melhor solução incumbente.}
+\end{tabular}%
+}
+\end{table}
+
+\subsection*{Análise}
+
+O BB só provou a otimalidade dentro do prazo na menor instância (5-10), em 400~s, e nela o GA ficou 3,07\% acima do ótimo. Nas outras oito, a explosão combinatória levou o BB ao limite de 6 horas. Como a poda compara apenas o custo parcial com a incumbente, sem relaxação das tarefas restantes, não há \textit{gap} dual a reportar nessas execuções.
+
+Nas instâncias interrompidas, o GA ficou entre 1,92\% e 9,13\% acima da incumbente do BB em seis cenários e abaixo dela nos três com mais pedidos por drone (5-40, 10-80 e 20-160), com GAPs de $-1{,}26\%$, $-0{,}20\%$ e $-1{,}17\%$. O valor de $-0{,}20\%$ não se distingue de ruído em uma única execução, mas o sinal negativo se repete nesses três cenários. Isso sugere que, quanto mais entregas encadeadas por drone, pior a busca em profundidade truncada do BB se sai diante do GA.
+
+O \textit{speedup} ficou entre 2,3 e 118,1 vezes (máximo em 5-20) e cai nas instâncias maiores, porque o tempo do GA sobe de 171,1~s (5-10) para 7957,4~s (20-160). O salto de 182,9~s (5-20) para 1162,0~s (5-40) pode vir do adensamento da tabela de reservas espaço-temporais, que obriga o TEA* a expandir mais nós, mas isso não foi medido. Em todo caso, o GA escala melhor que o BB, o que confirma o ponto de saturação do método exato previsto na Seção~\ref{sec:cenario1} e justifica o uso do GA nos casos seguintes.
+
+\section{Caso 2: roteamento MOSP e TEA*}\label{sec:caso2}
+
+O Caso~2 implementa o Cenário~2 (Seção~\ref{sec:cenario2}). O escalonador fica fixo no GA e comparam-se dois roteadores: o TEA* (Seção~\ref{sec:dev-tea}), que minimiza apenas o tempo, e o MOSP (Seção~\ref{sec:dev-mosp}), que propaga rótulos de tempo e energia. O ambiente passa a ser a malha de 1700~m (Figura~\ref{fig:mapas_braganca}b) e a frota é heterogênea, alternando o multirrotor DJI Matrice 300 RTK (2,7~kg, 8,0~m/s, 548~Wh) e a aeronave de asa híbrida Wingcopter 198 (5,0~kg, 28,0~m/s, 1628~Wh).
+
+Como os drones costumam completar o turno com a carga inicial da bateria, a energia entra na aptidão escalar do GA (Seção~\ref{sec:dev-ga}) convertida em tempo equivalente, à razão de 3,6~s/Wh (recarga de referência a 1000~W):
+\begin{equation}\label{eq:custo_agregado}
+\text{custo} = \text{makespan} + \text{penalidade} + (\text{energia} \times 3{,}6)
+\end{equation}
+A aptidão e a penalidade seguem as definições do Caso~1.
+
+A Tabela~\ref{tab:estabilidade_mosp_tea} traz o \textit{makespan}, a energia e o tempo até a estabilidade do GA com cada roteador. O desvio é $(\text{TEA*}-\text{MOSP})/\text{MOSP}$, de modo que valores negativos favorecem o TEA*.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparação dos valores na estabilidade entre os algoritmos MOSP (referência) e TEA*.}
+\label{tab:estabilidade_mosp_tea}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l rrr rrr rrr}
+\toprule
+ & \multicolumn{3}{c}{\textbf{Makespan (\textit{frames})}} & \multicolumn{3}{c}{\textbf{Energia na estabilidade (Wh)}} & \multicolumn{3}{c}{\textbf{Tempo até a estabilidade (s)}} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+\textbf{Cenário} & \textbf{MOSP} & \textbf{TEA*} & \textbf{Gap (\%)} & \textbf{MOSP} & \textbf{TEA*} & \textbf{Gap (\%)} & \textbf{MOSP} & \textbf{TEA*} & \textbf{Gap (\%)} \\
+\midrule
+5-10   & \textbf{3838}  & 4413           & +14,98 & 588,54            & \textbf{588,44}  & -0,02 & 509,35            & \textbf{449,35}   & -11,78 \\
+5-20   & \textbf{7844}  & 8272           & +5,46  & \textbf{1184,17}  & 1239,64          & +4,68 & 4132,80           & \textbf{4039,69}  & -2,25  \\
+5-40   & 17427          & \textbf{17157} & -1,55  & \textbf{2515,65}  & 2627,22          & +4,44 & \textbf{2210,91}  & 10174,08          & +360,18 \\
+10-20  & 5519           & \textbf{5294}  & -4,08  & \textbf{1160,59}  & 1196,63          & +3,11 & 4915,57           & \textbf{3934,09}  & -19,97 \\
+10-40  & \textbf{10757} & 11371          & +5,71  & 2527,46           & \textbf{2526,49} & -0,04 & 13166,60          & \textbf{12750,56} & -3,16  \\
+10-80  & \textbf{17520} & 18073          & +3,16  & \textbf{4808,10}  & 4980,22          & +3,58 & 40268,84          & \textbf{36049,74} & -10,48 \\
+20-40  & 6924           & \textbf{6846}  & -1,13  & \textbf{2518,54}  & 2544,16          & +1,02 & \textbf{10500,76} & 21657,14          & +106,24 \\
+20-80  & 13337          & \textbf{12160} & -8,83  & \textbf{4857,38}  & 4935,78          & +1,61 & \textbf{7965,02}  & 22617,34          & +183,96 \\
+20-160 & \textbf{22276} & 23421          & +5,14  & \textbf{10595,71} & 10841,82         & +2,32 & 30173,47          & \textbf{29211,28} & -3,19  \\
+\midrule
+\textbf{Média} & \textbf{11715,8} & 11889,7 & +2,10 & \textbf{3417,35} & 3497,82 & +2,30 & \textbf{12649,26} & 15653,70 & +66,62 \\
+\bottomrule
+\multicolumn{10}{l}{\footnotesize Nas colunas de valores, a média é a aritmética dos valores absolutos; nas colunas de gap, é a média dos gaps de cada cenário.}
+\end{tabular}%
+}
+\end{table}
+
+
+
+\section{Caso 3: GA e NSGA-II}\label{sec:caso3}
+
+O Caso~3 implementa o Cenário~3 (Seção~\ref{sec:cenario3}). O roteamento fica fixo no MOSP, no mesmo ambiente de 1700~m e com a mesma frota do Caso~2, e comparam-se o GA com soma ponderada (Equação~\ref{eq:custo_agregado}, cujos resultados no Caso~2 servem de linha de base, o ``GA Base'') e o NSGA-II (Seção~\ref{sec:dev-nsga}). No NSGA-II, cada cromossomo é avaliado por dois objetivos independentes:
+\begin{align}
+\text{custo}_{\text{tempo}} &= \text{makespan} + \text{penalidade}, & f_1 &= \frac{1{,}0}{\text{custo}_{\text{tempo}} + 0{,}0001} \\
+\text{custo}_{\text{energia}} &= (\text{energia} \times 3{,}6) + \text{penalidade}, & f_2 &= \frac{1{,}0}{\text{custo}_{\text{energia}} + 0{,}0001}
+\end{align}
+Como $f_2$ é monótona no consumo, o fator 3,6 não altera a dominância de Pareto e serve apenas para manter a escala da formulação do GA.
+
+A Tabela~\ref{tab:mosp_nsga_gaps_base} compara o GA Base com três soluções do conjunto não dominado registrado pelo NSGA-II: a de menor \textit{makespan} (Extremo~1), a de menor energia (Extremo~2) e uma intermediária (Balanceado). Os extremos são os menores valores de \textit{makespan} e de energia registrados durante a execução, e não necessariamente a fronteira da última geração (Seção~\ref{sec:dev-nsga}).
+
+% VERIFICAR: criterio de escolha do "Balanceado" (nao esta no codigo enviado).
+% VERIFICAR: no cenario 20-80, a coluna Base (12160 F / 4935,8 Wh) coincide com o
+% TEA* da Tabela 5.x e nao com o MOSP (13337 F / 5023,1 Wh). Se a base correta
+% for o MOSP, os gaps dessa linha mudam (Extremo 1 passaria de -10,2% para cerca de -18,1%).
+\begin{table}[htbp]
+\centering
+\caption{Comparação de desempenho nos 9 cenários, com gaps percentuais relativos ao GA (Base) e valores de energia atualizados.}
+\label{tab:mosp_nsga_gaps_base}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Cenário (Drones-Pedidos)} & \textbf{GA (Base)} & \textbf{NSGA-II (Extremo 1)} & \textbf{NSGA-II (Ponto de Joelho)} & \textbf{NSGA-II (Extremo 2)} \\
+ & \textit{(absoluto)} & \textit{(foco em \textit{makespan})} & \textit{(solução de compromisso)} & \textit{(foco em energia)} \\
+\midrule
+5-10   & 3838 F / 588,54 Wh          & \textbf{3703 F (-3,5\%)} / 590,30 Wh (+0,3\%)   & 5393 F (+40,5\%) / 558,52 Wh (-5,1\%)  & 7376 F (+92,2\%) / \textbf{549,70 Wh (-6,6\%)} \\
+5-20   & 7844 F / 1184,17 Wh         & \textbf{7591 F (-3,2\%)} / 1181,80 Wh (-0,2\%) & 8009 F (+2,1\%) / 1169,96 Wh (-1,2\%)  & 16340 F (+108,3\%) / \textbf{1135,62 Wh (-4,1\%)} \\
+5-40   & 17427 F / 2515,65 Wh        & \textbf{16874 F (-3,2\%)} / 2533,26 Wh (+0,7\%) & 20076 F (+15,2\%) / 2498,04 Wh (-0,7\%) & 28268 F (+62,2\%) / \textbf{2462,82 Wh (-2,1\%)} \\
+10-20  & 5519 F / 1160,59 Wh         & \textbf{5166 F (-6,4\%)} / 1174,52 Wh (+1,2\%)  & 5355 F (-3,0\%) / 1152,47 Wh (-0,7\%)  & 11509 F (+108,5\%) / \textbf{1114,17 Wh (-4,0\%)} \\
+10-40  & 10757 F / 2527,46 Wh        & \textbf{9726 F (-9,6\%)} / 2519,88 Wh (-0,3\%)  & 11355 F (+5,6\%) / 2479,43 Wh (-1,9\%)  & 15240 F (+41,7\%) / \textbf{2436,47 Wh (-3,6\%)} \\
+10-80  & \textbf{17520 F} / 4808,10 Wh & 18451 F (+5,3\%) / 4798,48 Wh (-0,2\%)  & 19690 F (+12,4\%) / 4769,64 Wh (-0,8\%) & 22344 F (+27,5\%) / \textbf{4707,13 Wh (-2,1\%)} \\
+20-40  & \textbf{6924 F} / 2518,54 Wh  & 7282 F (+5,2\%) / 2553,80 Wh (+1,4\%)   & 7367 F (+6,4\%) / \textbf{2422,84 Wh (-3,8\%)} & 7367 F (+6,4\%) / \textbf{2422,84 Wh (-3,8\%)} \\
+20-80  & \textbf{12160 F} / 4857,38 Wh & 10923 F (-10,2\%) / 4886,52 Wh (+0,6\%) & 16456 F (+35,3\%) / 4818,52 Wh (-0,8\%) & 17331 F (+42,5\%) / \textbf{4808,81 Wh (-1,0\%)} \\
+20-160 & \textbf{22276 F} / 10595,71 Wh & 23404 F (+5,1\%) / \textbf{10426,18 Wh (-1,6\%)} & 23404 F (+5,1\%) / \textbf{10426,18 Wh (-1,6\%)} & 23404 F (+5,1\%) / \textbf{10426,18 Wh (-1,6\%)} \\
+\midrule
+\textbf{Média global} & -- & -2,3\% / +0,2\% & +13,3\% / -1,8\% & +54,9\% / -3,2\% \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize F = \textit{frames}. A média global é a média dos gaps percentuais dos 9 cenários (\textit{makespan} / energia).}
+\end{tabular}%
+}
+\end{table}
+
+ 
+
+
+
+\begin{table}[htbp]
+    \centering
+    \caption{Comparativo de desempenho no simulador 4D (\texttt{MOSP\_CAMADAS}) entre a alocação Sequencial (Geração 0), o Algoritmo Genético a Frio (após 8 gerações) e a Alocação Direta da IA proposta (Geração 0).}
+    \label{tab:comparativo_etapa1_4d}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{lcccccccc}
+    \toprule
+    & \multicolumn{2}{c}{\textbf{Sequencial (Gen 0)}} & \multicolumn{3}{c}{\textbf{GA Frio (8 Gerações)}} & \multicolumn{3}{c}{\textbf{IA Proposta (Gen 0)}} \\
+    \cmidrule(lr){2-3} \cmidrule(lr){4-6} \cmidrule(lr){7-9}
+    \textbf{Cenário} & \textbf{Makespan} & \textbf{Energia} & \textbf{Makespan} & \textbf{Energia} & \textbf{Tempo} & \textbf{Makespan} & \textbf{Energia} & \textbf{Ganho Mk.} \\
+    \textbf{(UAVs / Entr.)} & \textbf{(frames)} & \textbf{(Wh)} & \textbf{(frames)} & \textbf{(Wh)} & \textbf{(s)} & \textbf{(frames)} & \textbf{(Wh)} & \textbf{(vs Seq / GA)} \\
+    \midrule
+    \multicolumn{9}{l}{\textit{Cenários de Treino / Avaliação Base}} \\
+    5 / 10 (A)  & 5.622  & 526,1   & 3.507  & 508,0   & 2.474,2  & \textbf{3.304}  & \textbf{503,2}   & $-41,2\% \;/\; -5,8\%$ \\
+    5 / 10 (B)  & 7.371  & 838,6   & 7.371  & 838,6   & 2.316,3  & \textbf{6.152}  & \textbf{837,7}   & $-16,5\% \;/\; -16,5\%$ \\
+    5 / 20      & 8.809  & 1.106,4 & 7.730  & 1.099,5 & 3.915,3  & \textbf{6.856}  & 1.103,5          & $-22,2\% \;/\; -11,3\%$ \\
+    5 / 40      & 20.880 & 2.565,1 & 16.651 & 2.586,4 & 11.444,4 & \textbf{15.818} & 2.630,2          & $-24,2\% \;/\; -5,0\%$ \\
+    10 / 20     & 5.031  & 1.144,7 & 4.382  & 1.135,7 & 5.424,0  & \textbf{3.766}  & 1.136,2          & $-25,1\% \;/\; -14,1\%$ \\
+    10 / 40     & 12.191 & 2.662,8 & 10.242 & 2.691,8 & 15.315,1 & \textbf{8.364}  & \textbf{2.676,3} & $-31,4\% \;/\; -18,3\%$ \\
+    \midrule
+    \multicolumn{9}{l}{\textit{Cenários de Escala (Zero-Shot)}$^*$} \\
+    10 / 80 (A) & 16.312 & 4.295,4 & 16.079 & 4.339,8 & 24.543,5 & \textbf{12.946} & \textbf{4.244,5} & $-20,6\% \;/\; -19,5\%$ \\
+    10 / 80 (B) & 22.492 & 5.780,5 & 21.188 & 5.759,2 & 18.707,3 & \textbf{18.521} & \textbf{5.736,8} & $-17,7\% \;/\; -12,6\%$ \\
+    20 / 40     & 6.809  & 2.501,7 & 6.736  & 2.464,9 & 22.182,5 & \textbf{4.997}  & 2.481,7          & $-26,6\% \;/\; -25,8\%$ \\
+    20 / 80     & 14.340 & 5.299,6 & 12.702 & 5.159,1 & 68.290,2 & \textbf{8.804}  & 5.214,7          & $-38,6\% \;/\; -30,7\%$ \\
+    20 / 160    & 20.400 & 9.753,8 & 20.400 & 9.753,8 & 41.340,2 & \textbf{15.473} & \textbf{9.665,0} & $-24,2\% \;/\; -24,2\%$ \\
+    \midrule
+    \textbf{Média Geral} & 12.750,6 & 3.315,9 & 11.544,4 & 3.303,3 & 19.632,1 & \textbf{9.545,5} & \textbf{3.293,6} & $\mathbf{-26,2\% \;/\; -16,7\%}$ \\
+    \bottomrule
+    \end{tabular}%
+    }
+    \vspace{1mm}
+    
+    \footnotesize{$^*$Cenários avaliados em regime \textit{Zero-Shot} (modelo treinado exclusivamente em cenários com até 10 UAVs e 40 entregas). Nos cenários 5 / 10 (B) e 20 / 160, o GA Frio estagnou na população inicial (\texttt{geracoes\_convergencia = 0}), mantendo a solução da Geração 0.}
+\end{table}
+    
+\section{Modelo Proposto: Alocação Baseada em Aprendizado de Máquina}
+\label{sec:modelo_proposto}
+
+Para contornar o custo computacional e a suscetibilidade a mínimos locais observados em métodos puramente heurísticos na inicialização, propõe-se uma abordagem baseada em aprendizado supervisionado. O modelo avalia a compatibilidade física entre pares constituídos por entrega $i$ e veículo aéreo não tripulado (VAV) $d$.
+
+\subsection{Espaço de Atributos Físicos}
+Em vez de mapear coordenadas geográficas absolutas — que variam a cada topologia urbana —, cada par $(i, d)$ é caracterizado por um vetor de atributos físicos $\mathbf{x}_{i,d} \in \mathbb{R}^8$:
+
+\begin{enumerate}
+    \item $d^{\text{norm}}_{i}$: Distância euclidiana da entrega $i$ ao Centro de Distribuição (CD), normalizada;
+    \item $p^{\text{rel}}_{i,d}$: Razão entre o peso do pacote $p_i$ e a capacidade nominal de carga do drone $C_d$;
+    \item $\delta^{\text{sob}}_{i,d}$: Variável binária indicando sobrecarga ($\delta^{\text{sob}}_{i,d} = 1$ se $p_i > C_d$; $0$ caso contrário);
+    \item $v^{\text{rel}}_{d}$: Velocidade de cruzeiro do drone $d$ relativa à velocidade máxima observada na frota;
+    \item $t^{\text{norm}}_{i,d}$: Tempo estimado de ida e volta da missão para o drone específico;
+    \item $e^{\text{rel}}_{i,d}$: Consumo energético projetado para a entrega em relação à capacidade total da bateria $B_d$;
+    \item $W^{\text{acum}}_{d}$: Tempo acumulado de voo previamente atribuído ao drone $d$ em relação à média da frota;
+    \item $\Delta M_{i,d}$: Incremento marginal no \textit{makespan} global decorrente da alocação de $i$ a $d$.
+\end{enumerate}
+
+\subsection{Arquitetura e Treinamento do Modelo}
+A compatibilidade é estimada por meio de um \textit{ensemble} heterogêneo composto por:
+\begin{itemize}
+    \item Um \textbf{Classificador Linear Logístico} com regularização $L_2$, responsável pela modelagem do balanço global contínuo entre tempo e consumo energético;
+    \item Um conjunto de \textbf{150 Árvores de Decisão via \textit{Gradient Boosting}}, responsável por capturar descontinuidades e restrições rígidas (e.g., penalização severa por saturação de massa e bateria).
+\end{itemize}
+
+O treinamento foi conduzido sobre $16.500$ pares $(i, d)$ originados de $51$ cenários simulados. Para garantir validade estatística e prevenir vazamento de dados (\textit{data leakage}), utilizou-se validação cruzada \textit{5-Fold} agrupada por cenário. A análise de importância de atributos apontou as seguintes contribuições relativas: $\Delta M_{i,d}$ ($38{,}1\%$), $W^{\text{acum}}_{d}$ ($26{,}2\%$), balanço energético e de velocidade ($25{,}4\%$) e atributos de carga e distância ($10{,}3\%$).
+
+\subsection{Geração da Solução Inicial (Geração 0)}
+O processo de inferência para um novo cenário atua de forma determinística:
+
+\begin{algorithm}[H]
+\caption{Alocação Direta via IA (Geração 0)}
+\begin{algorithmic}[1]
+\REQUIRE Conjunto de entregas ordenadas $\mathcal{I}$, frota $\mathcal{D}$, modelo treinado $f_\theta$
+\FORALL{$i \in \mathcal{I}$}
+    \FORALL{$d \in \mathcal{D}$}
+        \STATE $\mathbf{x}_{i,d} \leftarrow \text{ExtrairAtributos}(i, d, \text{estado atual da frota})$
+        \STATE $s_{i,d} \leftarrow f_\theta(\mathbf{x}_{i,d})$
+    \ENDFOR
+    \STATE $d^* \leftarrow \arg\max_{d \in \mathcal{D}} (s_{i,d})$
+    \STATE Alocar entrega $i$ ao drone $d^*$
+    \STATE Atualizar estado acumulado de voo e bateria do drone $d^*$
+\ENDFOR
+\RETURN Alocação inicial $\mathbf{A}_0$
+\end{algorithmic}
+\end{algorithm}
+
+A alocação $\mathbf{A}_0$ resultante da predição direta do modelo serve como cromossomo fundador para a Geração~0 do Algoritmo Genético, fornecendo uma base inicial próxima da fronteira viável sem necessidade de heurísticas cegas de inicialização.
+
+
+
+\section{Discussão geral e limitações}\label{sec:discussao_limitacoes}
+

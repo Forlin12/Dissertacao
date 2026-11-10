@@ -1,0 +1,332 @@
+% ==========================================================================
+% CAPÍTULO 3 - Formulação do Problema e Metodologia
+% ==========================================================================
+\chapter{Formulação do Problema e Metodologia}\label{cap:metodology}
+
+Este capítulo estabelece a base teórica e metodológica que fundamenta o desenvolvimento do sistema de gestão logística para frotas de Veículos Aéreos Não Tripulados (VANTs). O objetivo central consiste em estruturar matematicamente o problema integrado de escalonamento de tarefas e planejamento de trajetórias quadridimensionais livres de colisão, além de definir o protocolo experimental com isolamento de variáveis utilizado para avaliar as arquiteturas de otimização propostas.
+
+A Seção~\ref{sec:visao_geral_problema} introduz a articulação entre as camadas de decisão do sistema. A Seção~\ref{sec:formulacao_matematica} formaliza o modelo matemático do problema, detalhando conjuntos, parâmetros operacionais, variáveis de decisão, funções-objetivo e restrições físicas. A Seção~\ref{sec:cenarios_metodologia} apresenta o desenho metodológico estruturado em quatro cenários de avaliação progressiva, concebidos para isolar o comportamento de cada técnica frente a aumentos na escala operacional. A Seção~\ref{sec:metricas_avaliacao} define analiticamente as métricas de desempenho empregadas na comparação dos resultados. Por fim, a Seção~\ref{sec:conclusao_cap3} sintetiza as diretrizes metodológicas e estabelece a transição para as decisões de implementação apresentadas no Capítulo~\ref{cap:development}.
+
+\section{Visão Geral da Abordagem em Duas Camadas}\label{sec:visao_geral_problema}
+
+A operação autônoma de frotas de VANTs em ambientes urbanos impõe a resolução conjunta de dois problemas clássicos da pesquisa operacional que apresentam naturezas distintas e forte acoplamento mútuo. No nível superior, atua o problema de escalonamento de tarefas, responsável por distribuir as ordens de transporte entre as aeronaves disponíveis e estabelecer a ordem cronológica de atendimento das demandas. No nível inferior, atua o problema de planejamento de trajetórias quadridimensionais, encarregado de traçar curvas de voo no espaço tridimensional ao longo do tempo, contornando a malha de edificações e evitando colisões com outros veículos em operação simultânea.
+
+A literatura clássica de roteamento de veículos frequentemente simplifica esse acoplamento assumindo custos e tempos de deslocamento constantes entre pares de clientes, modelados por matrizes estáticas. No transporte aéreo urbano, entretanto, essa simplificação torna-se inválida. O tempo de trânsito e o consumo energético entre duas coordenadas dependem ativamente das restrições geométricas do relevo urbano, da massa da mercadoria transportada e da presença de outros VANTs que compartilham o mesmo espaço aéreo em camadas de altitude coincidentes.
+
+Diante dessa interdependência, a metodologia deste trabalho estrutura a resolução do sistema em uma arquitetura hierárquica e modular de duas camadas. A camada superior gera arranjos candidatos de atribuição de tarefas e submete-os à camada inferior. A camada inferior calcula as rotas físicas no espaço-tempo e quantifica as métricas reais de tempo de voo, consumo de bateria e esperas em voo pairado, retornando esses valores ao escalonador para orientar o processo de busca. As seções seguintes formalizam matematicamente esse modelo integrado e os cenários projetados para sua validação.
+
+\section{Formulação Matemática Formal}\label{sec:formulacao_matematica}
+
+Nesta seção, o problema integrado de escalonamento e planejamento de trajetórias quadridimensionais é formulado sob a ótica da Programação Inteira Mista (MILP). A formulação estabelece os limites operacionais do sistema, definindo as condições analíticas que garantem a exequibilidade física e temporal dos planos de voo gerados para a frota.
+
+\subsection{Conjuntos e Parâmetros do Sistema}
+
+O ambiente operacional é delimitado por um espaço aéreo contínuo $\mathcal{V} \subset \mathbb{R}^3$, sujeito a zonas de exclusão estáticas originadas pela geometria dos edifícios urbanos, representadas pelo conjunto $\mathcal{O}_{\text{urb}} \subset \mathcal{V}$. O horizonte temporal da operação é discretizado no intervalo $t \in [0, T_{\text{max}}]$. A logística de atendimento é formalizada a partir dos seguintes conjuntos fundamentais:
+
+\begin{itemize}
+    \item $\mathcal{P} = \{1, 2, \dots, N\}$: conjunto de pedidos de entrega a serem atendidos pela frota;
+    \item $\{0\}$: vértice que representa a base operacional e Centro de Distribuição (CD), ponto de partida e retorno de todas as missões;
+    \item $\mathcal{V}_{\text{op}} = \{0\} \cup \mathcal{P}$: conjunto de todos os pontos de interesse operacional da malha urbana;
+    \item $\mathcal{D} = \{1, 2, \dots, K\}$: conjunto de VANTs disponíveis na frota heterogênea.
+\end{itemize}
+
+Cada pedido $i \in \mathcal{P}$ é caracterizado por uma coordenada tridimensional de destino $\mathbf{p}_i = (x_i, y_i, z_i)$, uma massa de carga líquida $m_i \in [m_{\text{min}}, m_{\text{max}}]$ e um tempo estático de descarregamento no cliente $T_{\text{desc}}$. Cada VANT $d \in \mathcal{D}$ possui características cinemáticas e elétricas nominais descritas por:
+
+\begin{itemize}
+    \item $C_d$: capacidade nominal máxima de carga útil ($\text{kg}$);
+    \item $B_d$: capacidade nominal de armazenamento da bateria ($\text{Wh}$);
+    \item $\text{SoC}^{\text{res}}_d$: percentual mínimo de reserva de energia de segurança ($\%$);
+    \item $v^{\text{cru}}_d, v^{\text{sub}}_d, v^{\text{desc}}_d$: velocidades operacionais escalares em cruzeiro horizontal, subida e descida ($\text{m/s}$);
+    \item $c^{\text{cru}}_d, c^{\text{sub}}_d, c^{\text{desc}}_d, c^{\text{hover}}_d$: taxas basais de consumo energético em cruzeiro, subida, descida e voo pairado;
+    \item $p_d$: coeficiente linear de penalidade mecânica decorrente do transporte de massa ($\text{Wh/(kg}\cdot\text{m)}$);
+    \item $P^{\text{rec}}_d$: potência nominal da estação de recarga rápida localizada no CD ($\text{W}$);
+    \item $r_d$: raio físico do envelope esférico de segurança da aeronave ($\text{m}$).
+\end{itemize}
+
+\subsection{Variáveis de Decisão}
+
+O processo de otimização integrada atua sobre variáveis binárias de atribuição combinatória e variáveis contínuas associadas à trajetória física e temporal:
+
+\begin{itemize}
+    \item $x_{i, d} \in \{0, 1\}$: assume valor $1$ se o pedido de entrega $i \in \mathcal{P}$ for atribuído ao VANT $d \in \mathcal{D}$, e $0$ caso contrário;
+    \item $y_{i, j, d} \in \{0, 1\}$: assume valor $1$ se o VANT $d$ atende ao pedido $j \in \mathcal{P}$ imediatamente após ter retornado da entrega do pedido $i \in \mathcal{V}_{\text{op}}$, e $0$ caso contrário;
+    \item $\tau_i \in \mathbb{R}_+$: instante cronológico em que o VANT parte do CD para iniciar a missão do pedido $i$;
+    \item $C_i \in \mathbb{R}_+$: instante cronológico em que o VANT conclui o retorno ao CD após finalizar o pedido $i$;
+    \item $\boldsymbol{\pi}_{i, d}(t) = (x(t), y(t), z(t)) \in \mathcal{V}$: vetor de coordenadas contínuas que descreve a trajetória espacial percorrida pelo VANT $d$ no instante temporal $t \in [\tau_i, C_i]$;
+    \item $e_{i, d} \in \mathbb{R}_+$: consumo energético total decorrente da realização da missão associada ao pedido $i$ pelo VANT $d$.
+\end{itemize}
+
+\subsection{Funções-Objetivo do Sistema}
+
+O problema de escalonamento e planejamento conjunto é formulado segundo dois critérios de desempenho que competem entre si: a celeridade temporal de conclusão do plano de entregas e a eficiência energética agregada da frota.
+
+A primeira função-objetivo busca minimizar o tempo total de conclusão da operação (\textit{makespan}), definido pelo instante em que o último VANT da frota encerra sua última missão e retorna em segurança à base operacional:
+\begin{equation}\label{eq:obj_makespan}
+\min \quad M = \max_{i \in \mathcal{P}} \{ C_i \}
+\end{equation}
+
+A segunda função-objetivo busca minimizar o consumo global de energia elétrica acumulado por todas as aeronaves da frota ao longo da execução de suas respectivas trajetórias:
+\begin{equation}\label{eq:obj_energia}
+\min \quad E_{\text{total}} = \sum_{d \in \mathcal{D}} \sum_{i \in \mathcal{P}} x_{i, d} \cdot e_{i, d}
+\end{equation}
+
+Nas arquiteturas mono-objetivo, as metas expressas em~\eqref{eq:obj_makespan} e~\eqref{eq:obj_energia} são aglutinadas por ponderação linear normalizada. Nas abordagens multiobjetivo, ambas são preservadas de forma independente, visando construir a fronteira de soluções não dominadas de Pareto.
+
+\subsection{Restrições do Problema}
+
+A viabilidade física e operacional do sistema integrado está sujeita a um conjunto de restrições lineares e espaciais. Primeiramente, cada pedido de entrega cadastrado deve ser atendido compulsoriamente por exatamente uma aeronave da frota:
+\begin{equation}\label{eq:restricao_atendimento_unico}
+\sum_{d \in \mathcal{D}} x_{i, d} = 1, \quad \forall i \in \mathcal{P}
+\end{equation}
+
+A massa do pacote a ser transportado não pode exceder o limite de carga útil suportado pela aeronave designada para a respectiva missão:
+\begin{equation}\label{eq:restricao_capacidade_carga}
+m_i \cdot x_{i, d} \le C_d, \quad \forall i \in \mathcal{P}, \; \forall d \in \mathcal{D}
+\end{equation}
+
+O sequenciamento das tarefas em um mesmo veículo respeita a conservação de fluxo a partir do CD. Um VANT não pode iniciar uma nova missão antes de concluir o ciclo de voo anterior e regressar à base:
+\begin{equation}\label{eq:restricao_continuidade_tempo}
+\tau_j \ge C_i + t^{\text{rec}}_{i, j, d} - L \cdot (1 - y_{i, j, d}), \quad \forall i \in \mathcal{P}, \; \forall j \in \mathcal{P}, \; \forall d \in \mathcal{D}
+\end{equation}
+em que $L$ é uma constante positiva suficientemente grande e $t^{\text{rec}}_{i, j, d}$ é o intervalo de tempo necessário para recarregar a bateria do VANT $d$ caso o nível energético remanescente não supra a margem mínima para a missão subsequente.
+
+A integridade estrutural das aeronaves requer que suas trajetórias sejam completamente disjuntas em relação aos obstáculos estáticos do relevo urbano em todos os instantes de voo:
+\begin{equation}\label{eq:restricao_obstaculos_estaticos}
+\boldsymbol{\pi}_{i, d}(t) \cap \mathcal{O}_{\text{urb}} = \emptyset, \quad \forall t \in [\tau_i, C_i], \; \forall i \in \mathcal{P}, \; \forall d \in \mathcal{D}
+\end{equation}
+
+Para evitar colisões dinâmicas no ar entre veículos que operam simultaneamente no mesmo espaço aéreo, exige-se uma distância de separação espacial mínima estrita entre quaisquer pares de aeronaves ativas em um instante $t$:
+\begin{equation}\label{eq:restricao_colisao_dinamica}
+\|\boldsymbol{\pi}_{i, d}(t) - \boldsymbol{\pi}_{j, k}(t)\| \ge r_d + r_k + \delta_{\text{seg}}, \quad \forall d \neq k, \; \forall t \in [\tau_i, C_i] \cap [\tau_j, C_j]
+\end{equation}
+em que $\delta_{\text{seg}}$ representa a margem de separação de segurança regulamentar do espaço aéreo.
+
+Por fim, o consumo energético em cada surtida não pode esgotar a carga utilizável da bateria, respeitando a reserva de emergência estabelecida:
+\begin{equation}\label{eq:restricao_autonomia_bateria}
+e_{i, d} \le B_d \cdot (1 - \text{SoC}^{\text{res}}_d), \quad \forall i \in \mathcal{P}, \; \forall d \in \mathcal{D}
+\end{equation}
+
+A formulação analítica exposta em~\eqref{eq:obj_makespan}--\eqref{eq:restricao_autonomia_bateria} sintetiza os requisitos que orientam o projeto e a validação empírica do sistema. A seção a seguir introduz os cenários de teste concebidos para avaliar o comportamento dessa estrutura sob diferentes condições operacionais.
+
+\section{Metodologia Experimental e Desenho dos Cenários}\label{sec:cenarios_metodologia}
+
+Para avaliar as hipóteses de pesquisa e isolar o impacto computacional de cada técnica matemática, a metodologia deste trabalho estrutura-se no princípio de isolamento de variáveis. O espaço de decisão foi particionado em quatro cenários de teste controlados. Em cada cenário, uma camada de decisão é mantida fixa sob parâmetros homogêneos, enquanto a camada concorrente é submetida a variações controladas. Esse desenho experimental impede que ganhos obtidos no planejamento de trajetórias mascarem ineficiências do escalonamento, e vice-versa.
+
+\subsection{Cenário 1: Escalonamento Exato vs. Heurístico (Branch and Bound $\times$ Algoritmo Genético)}\label{sec:cenario1}
+
+O Cenário~1 foi concebido para investigar a primeira pergunta de pesquisa, analisando o comportamento computacional da camada de escalonamento à medida que a complexidade combinatória cresce. Neste teste, o motor de navegação espacial é mantido estritamente constante, empregando o algoritmo \textit{Time-Extended A*} (TEA*) como planejador de trajetórias padrão. Com o custo de deslocamento padronizado, compara-se o método determinístico exato \textit{Branch and Bound} (BB) ao método meta-heurístico do Algoritmo Genético (GA).
+
+Para isolar o custo combinatório puro da distribuição de ordens, este cenário utiliza uma frota homogênea de VANTs genéricos e um recorte urbano reduzido com raio de $200\text{ m}$. O objetivo primário é mapear o ponto de saturação em que a explosão combinatória inviabiliza a busca exata em tempo hábil, quantificando o desvio de qualidade relativo (\textit{GAP}) e o ganho de velocidade (\textit{speedup}) propiciado pela convergência heurística do GA. A dinâmica desse fluxo é sintetizada na Figura~\ref{fig:cenario1_fluxo}.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.5cm,
+        startend/.style={circle, draw=black!80, thick, minimum size=1.5cm, align=center, font=\footnotesize},
+        routing/.style={rectangle, draw=black!80, thick, fill=yellow!20, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        alloc/.style={rectangle, draw=black!80, thick, fill=red!70!black, text=white, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        decision/.style={diamond, draw=black!80, thick, minimum width=3cm, minimum height=2cm, align=center, font=\scriptsize, inner sep=-2pt},
+        process/.style={rectangle, draw=black!80, thick, fill=white, minimum width=2.5cm, minimum height=1cm, align=center, font=\footnotesize},
+        arrow/.style={->, >=Latex, thick, draw=black!80}
+    ]
+
+    % Nós
+    \node (start) [startend] {Vetor\\Inicial};
+    \node (route) [routing, below=of start] {TEA*};
+    \node (best)  [decision, below=of route] {Nova Melhor\\Solução?};
+    \node (stop)  [decision, below=1.5cm of best] {Atingiu\\limite?};
+    \node (end)   [startend, below=of stop] {FIM};
+    
+    \node (save)  [process, right=of best] {Guarda\\Vetor};
+    \node (alloc) [alloc, left=of best] {GA / BB};
+    
+    % Conexões principais
+    \draw [arrow] (start) -- (route);
+    \draw [arrow] (route) -- (best);
+    \draw [arrow] (best) -- node[right, font=\scriptsize] {Não} (stop);
+    \draw [arrow] (stop) -- node[right, font=\scriptsize] {Sim} (end);
+    
+    % Conexões de desvio
+    \draw [arrow] (best) -- node[above, font=\scriptsize] {Sim} (save);
+    \draw [arrow] (save) |- (stop);
+    
+    % Loop de Otimização
+    \draw [arrow] (stop) -| node[above left, font=\scriptsize] {Não} (alloc);
+    \draw [arrow] (alloc) |- (route);
+
+    \end{tikzpicture}
+    \caption{Fluxograma do Cenário~1. O algoritmo de trajetória TEA* permanece fixo na camada inferior, enquanto a alocação de tarefas é alternada entre a busca exata (BB) e a busca probabilística (GA).}
+    \label{fig:cenario1_fluxo}
+\end{figure}
+
+\subsection{Cenário 2: Planejamento de Trajetórias 4D Mono-objetivo vs. Multiobjetivo (TEA* $\times$ MOSP)}\label{sec:cenario2}
+
+O Cenário~2 inverte a lógica de isolamento anterior, mantendo a camada de escalonamento fixa no Algoritmo Genético e variando exclusivamente o motor de navegação no espaço aéreo. O objetivo reside em responder à segunda pergunta de pesquisa, avaliando se a inclusão analítica da massa da carga e do consumo de bateria na camada geométrica justifica o aumento de complexidade algorítmica frente ao roteamento focado puramente em tempo.
+
+Neste cenário, a operação passa para uma malha urbana expandida com raio de $1700\text{ m}$ e incorpora uma frota heterogênea composta por VANTs de asa rotativa (DJI Matrice 300 RTK) e asa híbrida (Wingcopter 198). A experimentação contrapõe o algoritmo TEA*, cuja busca heurística persegue exclusivamente o menor tempo de voo, ao algoritmo \textit{Multiple Objective Shortest Path} (MOSP), que propaga rótulos de tempo e consumo com poda por dominância de Pareto. A estrutura operacional desse teste está ilustrada na Figura~\ref{fig:cenario2_fluxo}.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.5cm,
+        startend/.style={circle, draw=black!80, thick, minimum size=1.5cm, align=center, font=\footnotesize},
+        routing/.style={rectangle, draw=black!80, thick, fill=yellow!20, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        alloc/.style={rectangle, draw=black!80, thick, fill=red!70!black, text=white, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        decision/.style={diamond, draw=black!80, thick, minimum width=3cm, minimum height=2cm, align=center, font=\scriptsize, inner sep=-2pt},
+        process/.style={rectangle, draw=black!80, thick, fill=white, minimum width=2.5cm, minimum height=1cm, align=center, font=\footnotesize},
+        arrow/.style={->, >=Latex, thick, draw=black!80}
+    ]
+
+    % Nós
+    \node (start) [startend] {Vetor\\Inicial};
+    \node (route) [routing, below=of start] {TEA* / MOSP};
+    \node (best)  [decision, below=of route] {Nova Melhor\\Solução?};
+    \node (stop)  [decision, below=1.5cm of best] {Atingiu\\limite?};
+    \node (end)   [startend, below=of stop] {FIM};
+    
+    \node (save)  [process, right=of best] {Guarda\\Vetor};
+    \node (alloc) [alloc, left=of best] {GA};
+    
+    % Conexões principais
+    \draw [arrow] (start) -- (route);
+    \draw [arrow] (route) -- (best);
+    \draw [arrow] (best) -- node[right, font=\scriptsize] {Não} (stop);
+    \draw [arrow] (stop) -- node[right, font=\scriptsize] {Sim} (end);
+    
+    % Conexões de desvio
+    \draw [arrow] (best) -- node[above, font=\scriptsize] {Sim} (save);
+    \draw [arrow] (save) |- (stop);
+    
+    % Loop de Otimização
+    \draw [arrow] (stop) -| node[above left, font=\scriptsize] {Não} (alloc);
+    \draw [arrow] (alloc) |- (route);
+
+    \end{tikzpicture}
+    \caption{Fluxograma do Cenário~2. O escalonamento permanece fixado no GA, variando-se o planejador de baixo nível entre o modelo mono-objetivo temporal (TEA*) e o modelo multiobjetivo temporal-energético (MOSP).}
+    \label{fig:cenario2_fluxo}
+\end{figure}
+
+\subsection{Cenário 3: Escalonamento Multiobjetivo com Preservação de Diversidade (GA $\times$ NSGA-II)}\label{sec:cenario3}
+
+O Cenário~3 expande o nível de complexidade da camada superior ao investigar a terceira pergunta de pesquisa. O objetivo consiste em verificar se a preservação da dimensionalidade de Pareto durante todo o ciclo evolutivo do escalonador supera a tradicional aglutinação escalar por soma ponderada. Para fornecer trajetórias de baixo nível consistentes, o algoritmo de roteamento é fixado estritamente no MOSP, sob a malha de $1700\text{ m}$ e frota heterogênea.
+
+Nesta configuração, o GA padrão (que compõe uma única nota de aptidão combinando tempo, energia e penalidades) é comparado ao algoritmo genético de ordenação não dominada \textit{Non-dominated Sorting Genetic Algorithm II} (NSGA-II). Enquanto o GA converge para uma única solução de compromisso, o NSGA-II constrói uma frente de soluções não dominadas ao longo das gerações, gerando um leque tático de opções com foco em velocidade máxima ou preservação energética da bateria. O fluxo desse processo é detalhado na Figura~\ref{fig:cenario3_fluxo}.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.5cm,
+        startend/.style={circle, draw=black!80, thick, minimum size=1.5cm, align=center, font=\footnotesize},
+        routing/.style={rectangle, draw=black!80, thick, fill=yellow!20, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        alloc/.style={rectangle, draw=black!80, thick, fill=red!70!black, text=white, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        decision/.style={diamond, draw=black!80, thick, minimum width=3cm, minimum height=2cm, align=center, font=\scriptsize, inner sep=-2pt},
+        process/.style={rectangle, draw=black!80, thick, fill=white, minimum width=2.5cm, minimum height=1cm, align=center, font=\footnotesize},
+        arrow/.style={->, >=Latex, thick, draw=black!80}
+    ]
+
+    % Nós
+    \node (start) [startend] {Vetor\\Inicial};
+    \node (route) [routing, below=of start] {MOSP};
+    \node (best)  [decision, below=of route] {Nova Melhor\\Solução?};
+    \node (stop)  [decision, below=1.5cm of best] {Atingiu\\limite?};
+    \node (end)   [startend, below=of stop] {FIM};
+    
+    \node (save)  [process, right=of best] {Guarda\\Vetor};
+    \node (alloc) [alloc, left=of best] {GA / NSGA-II};
+    
+    % Conexões principais
+    \draw [arrow] (start) -- (route);
+    \draw [arrow] (route) -- (best);
+    \draw [arrow] (best) -- node[right, font=\scriptsize] {Não} (stop);
+    \draw [arrow] (stop) -- node[right, font=\scriptsize] {Sim} (end);
+    
+    % Conexões de desvio
+    \draw [arrow] (best) -- node[above, font=\scriptsize] {Sim} (save);
+    \draw [arrow] (save) |- (stop);
+    
+    % Loop de Otimização
+    \draw [arrow] (stop) -| node[above left, font=\scriptsize] {Não} (alloc);
+    \draw [arrow] (alloc) |- (route);
+
+    \end{tikzpicture}
+    \caption{Fluxograma do Cenário~3. O sistema fixa o algoritmo de trajetória no MOSP e avalia a camada superior alternando entre o GA mono-objetivo por soma ponderada e o escalonador multiobjetivo de Pareto (NSGA-II).}
+    \label{fig:cenario3_fluxo}
+\end{figure}
+
+\subsection{Cenário 4: Aceleração Evolutiva por Inicialização Assistida (Inicialização Heurística Sequencial vs. Warm Start)}\label{sec:cenario4}
+
+O Cenário~4 investiga a quarta pergunta de pesquisa, avaliando o impacto da introdução de aprendizado de máquina supervisionado para contornar o gargalo de processamento das primeiras gerações do GA. Como a simulação quadridimensional detalhada de cada indivíduo consome elevado tempo computacional, populações que partem de atribuições sequenciais cegas demandam muitas iterações físicas para alcançar regiões viáveis do espaço de busca.
+
+O teste fixa o roteador no MOSP e o escalonador no GA, comparando dois procedimentos de partida: a inicialização heurística sequencial convencional (em blocos de pedidos contíguos) e a inicialização assistida (\textit{Warm Start}), orientada por um modelo preditivo informado por atributos físicos e refinada por busca local determinística. A metodologia visa medir a antecipação de soluções de alta aptidão logo na Geração~0 e o fator de aceleração no tempo total até a convergência da frota. A arquitetura deste cenário é sintetizada na Figura~\ref{fig:fluxo_cenario4}.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.5cm,
+        startend/.style={circle, draw=black!80, thick, minimum size=1.5cm, align=center, font=\footnotesize},
+        startwarm/.style={circle, draw=black!80, thick, fill=blue!70!black, text=white, minimum size=1.8cm, align=center, font=\footnotesize\bfseries},
+        routing/.style={rectangle, draw=black!80, thick, fill=yellow!35, minimum width=3.2cm, minimum height=1.1cm, align=center, font=\small\bfseries},
+        alloc/.style={rectangle, draw=black!80, thick, fill=red!70!black, text=white, minimum width=3cm, minimum height=1.1cm, align=center, font=\small\bfseries},
+        decision/.style={diamond, draw=black!80, thick, minimum width=3cm, minimum height=2.2cm, align=center, font=\scriptsize, inner sep=-2pt},
+        process/.style={rectangle, draw=black!80, thick, fill=white, minimum width=2.6cm, minimum height=1.1cm, align=center, font=\footnotesize},
+        arrow/.style={->, >=Latex, thick, draw=black!80}
+    ]
+
+        % Nós
+        \node (start) [startwarm] {Vetor Inicial\\(Warm Start)};
+        \node (route) [routing, below=of start] {MOSP};
+        \node (best)  [decision, below=of route] {Melhor\\Tempo};
+        \node (stop)  [decision, below=1.5cm of best] {Atingiu\\tempo ou n\textordmasculine\\de iterações};
+        \node (end)   [startend, below=of stop] {FIM};
+        
+        \node (save)  [process, right=of best] {Guarda\\Vetor};
+        \node (alloc) [alloc, left=of best] {GA};
+        
+        % Conexões principais
+        \draw [arrow] (start) -- (route);
+        \draw [arrow] (route) -- (best);
+        \draw [arrow] (best) -- node[right, font=\scriptsize] {Não} (stop);
+        \draw [arrow] (stop) -- node[right, font=\scriptsize] {Sim} (end);
+        
+        % Conexões de desvio
+        \draw [arrow] (best) -- node[above, font=\scriptsize] {Sim} (save);
+        \draw [arrow] (save) |- (stop);
+        
+        % Loop de Otimização
+        \draw [arrow] (stop) -| node[above left, font=\scriptsize] {Não} (alloc);
+        \draw [arrow] (alloc) |- (route);
+
+    \end{tikzpicture}
+    \caption{Fluxograma do Cenário~4. O motor MOSP permanece constante, enquanto a população inicial do escalonador GA é injetada por predição inteligente via \textit{Warm Start}, comparando a convergência frente à base sequencial a frio.}
+    \label{fig:fluxo_cenario4}
+\end{figure}
+
+\section{Métricas de Avaliação de Desempenho}\label{sec:metricas_avaliacao}
+
+A quantificação do desempenho e a comparação estatística entre os algoritmos apoiam-se em quatro métricas objetivas extraídas ao final de cada execução:
+
+\begin{enumerate}
+    \item \textbf{\textit{Makespan} ($M$):} Tempo final absoluto medido em passos de simulação (\textit{frames}), indicando o instante de encerramento da última missão da frota, conforme formulado em~\eqref{eq:obj_makespan}.
+    \item \textbf{Consumo Energético Total ($E_{\text{total}}$):} Integral da energia consumida por todos os motores elétricos em todas as fases de voo, expressa em Watt-hora ($\text{Wh}$), conforme formulado em~\eqref{eq:obj_energia}.
+    \item \textbf{Tempo de Processamento Computacional ($t_{\text{CPU}}$):} Tempo de relógio transcorrido em segundos de CPU exigido pelo algoritmo para alcançar a convergência ou atingir o critério de parada.
+    \item \textbf{Fator de Aceleração Computacional (\textit{Speedup}):} Razão entre o tempo despendido pela técnica de referência de base ($t_{\text{ref}}$) e a técnica aprimorada sob teste ($t_{\text{prop}}$):
+    \begin{equation}\label{eq:metrica_speedup}
+    \text{Speedup} = \frac{t_{\text{ref}}}{t_{\text{prop}}}
+    \end{equation}
+    \item \textbf{Desvio Relativo de Desempenho (\textit{GAP}):} Variação percentual observada na qualidade da solução em relação à base ótima ou de referência:
+    \begin{equation}\label{eq:metrica_gap}
+    \text{GAP} (\%) = \left( \frac{M_{\text{avaliado}} - M_{\text{referência}}}{M_{\text{referência}}} \right) \times 100
+    \end{equation}
+    em que valores negativos indicam redução de tempo ou consumo propiciada pela abordagem testada.
+    \item \textbf{Ponto de Joelho na Fronteira de Pareto:} No escalonamento multiobjetivo, a solução de melhor compromisso tático é definida pelo ponto da fronteira não dominada que minimiza a distância euclidiana normalizada ao ponto ideal teórico $(0, 0)$:
+    \begin{equation}\label{eq:metrica_joelho}
+    d^* = \arg\min_{k \in \mathcal{F}_{\text{Pareto}}} \sqrt{\left(\frac{M_k - M_{\text{min}}}{M_{\text{max}} - M_{\text{min}}}\right)^2 + \left(\frac{E_k - E_{\text{min}}}{E_{\text{max}} - E_{\text{min}}}\right)^2}
+    \end{equation}
+    em que $M_{\text{min}}, M_{\text{max}}, E_{\text{min}}, E_{\text{max}}$ representam os extremos da fronteira.
+\end{enumerate}
+
+\section{Considerações Finais do Capítulo}\label{sec:conclusao_cap3}
+
+Este capítulo apresentou a formulação matemática formal do problema de escalonamento e planejamento quadridimensional de VANTs em ambientes urbanos densos, traduzindo as necessidades logísticas em restrições analíticas de fluxo, tempo, bateria e não colisão espaço-temporal. Adicionalmente, consolidou-se a metodologia experimental estruturada em quatro cenários com isolamento de variáveis, garantindo condições controladas para investigar o impacto do método exato frente ao heurístico, do roteamento mono-objetivo frente ao multiobjetivo, da agregação de custos frente à frente de Pareto e da inicialização heurística frente ao \textit{Warm Start} preditivo.
+
+Uma vez formalizada a estrutura matemática e metodológica que rege a operação do sistema, o Capítulo~\ref{cap:development} detalha as decisões de engenharia de software e arquitetura computacional adotadas para implementar esses modelos matemáticos em algoritmos eficientes no ecossistema Python.

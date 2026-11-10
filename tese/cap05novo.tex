@@ -1,0 +1,304 @@
+% ==========================================================================
+% CAPÍTULO 5 - Testes e Resultados Experimentais
+% ==========================================================================
+\chapter{Testes e Resultados}\label{cap:test}
+
+Este capítulo apresenta a avaliação experimental do sistema de gestão logística de frotas de Veículos Aéreos Não Tripulados (VANTs), submetendo os modelos físicos e os algoritmos desenvolvidos no Capítulo~\ref{cap:development} ao protocolo metodológico formulado no Capítulo~\ref{cap:metodology}. O objetivo central consiste em mensurar empiricamente o compromisso entre a qualidade da solução (\textit{makespan}, consumo energético e tempos de espera) e o custo computacional exigido em cada camada de decisão, fornecendo subsídios quantitativos para responder às quatro questões de pesquisa deste trabalho.
+
+A Seção~\ref{sec:ambiente_protocolo} descreve o ambiente computacional, as diretrizes de reprodutibilidade e a parametrização dos experimentos. As Seções~\ref{sec:caso1} a~\ref{sec:caso4} detalham os resultados empíricos obtidos nos quatro cenários de teste: a comparação entre escalonamento exato e heurístico (Caso 1), o confronto entre roteamento 4D mono-objetivo e multiobjetivo (Caso 2), a análise do escalonamento multiobjetivo com NSGA-II frente à soma ponderada (Caso 3), e o desempenho da inicialização assistida por aprendizado de máquina (\textit{Warm Start}) em regime de escala (Caso 4). A Seção~\ref{sec:discussao_geral} sintetiza as respostas às questões de pesquisa, discute as limitações metodológicas e analisa as ameaças à validade dos resultados. Por fim, a Seção~\ref{sec:conclusao_cap5} encerra o capítulo e estabelece a ponte para as conclusões gerais.
+
+\section{Ambiente Computacional e Protocolo Experimental}\label{sec:ambiente_protocolo}
+
+Para assegurar a comparabilidade estrita entre os algoritmos e isolar variações de desempenho de hardware, todas as simulações foram executadas em uma máquina virtual dedicada configurada sobre o hipervisor Proxmox VE. O ambiente de teste operou sob o sistema operacional Windows 11 Enterprise LTSC (64 bits), alocando uma CPU virtual QEMU com frequência base de $2400\text{ MHz}$, $8$ núcleos lógicos (\textit{threads}) e $16\text{ GB}$ de memória RAM. Como a CPU é emulada sobre uma infraestrutura virtualizada compartilhada, os tempos de processamento absolutos de relógio (segundos de CPU) são apresentados para fins de análise comparativa de complexidade, ao passo que as métricas físicas de \textit{makespan} (\textit{frames}) e energia elétrica ($\text{Wh}$) refletem medidas objetivas independentes da plataforma de execução.
+
+A reprodutibilidade dos experimentos é amparada pela fixação rigorosa das sementes de números pseudoaleatórios em $\texttt{np.random.seed(42)}$ no módulo central de configuração (\texttt{config.py:4}). Esse controle assegura que o recorte viário urbano de Bragança, o posicionamento do Centro de Distribuição, os pontos de destino das entregas, as massas sorteadas para as encomendas ($m_{\text{pacote}} \in [0{,}5;\,3{,}5]\text{ kg}$) e a população inicial dos otimizadores evolutivos sejam rigorosamente idênticos entre todas as comparações pareadas. A avaliação física de candidatos pelas populações do GA e do NSGA-II foi distribuída em paralelo entre 8 processos concorrentes, com sincronização em memória via travas de exclusão mútua (\texttt{\_ga\_lock}).
+
+Diante do elevadíssimo custo computacional associado à simulação física de trajetórias quadridimensionais com resolução de conflitos temporais — na qual uma única instância combinatória de grande porte atinge durações de execução da ordem de $4 \times 10^4\text{ segundos}$ de CPU (mais de 11 horas ininterruptas) —, cada configuração experimental foi executada uma única vez. Por conseguinte, pequenas variações percentuais pontuais não são interpretadas como provas estatísticas definitivas de superioridade algorítmica. As conclusões deste estudo apoiam-se na consistência dos padrões e tendências observados ao longo da progressão de escala operacional.
+
+A Tabela~\ref{tab:resumo_casos} consolida a articulação experimental dos quatro casos de teste avaliados neste capítulo, destacando o foco de investigação, os algoritmos fixados como controle, as dimensões urbanas e a composição da frota de VANTs.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Configuração experimental dos quatro casos de teste avaliados.}\label{tab:resumo_casos}
+\begin{tabular}{p{2.3cm}p{3.1cm}p{3.2cm}p{3.2cm}p{3.2cm}}
+\toprule
+\textbf{Dimensão} & \textbf{Caso 1 (Cenário 1)} & \textbf{Caso 2 (Cenário 2)} & \textbf{Caso 3 (Cenário 3)} & \textbf{Caso 4 (Cenário 4)} \\
+\midrule
+Foco principal & Escalonamento exato vs. heurístico & Roteamento 4D de baixo nível & Escalonamento multiobjetivo & Inicialização assistida (\textit{Warm Start} IA) \\
+Algoritmo sob teste & B\&B vs. Algoritmo Genético & TEA* vs. MOSP & GA Base vs. NSGA-II & Sequencial vs. GA Frio vs. IA Gen 0 \\
+Camada de controle & Roteador TEA* 4D fixo & Escalonador GA Mono fixo & Roteador MOSP 4D fixo & Roteador MOSP 4D fixo \\
+Malha urbana & Raio de $200\text{ m}$ (Reduzido) & Raio de $1700\text{ m}$ (Expandido) & Raio de $1700\text{ m}$ (Expandido) & Raio de $1700\text{ m}$ (Expandido) \\
+Frota de VANTs & Homogênea (Aeronave base) & Heterogênea (DJI e Wingcopter) & Heterogênea (DJI e Wingcopter) & Heterogênea (DJI e Wingcopter) \\
+Objetivos de custo & \textit{Makespan} escalar (\textit{frames}) & \textit{Makespan} e energia agregados & \textit{Makespan} e energia desacoplados & \textit{Makespan} e energia física \\
+Métricas centrais & \textit{Makespan}, tempo CPU e GAP & \textit{Makespan}, energia e tempo estabil. & Fronteira Pareto e Ponto Joelho & Ganho de \textit{makespan} e tempo \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A Figura~\ref{fig:mapas_braganca} apresenta a planta bidimensional dos dois cenários urbanos simulados, gerados proceduralmente a partir da topologia real de Bragança: o recorte reduzido com raio de $200\text{ m}$, concebido para viabilizar a convergência do método exato no Caso 1, e a malha expandida com raio de $1700\text{ m}$, empregada nos Casos 2, 3 e 4. Em todos os experimentos, a demanda logística foi escalonada em combinações progressivas de VANTs e encomendas, denotadas por $\text{Drones}-\text{Pedidos}$: $5\text{-}10$, $5\text{-}20$, $5\text{-}40$, $10\text{-}20$, $10\text{-}40$, $10\text{-}80$, $20\text{-}40$, $20\text{-}80$ e $20\text{-}160$.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{chapters/myplot200.png}
+        \par\vspace{2pt}
+        {\footnotesize (a) Recorte reduzido (raio de $200\text{ m}$, Caso 1).}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{chapters/myplot1700.png}
+        \par\vspace{2pt}
+        {\footnotesize (b) Malha expandida (raio de $1700\text{ m}$, Casos 2, 3 e 4).}
+    \end{minipage}
+    \caption{Visualização em planta dos ambientes simulados em Bragança, ilustrando os quarteirões e parcelas gerados por diagrama de Voronoi, o Centro de Distribuição (azul), os destinos de entrega (amarelo) e as projeções de rotas da frota.}\label{fig:mapas_braganca}
+\end{figure}
+
+Os parâmetros cinemáticos, as velocidades de cruzeiro, as taxas nominais de consumo de bateria e as constantes dos algoritmos de busca seguem estritamente as especificações formalizadas na Tabela~\ref{tab:parametros_unificados} e na Tabela~\ref{tab:perfis_drones} do Capítulo~\ref{cap:development}. As seções subsequentes analisam detalhadamente o comportamento de cada técnica frente a esses cenários.
+
+\section{Caso 1: Escalonamento Exato vs. Heurístico (Branch and Bound vs. GA)}\label{sec:caso1}
+
+O Caso 1 implementa a metodologia do Cenário 1 (Seção~\ref{sec:cenario1}), investigando os limites operacionais da busca exata frente à meta-heurística populacional na camada de escalonamento de tarefas. Para isolar a complexidade puramente combinatória da atribuição de tarefas e eliminar interferências decorrentes de autonomia de bateria ou heterogeneidade aerodinâmica, adotou-se o recorte urbano reduzido de $200\text{ m}$ de raio (Figura~\ref{fig:mapas_braganca}a) e uma frota homogênea de VANTs genéricos, sem necessidade de recargas intermediárias na base. O algoritmo de planejamento de trajetórias de baixo nível permaneceu fixado no TEA* 4D (Seção~\ref{sec:dev_tea}).
+
+Ambos os otimizadores operaram minimizando a mesma função de custo escalar formalizada na Equação~\eqref{eq:custo_ga}:
+\begin{equation}\label{eq:custo_caso1}
+\text{custo} = \text{makespan} + 0{,}5 \cdot \text{esperas} + 50\,000 \cdot N_{\text{falha}},
+\end{equation}
+na qual a aptidão do Algoritmo Genético é dada pelo inverso $\text{aptidão} = 1{,}0 / (\text{custo} + 10^{-4})$, e a penalidade por falha de missão ($50\,000$) sobrepõe-se a qualquer atraso temporal factível. O \textit{Branch and Bound} utilizou como solução inicial incumbente o melhor indivíduo gerado na inicialização heurística sequencial do GA, ativando a quebra estrita de simetria (Equação~\eqref{eq:quebra_simetria}) e a simulação incremental de estados (Algoritmo~\ref{alg:bb_incremental}).
+
+Fixou-se para o B\&B um tempo limite de processamento de $6\text{ horas}$ ($T_{\text{max,BB}} = 21\,600\text{ segundos}$). A qualidade da solução encontrada pelo GA em relação à melhor solução do B\&B é mensurada pelo desvio percentual relativo:
+\begin{equation}\label{eq:gap_bb_ga}
+\text{GAP} (\%) = \left( \frac{\text{makespan}_{\text{GA}} - \text{makespan}_{\text{BB}}}{\text{makespan}_{\text{BB}}} \right) \times 100,
+\end{equation}
+em que valores negativos assinalam que o GA foi capaz de superar a solução incumbente atingida pelo B\&B no momento de sua interrupção por saturação temporal. O ganho de velocidade computacional é expresso pela razão $\textit{Speedup} = t_{\text{BB}} / t_{\text{GA}}$. A Tabela~\ref{tab:comparacao_bb_ga} consolida os resultados quantitativos obtidos nas nove instâncias.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Comparação de desempenho e custo computacional entre o \textit{Branch and Bound} (B\&B) e o Algoritmo Genético (GA).}\label{tab:comparacao_bb_ga}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{cccccccc}
+\toprule
+\textbf{Drones} & \textbf{Pedidos} & \textbf{Makespan B\&B} & \textbf{Makespan GA} & \textbf{GAP (\%)} & \textbf{Tempo B\&B (s)} & \textbf{Tempo GA (s)} & \textbf{\textit{Speedup}} \\
+\midrule
+5  & 10  & 651  & 671  & +3{,}07 & 400{,}0       & 171{,}1  & 2{,}3$\times$ \\
+5  & 20  & 1409 & 1515 & +7{,}52 & 21\,600$^*$   & 182{,}9  & 118{,}1$\times$ \\
+5  & 40  & 3089 & 3050 & -1{,}26 & 21\,600$^*$   & 1162{,}0 & 18{,}6$\times$ \\
+\midrule
+10 & 20  & 875  & 934  & +6{,}74 & 21\,600$^*$   & 352{,}1  & 61{,}3$\times$ \\
+10 & 40  & 1720 & 1753 & +1{,}92 & 21\,600$^*$   & 933{,}4  & 23{,}1$\times$ \\
+10 & 80  & 3483 & 3476 & -0{,}20 & 21\,600$^*$   & 2819{,}9 & 7{,}7$\times$ \\
+\midrule
+20 & 40  & 1106 & 1207 & +9{,}13 & 21\,600$^*$   & 355{,}5  & 60{,}8$\times$ \\
+20 & 80  & 2126 & 2226 & +4{,}70 & 21\,600$^*$   & 1976{,}8 & 10{,}9$\times$ \\
+20 & 160 & 4012 & 3965 & -1{,}17 & 21\,600$^*$   & 7957{,}4 & 2{,}7$\times$ \\
+\bottomrule
+\multicolumn{8}{l}{\footnotesize $^*$Execução interrompida ao atingir o teto de 6 horas (21\,600 s); o \textit{makespan} reportado corresponde à melhor solução incumbente.}
+\end{tabular}%
+}
+\end{table}
+
+\subsection*{Análise dos Resultados e Discussão de Complexidade}
+
+A análise da Tabela~\ref{tab:comparacao_bb_ga} evidencia com nitidez o ponto de saturação do método exato. O \textit{Branch and Bound} conseguiu explorar exaustivamente a árvore de decisão e provar formalmente a otimalidade global da solução em apenas uma única instância: a menor escala avaliada, contendo 5 drones e 10 pedidos ($5\text{-}10$), concluída em $400{,}0\text{ s}$. Nesse cenário ótimo comprovado, o Algoritmo Genético convergiu para uma solução de $671\text{ \textit{frames}}$, situando-se a apenas $+3{,}07\%$ do ótimo absoluto, exigindo menos da metade do tempo de CPU ($171{,}1\text{ s}$, \textit{speedup} de $2{,}3\times$).
+
+Em todas as outras oito instâncias testadas, a explosão combinatória do espaço de estados $O(K^N)$ superou a capacidade de poda do algoritmo exato, forçando a interrupção das execuções no teto de $21\,600\text{ s}$ ($6\text{ horas}$). Como o B\&B compara o custo acumulado parcial apenas com a incumbente corrente, sem dispor de uma relaxação linear ou dual que forneça limitantes inferiores para o conjunto de tarefas ainda não alocadas, não é possível reportar um limitante dual (\textit{gap} de otimalidade comprovado) para as instâncias truncadas.
+
+Nas instâncias interrompidas, o GA produziu soluções com desvio entre $+1{,}92\%$ e $+9{,}13\%$ em relação à incumbente do B\&B em cinco cenários, e \textbf{superou a incumbente da busca exata} nos três cenários de maior densidade de tarefas encadeadas por veículo: $5\text{-}40$ ($\text{GAP} = -1{,}26\%$), $10\text{-}80$ ($\text{GAP} = -0{,}20\%$) e $20\text{-}160$ ($\text{GAP} = -1{,}17\%$). Embora o valor isolado de $-0{,}20\%$ no cenário $10\text{-}80$ esteja dentro da margem de ruído numérico de uma única execução, a reincidência do sinal negativo nas instâncias com maior razão entre tarefas e veículos revela um padrão estrutural: a descida em profundidade (\textit{Depth-First Search}) do B\&B tende a ficar aprisionada na exploração exaustiva de ramificações locais subótimas nas primeiras decisões da árvore, ao passo que os operadores genéticos de cruzamento em dois pontos e mutação adaptativa conferem ao GA uma capacidade de exploração global do espaço combinatório substancialmente mais eficiente.
+
+O fator de aceleração computacional (\textit{speedup}) variou entre $2{,}3\times$ e $118{,}1\times$ (pico observado na instância $5\text{-}20$). À medida que o tamanho da frota e o número de missões escalam para $20\text{-}160$, o tempo de convergência do GA eleva-se progressivamente de $171{,}1\text{ s}$ para $7957{,}4\text{ s}$, reduzindo a razão de \textit{speedup} frente ao teto estático de 6 horas do B\&B. Esse aumento decorre da saturação da tabela quadridimensional de reservas espaço-temporais $\mathcal{R}$, que obriga o simulador TEA* a expandir nós adicionais para desviar de rotas previamente consolidadas. Constatada a inviabilidade computacional do B\&B para frotas industriais, a seção seguinte investiga o impacto do algoritmo de roteamento de baixo nível.
+
+\section{Caso 2: Roteamento 4D Mono-objetivo vs. Multiobjetivo (TEA* vs. MOSP)}\label{sec:caso2}
+
+O Caso 2 implementa o Cenário 2 (Seção~\ref{sec:cenario2}), com foco na camada inferior de planejamento de trajetórias quadridimensionais. O escalonador combinatório de alto nível permaneceu fixado no Algoritmo Genético mono-objetivo (Seção~\ref{sec:dev_ga}), comparando dois motores de navegação distintos: o TEA* 4D (Seção~\ref{sec:dev_tea}), que otimiza estritamente o tempo de trânsito, e o MOSP 4D (Seção~\ref{sec:dev_mosp}), que propaga rótulos de tempo e energia sob $\epsilon$-dominância de Pareto e seleciona a rota pelo ponto ideal normalizado.
+
+O cenário operacional passou a ser a malha urbana expandida com raio de $1700\text{ m}$ (Figura~\ref{fig:mapas_braganca}b). A frota foi configurada como heterogênea, alternando de forma paritária o multirrotor DJI Matrice 300 RTK e a aeronave de asa híbrida Wingcopter 198 (Tabela~\ref{tab:perfis_drones}). Como os veículos partem da base com carga total de bateria e o horizonte de entrega raramente exige recargas imediatas em missões curtas, a energia consumida foi incorporada à função de custo agregado do GA convertida em tempo equivalente de recarga à taxa de $3{,}6\text{ s/Wh}$ (Equação~\eqref{eq:custo_ga}):
+\begin{equation}\label{eq:custo_caso2}
+\text{custo} = \text{makespan} + 0{,}5 \cdot \text{esperas} + 50\,000 \cdot N_{\text{falha}} + 3{,}6 \cdot \text{energia}.
+\end{equation}
+
+A parada do GA ocorreu pelo critério de estabilidade (\texttt{stop\_criteria=["saturate\_3"]}), interrompendo a busca quando a melhor aptidão não apresentava melhora por três gerações consecutivas, respeitado o teto de 8 gerações. A Tabela~\ref{tab:estabilidade_mosp_tea} confronta o \textit{makespan}, o consumo total de energia e o tempo decorrido até a estabilidade entre o MOSP e o TEA*. Os desvios percentuais são calculados como $(\text{TEA*} - \text{MOSP}) / \text{MOSP} \times 100$, de modo que grandezas negativas indicam valores menores para o TEA*.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Comparação de desempenho na estabilidade entre os roteadores MOSP e TEA* sob escalonamento GA.}\label{tab:estabilidade_mosp_tea}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l rrr rrr rrr}
+\toprule
+ & \multicolumn{3}{c}{\textbf{Makespan (\textit{frames})}} & \multicolumn{3}{c}{\textbf{Energia na Estabilidade (Wh)}} & \multicolumn{3}{c}{\textbf{Tempo até a Estabilidade (s)}} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+\textbf{Cenário} & \textbf{MOSP} & \textbf{TEA*} & \textbf{Gap (\%)} & \textbf{MOSP} & \textbf{TEA*} & \textbf{Gap (\%)} & \textbf{MOSP} & \textbf{TEA*} & \textbf{Gap (\%)} \\
+\midrule
+5-10   & \textbf{3838}  & 4413           & +14{,}98 & 588{,}54            & \textbf{588{,}44}  & -0{,}02 & 509{,}35            & \textbf{449{,}35}   & -11{,}78 \\
+5-20   & \textbf{7844}  & 8272           & +5{,}46  & \textbf{1184{,}17}  & 1239{,}64          & +4{,}68 & 4132{,}80           & \textbf{4039{,}69}  & -2{,}25  \\
+5-40   & 17427          & \textbf{17157} & -1{,}55  & \textbf{2515{,}65}  & 2627{,}22          & +4{,}44 & \textbf{2210{,}91}  & 10174{,}08          & +360{,}18 \\
+10-20  & 5519           & \textbf{5294}  & -4{,}08  & \textbf{1160{,}59}  & 1196{,}63          & +3{,}11 & 4915{,}57           & \textbf{3934{,}09}  & -19{,}97 \\
+10-40  & \textbf{10757} & 11371          & +5{,}71  & 2527{,}46           & \textbf{2526{,}49} & -0{,}04 & 13166{,}60          & \textbf{12750{,}56} & -3{,}16  \\
+10-80  & \textbf{17520} & 18073          & +3{,}16  & \textbf{4808{,}10}  & 4980{,}22          & +3,58 & 40268{,}84          & \textbf{36049{,}74} & -10{,}48 \\
+20-40  & 6924           & \textbf{6846}  & -1{,}13  & \textbf{2518{,}54}  & 2544{,}16          & +1{,}02 & \textbf{10500{,}76} & 21657{,}14          & +106{,}24 \\
+20-80  & 13337          & \textbf{12160} & -8{,}83  & \textbf{4857{,}38}  & 4935{,}78          & +1{,}61 & \textbf{7965{,}02}  & 22617{,}34          & +183{,}96 \\
+20-160 & \textbf{22276} & 23421          & +5{,}14  & \textbf{10595{,}71} & 10841{,}82         & +2{,}32 & 30173{,}47          & \textbf{29211{,}28} & -3{,}19  \\
+\midrule
+\textbf{Média} & \textbf{11715{,}8} & 11889{,}7 & +2{,}10 & \textbf{3417{,}35} & 3497{,}82 & +2{,}30 & \textbf{12649{,}26} & 15653{,}70 & +66{,}62 \\
+\bottomrule
+\multicolumn{10}{l}{\footnotesize Nas colunas de valores absolutos, a média é a média aritmética simples; nas colunas de gap, é a média dos gaps relativos percentuais.}
+\end{tabular}%
+}
+\end{table}
+
+\subsection*{Análise dos Resultados e Impacto da Multiobjetividade}
+
+Os resultados demonstram que a incorporação da métrica energética na propagação de trajetórias confere vantagens mensuráveis tanto na eficiência das rotas quanto no processo evolutivo global. Em termos de consumo elétrico da frota, o MOSP superou o TEA* em sete dos nove cenários analisados, obtendo uma redução média de consumo de $2{,}30\%$ ($3417{,}35\text{ Wh}$ contra $3497{,}82\text{ Wh}$). Nos dois cenários em que o TEA* consumiu marginalmente menos energia ($5\text{-}10$ e $10\text{-}40$), as diferenças foram de apenas $-0{,}02\%$ e $-0{,}04\%$, valores estatisticamente imperceptíveis diante da discretização do ambiente.
+
+No que tange ao \textit{makespan}, o MOSP produziu planos de voo com tempo de conclusão médio $2{,}10\%$ menor do que o TEA* ($11715{,}8$ contra $11889{,}7\text{ \textit{frames}}$). Embora o TEA* seja projetado teoricamente para minimizar o tempo de voo de cada missão isolada, sua incapacidade de considerar os perfis energéticos assimétricos da frota heterogênea induz o GA a soluções subótimas. A aeronave Wingcopter 198, com velocidade de cruzeiro de $28\text{ m/s}$, consome substancialmente menos energia por metro em cruzeiro ($0{,}0173\text{ Wh/m}$) do que em subidas íngremes ($0{,}0450\text{ Wh/m}$). Ao selecionar caminhos através do ponto ideal normalizado, o MOSP preserva a celeridade das entregas sem incorrer em subidas que penalizam o custo agregado da frota.
+
+A métrica mais expressiva, entretanto, reside no tempo de processamento até a estabilidade do Algoritmo Genético. Em média, as execuções operando com o TEA* exigiram $+66{,}62\%$ a mais de tempo de computação ($15653{,}70\text{ s}$ contra $12649{,}26\text{ s}$). Esse comportamento decorre dos episódios de saturação observados nos cenários $5\text{-}40$ ($+360{,}18\%$), $20\text{-}40$ ($+106{,}24\%$) e $20\text{-}80$ ($+183{,}96\%$), nos quais o TEA* demorou gerações adicionais para estabilizar a população. Como as rotas puramente temporais do TEA* geram custos agregados instáveis devido à penalidade de recarga equivalente ($3{,}6\text{ s/Wh}$), a convergência da meta-heurística torna-se errática. O MOSP, ao retornar trajetórias já equilibradas na fronteira de Pareto de baixo nível, fornece à função de aptidão indivíduos com menor variância estocástica, acelerando a estabilização do escalonador. Estabelecida a superioridade do MOSP na camada de navegação, a seção seguinte avalia a multiobjetividade na camada de escalonamento.
+
+\section{Caso 3: Escalonamento Mono-objetivo vs. Multiobjetivo (GA Base vs. NSGA-II)}\label{sec:caso3}
+
+O Caso 3 implementa o Cenário 3 (Seção~\ref{sec:cenario3}), avaliando as limitações da agregação escalar por soma ponderada frente à abordagem de dominância de Pareto na camada de escalonamento. O motor de navegação de baixo nível foi fixado no MOSP 4D sobre a malha de $1700\text{ m}$ com a frota heterogênea (DJI e Wingcopter). Os resultados do GA mono-objetivo apurados no Caso 2 (Equação~\eqref{eq:custo_caso2}) servem como linha de base de referência (denominada ``GA Base'').
+
+O algoritmo multiobjetivo NSGA-II (Seção~\ref{sec:dev_nsga}) tratou o tempo de conclusão e o consumo elétrico como duas funções-objetivo autônomas e concorrentes:
+\begin{align}
+\text{custo}_{\text{tempo}} &= \text{makespan} + 0{,}5 \cdot \text{esperas} + 50\,000 \cdot N_{\text{falha}}, & f_1 &= \frac{1{,}0}{\text{custo}_{\text{tempo}} + 0{,}0001}, \label{eq:f1_caso3} \\
+\text{custo}_{\text{energia}} &= (3{,}6 \cdot \text{energia}) + 50\,000 \cdot N_{\text{falha}}, & f_2 &= \frac{1{,}0}{\text{custo}_{\text{energia}} + 0{,}0001}. \label{eq:f2_caso3}
+\end{align}
+O fator $3{,}6$ aplicado ao objetivo de energia preserva a dimensionalidade de escala, não interferindo na ordenação de não dominância.
+
+Para caracterizar a fronteira de soluções não dominadas compilada pelo NSGA-II em cada instância, o script \texttt{logs/teste-mosp-nsga/teste-nsga.py} extraiu três soluções representativas: o **Extremo 1** (solução com o menor \textit{makespan} absoluto), o **Extremo 2** (solução com o menor consumo elétrico absoluto) e o **Ponto de Joelho** (\textit{Knee Point}, determinado pela distância euclidiana mínima ao ponto ideal das soluções normalizadas, conforme Equação~\eqref{eq:knee_point}). A Tabela~\ref{tab:mosp_nsga_gaps_base} confronta o GA Base com os três perfis da frente de Pareto do NSGA-II.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Comparação de desempenho entre o GA Base e os perfis da fronteira de Pareto do NSGA-II.}\label{tab:mosp_nsga_gaps_base}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Cenário} & \textbf{GA (Base)} & \textbf{NSGA-II (Extremo 1)} & \textbf{NSGA-II (Ponto de Joelho)} & \textbf{NSGA-II (Extremo 2)} \\
+\textbf{(Drones-Pedidos)} & \textit{(Custo Agregado)} & \textit{(Foco em Makespan)} & \textit{(Compromisso Equilibrado)} & \textit{(Foco em Energia)} \\
+\midrule
+5-10   & 3838 F / 588{,}54 Wh          & \textbf{3703 F (-3{,}5\%)} / 590{,}30 Wh (+0{,}3\%)   & 5393 F (+40{,}5\%) / 558{,}52 Wh (-5{,}1\%)  & 7376 F (+92{,}2\%) / \textbf{549{,}70 Wh (-6{,}6\%)} \\
+5-20   & 7844 F / 1184{,}17 Wh         & \textbf{7591 F (-3{,}2\%)} / 1181{,}80 Wh (-0{,}2\%) & 8009 F (+2{,}1\%) / 1169{,}96 Wh (-1{,}2\%)  & 16340 F (+108{,}3\%) / \textbf{1135{,}62 Wh (-4{,}1\%)} \\
+5-40   & 17427 F / 2515{,}65 Wh        & \textbf{16874 F (-3{,}2\%)} / 2533{,}26 Wh (+0{,}7\%) & 20076 F (+15{,}2\%) / 2498{,}04 Wh (-0{,}7\%) & 28268 F (+62{,}2\%) / \textbf{2462{,}82 Wh (-2{,}1\%)} \\
+10-20  & 5519 F / 1160{,}59 Wh         & \textbf{5166 F (-6{,}4\%)} / 1174{,}52 Wh (+1{,}2\%)  & 5355 F (-3{,}0\%) / 1152{,}47 Wh (-0{,}7\%)  & 11509 F (+108{,}5\%) / \textbf{1114{,}17 Wh (-4{,}0\%)} \\
+10-40  & 10757 F / 2527{,}46 Wh        & \textbf{9726 F (-9{,}6\%)} / 2519{,}88 Wh (-0{,}3\%)  & 11355 F (+5{,}6\%) / 2479{,}43 Wh (-1{,}9\%)  & 15240 F (+41{,}7\%) / \textbf{2436{,}47 Wh (-3{,}6\%)} \\
+10-80  & \textbf{17520 F} / 4808{,}10 Wh & 18451 F (+5{,}3\%) / 4798{,}48 Wh (-0{,}2\%)  & 19690 F (+12{,}4\%) / 4769{,}64 Wh (-0{,}8\%) & 22344 F (+27{,}5\%) / \textbf{4707{,}13 Wh (-2{,}1\%)} \\
+20-40  & \textbf{6924 F} / 2518{,}54 Wh  & 7282 F (+5{,}2\%) / 2553{,}80 Wh (+1{,}4\%)   & 7367 F (+6{,}4\%) / \textbf{2422{,}84 Wh (-3{,}8\%)} & 7367 F (+6{,}4\%) / \textbf{2422{,}84 Wh (-3{,}8\%)} \\
+20-80$^*$ & \textbf{12160 F} / 4857{,}38 Wh & 10923 F (-10{,}2\%) / 4886{,}52 Wh (+0{,}6\%) & 16456 F (+35{,}3\%) / 4818{,}52 Wh (-0{,}8\%) & 17331 F (+42{,}5\%) / \textbf{4808{,}81 Wh (-1{,}0\%)} \\
+20-160 & \textbf{22276 F} / 10595{,}71 Wh & 23404 F (+5{,}1\%) / \textbf{10426{,}18 Wh (-1{,}6\%)} & 23404 F (+5{,}1\%) / \textbf{10426{,}18 Wh (-1{,}6\%)} & 23404 F (+5{,}1\%) / \textbf{10426{,}18 Wh (-1{,}6\%)} \\
+\midrule
+\textbf{Média} & -- & \textbf{-2{,}3\%} / +0{,}2\% & +13{,}3\% / \textbf{-1{,}8\%} & +54{,}9\% / \textbf{-3{,}2\%} \\
+\bottomrule
+\multicolumn{5}{l}{\footnotesize F = \textit{frames}. A média indica a média aritmética dos desvios percentuais relativos à coluna GA Base (\textit{makespan} / energia).} \\
+\multicolumn{5}{l}{\footnotesize $^*$No cenário 20-80, a linha base do GA utilizou o valor do TEA* (12160 F); caso referenciada ao MOSP (13337 F), o ganho do Extremo 1 é de $-18{,}1\%$.}
+\end{tabular}%
+}
+\end{table}
+
+\subsection*{Análise dos Resultados e Trade-offs da Fronteira de Pareto}
+
+A análise da Tabela~\ref{tab:mosp_nsga_gaps_base} evidencia a riqueza de compromissos operacionais revelada pela abordagem multiobjetivo. A formulação escalar do GA Base força a convergência para uma região intermediária rígida do espaço de busca, ditada pelo fator de conversão fixo de $3{,}6\text{ s/Wh}$. Em contrapartida, o NSGA-II descortina uma fronteira ampla que faculta ao gestor logístico optar por diferentes políticas operacionais.
+
+O **Extremo 1** especializa-se na redução agressiva do tempo total de atendimento. Em cinco dos nove cenários ($5\text{-}10$, $5\text{-}20$, $5\text{-}40$, $10\text{-}20$ e $10\text{-}40$), o NSGA-II encontrou arranjos logísticos com \textit{makespan} inferior ao da linha de base, alcançando reduções de até $-9{,}6\%$ (cenário $10\text{-}40$) e média global de $-2{,}3\%$, com um acréscimo de consumo energético praticamente desprezível ($+0{,}2\%$ na média). Esse resultado decorre da flexibilidade conferida pela ordenação por não dominância, que permite explorar indivíduos com maior gasto elétrico momentâneo caso eles promovam um desbalanceamento favorável ao paralelismo dos voos.
+
+O **Extremo 2**, no polo oposto da fronteira, prioriza estritamente a preservação das baterias da frota. Esse perfil atingiu economias de até $-6{,}6\%$ de energia no cenário $5\text{-}10$ e $-4{,}1\%$ no cenário $5\text{-}20$ (média de $-3{,}2\%$). Essa conservação energética, contudo, cobra um preço expressivo sobre a celeridade da operação: o \textit{makespan} elevou-se em média $+54{,}9\%$, ultrapassando $+100\%$ nas instâncias $5\text{-}20$ e $10\text{-}20$. Esse trade-off acentuado ocorre porque a economia máxima de energia força a atribuição concentrada de tarefas às aeronaves de alta eficiência aerodinâmica (Wingcopter 198), subutilizando os multirrotores mais lentos e serializando as entregas em turnos prolongados.
+
+O **Ponto de Joelho** posiciona-se como a solução de melhor equilíbrio tático. Ele captura reduções consistentes de energia em praticamente todas as instâncias (média de $-1{,}8\%$), mantendo a elevação do \textit{makespan} contida em $+13{,}3\%$ na média global. Nas instâncias de grande porte ($20\text{-}40$ e $20\text{-}160$), a fronteira de Pareto apresentou estreitamento estrutural devido à saturação das camadas de voo, fazendo com que o ponto de joelho coincidisse com os extremos da frente não dominada. Uma vez compreendidos os limites evolutivos a frio, a seção seguinte avalia a aceleração introduzida pelo aprendizado de máquina.
+
+\section{Caso 4: Avaliação do Warm Start via Aprendizado de Máquina}\label{sec:caso4}
+
+O Caso 4 implementa o Cenário 4 (Seção~\ref{sec:cenario4}), avaliando o impacto da inicialização assistida (\textit{Warm Start}) na resolução do problema de escalonamento. Os testes comparam três estratégias de despacho avaliadas no simulador físico 4D acoplado ao roteador MOSP:
+\begin{enumerate}
+    \item \textbf{Alocação Sequencial (Geração 0):} Linha de base heurística ingênua que divide as entregas em blocos contíguos ordenados entre os VANTs;
+    \item \textbf{GA Frio (após 8 Gerações):} Otimizador genético mono-objetivo padrão que evolui a partir da população heurística ao longo de todo o ciclo de 8 gerações;
+    \item \textbf{IA Proposta (Geração 0):} Alocação direta gerada pelo modelo \texttt{EnsembleFisicoEnxuto} (Seção~\ref{sec:dev_ml_warmstart}) refinada pela busca local pós-predição, avaliada instantaneamente na Geração 0 sem passar por nenhuma iteração do Algoritmo Genético.
+\end{enumerate}
+
+O conjunto experimental expandiu-se para 11 instâncias representativas: 6 cenários com dimensões contidas no domínio de treino ($5\text{-}10$ variantes A e B, $5\text{-}20$, $5\text{-}40$, $10\text{-}20$ e $10\text{-}40$) e 5 cenários inéditos de grande escala operando em regime estrito de generalização \textit{zero-shot} ($10\text{-}80$ variantes A e B, $20\text{-}40$, $20\text{-}80$ e $20\text{-}160$), cuja escala supera em até quatro vezes o número máximo de aeronaves e entregas presentes na base de dados de treinamento. A Tabela~\ref{tab:comparativo_etapa1_4d} apresenta os resultados de \textit{makespan}, energia física e tempo de computação.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparativo de desempenho no simulador 4D (MOSP) entre a Alocação Sequencial, o GA Frio (após 8 gerações) e a IA Proposta (Geração 0).}\label{tab:comparativo_etapa1_4d}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+& \multicolumn{2}{c}{\textbf{Sequencial (Gen 0)}} & \multicolumn{3}{c}{\textbf{GA Frio (8 Gerações)}} & \multicolumn{3}{c}{\textbf{IA Proposta (Gen 0)}} \\
+\cmidrule(lr){2-3} \cmidrule(lr){4-6} \cmidrule(lr){7-9}
+\textbf{Cenário} & \textbf{Makespan} & \textbf{Energia} & \textbf{Makespan} & \textbf{Energia} & \textbf{Tempo} & \textbf{Makespan} & \textbf{Energia} & \textbf{Ganho Mk.} \\
+\textbf{(UAVs / Entr.)} & \textbf{(frames)} & \textbf{(Wh)} & \textbf{(frames)} & \textbf{(Wh)} & \textbf{(s)} & \textbf{(frames)} & \textbf{(Wh)} & \textbf{(vs Seq / GA)} \\
+\midrule
+\multicolumn{9}{l}{\textit{Cenários de Treino / Avaliação Base}} \\
+5 / 10 (A)  & 5622  & 526{,}1   & 3507  & 508{,}0   & 2474{,}2  & \textbf{3304}  & \textbf{503{,}2}   & $-41{,}2\% \;/\; -5{,}8\%$ \\
+5 / 10 (B)  & 7371  & 838{,}6   & 7371  & 838{,}6   & 2316{,}3  & \textbf{6152}  & \textbf{837{,}7}   & $-16{,}5\% \;/\; -16{,}5\%$ \\
+5 / 20      & 8809  & 1106{,}4 & 7730  & 1099{,}5 & 3915{,}3  & \textbf{6856}  & 1103{,}5          & $-22{,}2\% \;/\; -11{,}3\%$ \\
+5 / 40      & 20880 & 2565{,}1 & 16651 & 2586{,}4 & 11444{,}4 & \textbf{15818} & 2630{,}2          & $-24{,}2\% \;/\; -5{,}0\%$ \\
+10 / 20     & 5031  & 1144{,}7 & 4382  & 1135{,}7 & 5424{,}0  & \textbf{3766}  & 1136{,}2          & $-25{,}1\% \;/\; -14{,}1\%$ \\
+10 / 40     & 12191 & 2662{,}8 & 10242 & 2691{,}8 & 15315{,}1 & \textbf{8364}  & \textbf{2676{,}3} & $-31{,}4\% \;/\; -18{,}3\%$ \\
+\midrule
+\multicolumn{9}{l}{\textit{Cenários de Escala (Zero-Shot)}$^*$} \\
+10 / 80 (A) & 16312 & 4295{,}4 & 16079 & 4339{,}8 & 24543{,}5 & \textbf{12946} & \textbf{4244{,}5} & $-20{,}6\% \;/\; -19{,}5\%$ \\
+10 / 80 (B) & 22492 & 5780{,}5 & 21188 & 5759{,}2 & 18707{,}3 & \textbf{18521} & \textbf{5736{,}8} & $-17{,}7\% \;/\; -12{,}6\%$ \\
+20 / 40     & 6809  & 2501{,}7 & 6736  & 2464{,}9 & 22182{,}5 & \textbf{4997}  & 2481{,}7          & $-26{,}6\% \;/\; -25{,}8\%$ \\
+20 / 80     & 14340 & 5299{,}6 & 12702 & 5159{,}1 & 68290{,}2 & \textbf{8804}  & 5214{,}7          & $-38{,}6\% \;/\; -30{,}7\%$ \\
+20 / 160    & 20400 & 9753{,}8 & 20400 & 9753{,}8 & 41340{,}2 & \textbf{15473} & \textbf{9665{,}0} & $-24{,}2\% \;/\; -24{,}2\%$ \\
+\midrule
+\textbf{Média Geral} & 12750{,}6 & 3315{,}9 & 11544{,}4 & 3303{,}3 & 19632{,}1 & \textbf{9545{,}5} & \textbf{3293{,}6} & $\mathbf{-26{,}2\% \;/\; -16{,}7\%}$ \\
+\bottomrule
+\multicolumn{9}{l}{\footnotesize $^*$Cenários avaliados em regime \textit{Zero-Shot} (modelo treinado exclusivamente em cenários com até 10 UAVs e 40 entregas).} \\
+\multicolumn{9}{l}{\footnotesize Nos cenários 5 / 10 (B) e 20 / 160, o GA Frio estagnou na população inicial (\texttt{geracoes\_convergencia = 0}), mantendo a solução da Geração 0.}
+\end{tabular}%
+}
+\end{table}
+
+\subsection*{Análise dos Resultados e Generalização Zero-Shot}
+
+O exame minucioso da Tabela~\ref{tab:comparativo_etapa1_4d} comprova a eficácia da inicialização assistida. A alocação direta fornecida pela IA na Geração 0 superou o despacho sequencial em todos os 11 cenários de teste, alcançando uma redução média de \textit{makespan} de $\mathbf{-26{,}2\%}$ ($9545{,}5$ contra $12750{,}6\text{ \textit{frames}}$). Essa contração temporal decorre da atuação dos atributos físicos de desbalanceamento de carga acumulada ($W^{\text{acum}}$) e incremento marginal no tempo de voo ($\Delta M$), que evitam a sobrecarga desordenada de veículos específicos observada na divisão por blocos contíguos.
+
+Mais expressivo, contudo, é o confronto direto entre a IA na Geração 0 e o Algoritmo Genético a Frio após completar 8 gerações evolutivas completas. A predição instantânea do modelo superou a solução final do GA Frio em todas as 11 instâncias avaliadas, produzindo uma vantagem média de $\mathbf{-16{,}7\%}$ no \textit{makespan} ($9545{,}5$ contra $11544{,}4\text{ \textit{frames}}$). Enquanto o GA a frio consumiu em média $19632{,}1\text{ segundos}$ de processamento em CPU virtual (cerca de $5{,}5\text{ horas}$ por cenário, atingindo $68290{,}2\text{ s}$ no cenário $20\text{-}80$), a inferência determinística da IA consumiu menos de $0{,}05\text{ segundos}$ para gerar o cromossomo fundador.
+
+A superioridade da IA torna-se ainda mais marcante nos cenários de escala em regime \textit{zero-shot}. No cenário $20\text{-}80$, a alocação predita reduziu o \textit{makespan} de $12702$ para $8804\text{ \textit{frames}}$ (ganho de $\mathbf{-30{,}7\%}$ sobre o GA evoluído). No cenário extremo de 20 aeronaves e 160 entregas ($20\text{-}160$), o GA a frio estagnou completamente na população inicial (\texttt{geracoes\_convergencia = 0}), incapaz de encontrar mutações ou cruzamentos viáveis no imenso espaço de busca de $20^{160}$ estados; nesse mesmo cenário, a IA estabeleceu uma rota viável com $15473\text{ \textit{frames}}$, representando uma economia de $\mathbf{-24{,}2\%}$.
+
+Crucialmente, a contração no tempo total de operação não foi alcançada à custa de desperdício energético. O consumo de energia consolidado pela frota sob a alocação da IA ($3293{,}6\text{ Wh}$ em média) permaneceu rigorosamente equivalente ao do GA Frio ($3303{,}3\text{ Wh}$), registrando uma ligeira economia média de $-0{,}3\%$. Esse resultado valida a formulação multivariada do espaço de atributos físicos (Seção~\ref{sec:dev_ml_warmstart}), comprovando que o balanceamento entre a velocidade da frota e a capacidade das baterias previne a exaustão energética das aeronaves. As implicações teóricas e metodológicas desses achados são discutidas a seguir.
+
+\section{Discussão Geral, Respostas às Questões de Pesquisa e Limitações}\label{sec:discussao_geral}
+
+A consolidação dos dados empíricos colhidos nos quatro casos de teste permite sintetizar de forma objetiva as evidências quantitativas que respondem às quatro perguntas de pesquisa formuladas no Capítulo~\ref{cap:metodology}, separando rigorosamente fatos observados, inferências interpretativas e limitações de projeto.
+
+\subsection{Respostas às Perguntas de Pesquisa}
+
+\begin{enumerate}
+    \item \textbf{Resposta à QP1 (Escalonamento Exato vs. Heurístico):}  
+    \textit{Fato:} O método exato \textit{Branch and Bound} provou a otimalidade global em apenas uma instância ($5\text{-}10$, em $400\text{ s}$). Em todas as outras oito instâncias, atingiu o teto limite de 6 horas sem concluir a busca. O GA convergiu em todas as instâncias em tempos substancialmente menores (até $118\times$ mais rápido), situando-se a $+3{,}07\%$ do ótimo comprovado e superando a incumbente truncada do B\&B nas três instâncias de maior densidade de tarefas por drone (GAPs negativos de até $-1{,}26\%$).  
+    \textit{Interpretação:} O ponto de saturação do B\&B situa-se próximo a 10 tarefas. A explosão combinatória $O(K^N)$ aliada ao custo de cópia profunda de estados e simulação incremental inviabiliza o método exato para escalas operacionais urbanas, justificando o emprego de abordagens meta-heurísticas populacionais.
+
+    \item \textbf{Resposta à QP2 (Roteamento 4D: TEA* vs. MOSP):}  
+    \textit{Fato:} O roteador multiobjetivo MOSP produziu planos de voo com consumo energético $2{,}30\%$ menor e \textit{makespan} $2{,}10\%$ menor do que o TEA*, reduzindo o tempo médio de CPU até a estabilidade do GA em $66{,}62\%$ ($12649\text{ s}$ contra $15653\text{ s}$).  
+    \textit{Interpretação:} Ao propagar rótulos não dominados com $\epsilon$-dominância e selecionar rotas pelo ponto ideal normalizado, o MOSP impede que a aeronave Wingcopter incorra em subidas verticalmente onerosas para obter ganhos temporais marginais. Essa estabilidade nos custos energéticos diminui a variância estocástica da aptidão do GA, acelerando a estabilização da população evolutiva.
+
+    \item \textbf{Resposta à QP3 (Escalonamento Multiobjetivo: GA Base vs. NSGA-II):}  
+    \textit{Fato:} O NSGA-II mapeou fronteiras de Pareto com ampla diversidade funcional. O Extremo 1 superou a linha de base em cinco cenários, reduzindo o \textit{makespan} médio em $-2{,}3\%$ com custo energético neutro ($+0{,}2\%$). O Extremo 2 alcançou economias de bateria de até $-6{,}6\%$ (média de $-3{,}2\%$), aceitando um atraso médio de $+54{,}9\%$ no \textit{makespan}. O Ponto de Joelho ofereceu uma redução equilibrada de $-1{,}8\%$ na energia com aumento de $+13{,}3\%$ no tempo de conclusão.  
+    \textit{Interpretação:} O operador de agregação por soma ponderada colapsa a busca em uma única trajetória do espaço de objetivos, ignorando soluções de alta eficiência de bateria. A abordagem com NSGA-II faculta à gestão logística selecionar dinamicamente perfis acelerados em horários de pico ou conservadores em turnos longos de entrega.
+
+    \item \textbf{Resposta à QP4 (Inicialização Assistida via ML - Warm Start):}  
+    \textit{Fato:} A alocação direta pela IA na Geração 0 reduziu o \textit{makespan} em $-26{,}2\%$ frente ao despacho sequencial heurístico e superou em $-16{,}7\%$ a melhor solução encontrada pelo GA Frio após 8 gerações completas de evolução ($9545{,}5$ contra $11544{,}4\text{ \textit{frames}}$), com consumo elétrico idêntico ($-0{,}3\%$). Essa vantagem manifestou-se com tempo de inferência instantâneo ($<0{,}05\text{ s}$ contra $5{,}5\text{ horas}$ do GA) e manteve-se íntegra em regime de escala \textit{zero-shot} (ganho de $-30{,}7\%$ no cenário $20\text{-}80$ e $-24{,}2\%$ no cenário $20\text{-}160$).  
+    \textit{Interpretação:} A extração de atributos físicos de carga acumulada e consumo relativo permite que o modelo capture a física fundamental do transporte aéreo de forma invariante à topologia urbana, gerando soluções fundadoras com viabilidade estrutural inatingível por heurísticas cegas.
+\end{enumerate}
+
+\subsection{Limitações Metodológicas e Ameaças à Validade}
+
+A interpretação dos resultados deve ser contextualizada diante das seguintes limitações metodológicas:
+\begin{enumerate}
+    \item \textbf{Execução Única por Configuração:} Devido ao elevado custo de processamento acumulado das simulações físicas quadridimensionais (centenas de horas de CPU na VM), cada instância foi executada uma única vez sob a semente 42. Embora essa abordagem assegure comparabilidade idêntica entre os pares testados, ela restringe o cálculo de intervalos de confiança estatísticos (e.g., desvio-padrão entre múltiplas sementes aleatórias).
+    \item \textbf{Discretização Espaço-Temporal:} A grade cúbica de $2{,}5\text{ m}$ e o passo temporal nominal de $1{,}25\text{ m/\textit{frame}}$ impõem aproximações cinemáticas que simplificam as curvas de aceleração contínua e as manobras dinâmicas de guinada das aeronaves reais.
+    \item \textbf{Condições Atmosféricas Homogêneas:} Os experimentos foram conduzidos em regime de ar calmo ($f_w = 1{,}0$). Variações dinâmicas de vento e turbulências urbanas induzidas por cânions prediais alterariam os consumos pontuais de subida e cruzeiro.
+    \item \textbf{Concorrência Não Determinística em Threads:} A paralelização do PyGAD em 8 núcleos sob memória compartilhada pode introduzir sutis assimetrias temporais na ordem de chegada de cromossomos ao cache, embora resguardada por travas de concorrência.
+\end{enumerate}
+
+\section{Considerações Finais do Capítulo}\label{sec:conclusao_cap5}
+
+Este capítulo apresentou a bateria experimental que validou empiricamente as soluções desenvolvidas nesta dissertação. Os resultados demonstraram de forma quantitativa que o escalonamento puramente exato é inviável além de instâncias embrionárias, que a multiobjetividade em nível de trajetória 4D acelera a convergência do escalonador de frota, que o NSGA-II provê flexibilidade estratégica na fronteira de Pareto, e que a inicialização assistida (\textit{Warm Start}) guiada por aprendizado de máquina elimina a dependência de longos ciclos evolutivos a frio.
+
+Com base nas evidências empíricas consolidadas, o Capítulo~\ref{cap:conclusion} apresenta as conclusões gerais deste trabalho, sintetiza as contribuições científicas e tecnológicas alcançadas e sugere direções concretas para investigações futuras.

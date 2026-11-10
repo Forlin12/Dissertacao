@@ -1,0 +1,219 @@
+\chapter{Formulação do Problema}\label{cap:metodology}
+
+\section{Metodologia e Cenários de Avaliação}
+
+Para avaliar a eficácia e o desempenho computacional do sistema de gestão logística proposto, a metodologia deste trabalho estrutura-se em torno de cenários de teste progressivos e controlados %[cite: 7].
+A estratégia central consiste em isolar variáveis específicas do sistema nomeadamente o motor de alocação de frota e o algoritmo de planejamento de trajetória para quantificar o impacto de cada componente no desempenho global da operação %[cite: 7].
+Cada instância de teste é submetida a um ambiente espacial rigidamente definido e a uma demanda estocástica controlada, garantindo que as comparações entre as diferentes arquiteturas matemáticas sejam justas e reprodutíveis %[cite: 7].
+
+\subsection{Cenário 1: Avaliação de Algoritmos de Alocação de Frota}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.5cm,
+        startend/.style={circle, draw=black!80, thick, minimum size=1.5cm, align=center, font=\footnotesize},
+        routing/.style={rectangle, draw=black!80, thick, fill=yellow!20, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        alloc/.style={rectangle, draw=black!80, thick, fill=red!70!black, text=white, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        decision/.style={diamond, draw=black!80, thick, minimum width=3cm, minimum height=2cm, align=center, font=\scriptsize, inner sep=-2pt},
+        process/.style={rectangle, draw=black!80, thick, fill=white, minimum width=2.5cm, minimum height=1cm, align=center, font=\footnotesize},
+        arrow/.style={->, >=Latex, thick, draw=black!80}
+    ]
+
+    % Nós
+    \node (start) [startend] {Vetor\\Inicial};
+    \node (route) [routing, below=of start] {TEA*};
+    \node (best)  [decision, below=of route] {Nova Melhor\\Solução?};
+    \node (stop)  [decision, below=1.5cm of best] {Atingiu\\limite?};
+    \node (end)   [startend, below=of stop] {FIM};
+    
+    \node (save)  [process, right=of best] {Guarda\\Vetor};
+    \node (alloc) [alloc, left=of best] {GA / BB};
+    
+    % Conexões principais
+    \draw [arrow] (start) -- (route);
+    \draw [arrow] (route) -- (best);
+    \draw [arrow] (best) -- node[right, font=\scriptsize] {Não} (stop);
+    \draw [arrow] (stop) -- node[right, font=\scriptsize] {Sim} (end);
+    
+    % Conexões de desvio
+    \draw [arrow] (best) -- node[above, font=\scriptsize] {Sim} (save);
+    \draw [arrow] (save) |- (stop);
+    
+    % Loop de Otimização
+    \draw [arrow] (stop) -| node[above left, font=\scriptsize] {Não} (alloc);
+    \draw [arrow] (alloc) |- (route);
+
+    \end{tikzpicture}
+    \caption{Diagrama de fluxo do Cenário 1. O motor de roteamento \textit{TEA*} é mantido fixo, enquanto a alocação de alto nível é processada alternadamente pelos algoritmos \textit{Branch and Bound} ou Genético.}
+    \label{fig:cenario1_fluxo}
+\end{figure}
+
+O primeiro cenário de testes foi concebido para isolar e comparar a eficiência dos algoritmos de alto nível responsáveis por distribuir as tarefas logísticas entre os VANTs disponíveis.
+Neste contexto, o sistema de navegação espacial é mantido constante, utilizando exclusivamente o algoritmo TEA* (Time-Extended A*) como motor de roteamento para garantir trajetórias quadridimensionais livres de colisões.
+Com o custo de navegação padronizado, a experimentação foca-se em variar o método de alocação, contrapondo a abordagem probabilística e heurística do Algoritmo Genético (GA) à abordagem exata e determinística do \textit{Branch and Bound} (BB).
+
+O objetivo primário deste cenário é determinar qual das duas arquiteturas oferece o melhor compromisso entre o tempo de processamento computacional e a qualidade da solução encontrada (medida pelo tempo de conclusão total ou \textit{makespan}), especialmente à medida que o número de veículos e a complexidade das entregas aumentam.
+Ao fixar o roteamento e variar apenas a distribuição das ordens, torna-se possível identificar o ponto de saturação onde a exploração exata do BB se torna computacionalmente inviável ou excessivamente demorada, justificando e validando a adoção do modelo evolutivo do GA para cenários logísticos de grande escala.
+
+\subsection{Cenário 2: Avaliação de Roteamento Quadridimensional e Multiobjetivo}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.5cm,
+        startend/.style={circle, draw=black!80, thick, minimum size=1.5cm, align=center, font=\footnotesize},
+        routing/.style={rectangle, draw=black!80, thick, fill=yellow!20, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        alloc/.style={rectangle, draw=black!80, thick, fill=red!70!black, text=white, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        decision/.style={diamond, draw=black!80, thick, minimum width=3cm, minimum height=2cm, align=center, font=\scriptsize, inner sep=-2pt},
+        process/.style={rectangle, draw=black!80, thick, fill=white, minimum width=2.5cm, minimum height=1cm, align=center, font=\footnotesize},
+        arrow/.style={->, >=Latex, thick, draw=black!80}
+    ]
+
+    % Nós
+    \node (start) [startend] {Vetor\\Inicial};
+    \node (route) [routing, below=of start] {TEA* / MOSP};
+    \node (best)  [decision, below=of route] {Nova Melhor\\Solução?};
+    \node (stop)  [decision, below=1.5cm of best] {Atingiu\\limite?};
+    \node (end)   [startend, below=of stop] {FIM};
+    
+    \node (save)  [process, right=of best] {Guarda\\Vetor};
+    \node (alloc) [alloc, left=of best] {GA};
+    
+    % Conexões principais
+    \draw [arrow] (start) -- (route);
+    \draw [arrow] (route) -- (best);
+    \draw [arrow] (best) -- node[right, font=\scriptsize] {Não} (stop);
+    \draw [arrow] (stop) -- node[right, font=\scriptsize] {Sim} (end);
+    
+    % Conexões de desvio
+    \draw [arrow] (best) -- node[above, font=\scriptsize] {Sim} (save);
+    \draw [arrow] (save) |- (stop);
+    
+    % Loop de Otimização
+    \draw [arrow] (stop) -| node[above left, font=\scriptsize] {Não} (alloc);
+    \draw [arrow] (alloc) |- (route);
+
+    \end{tikzpicture}
+    \caption{Diagrama de fluxo do Cenário 2. A estrutura de escalonamento é restrita ao Algoritmo Genético, variando exclusivamente a camada de navegação entre espaço-temporal (\textit{TEA*}) e multiobjetivo (\textit{MOSP}).}
+    \label{fig:cenario2_fluxo}
+\end{figure}
+
+
+
+
+
+O segundo cenário de avaliação inverte a lógica de isolamento do modelo anterior, fixando a mecânica de escalonamento e variando os algoritmos de navegação de baixo nível.
+Para esta etapa, o Algoritmo Genético (GA) é estabelecido como o motor padrão e inalterável para a alocação da frota, garantindo que a sequência de tarefas orquestrada e entregue aos veículos seja metodologicamente idêntica para um dado conjunto de parâmetros.
+A experimentação recai, portanto, sobre a comparação direta de desempenho entre o algoritmo TEA* tradicional e o otimizador multiobjetivo MOSP.
+
+Enquanto o TEA* executa uma otimização espacial focada puramente na minimização do tempo de voo e esquiva de obstáculos temporais, o MOSP avalia simultaneamente o tempo de deslocamento e o impacto energético projetado, que sofre agravamento direto pelo peso da carga transportada.
+O intuito deste cenário é quantificar o impacto prático da incorporação da massa da mercadoria nas decisões de rota em um ambiente com múltiplas camadas de altitude.
+Ao analisar os resultados gerados, espera-se compreender se o aumento substancial na complexidade computacional exigida pela propagação restrita de rótulos do MOSP traduz-se em uma economia de bateria robusta o suficiente para justificar a sua aplicação sistêmica em detrimento da busca mono-objetivo do TEA*.
+
+\subsection{Cenário 3: Otimização de Frota Multiobjetivo (GA vs. NSGA)}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.5cm,
+        startend/.style={circle, draw=black!80, thick, minimum size=1.5cm, align=center, font=\footnotesize},
+        routing/.style={rectangle, draw=black!80, thick, fill=yellow!20, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        alloc/.style={rectangle, draw=black!80, thick, fill=red!70!black, text=white, minimum width=3cm, minimum height=1cm, align=center, font=\small\bfseries},
+        decision/.style={diamond, draw=black!80, thick, minimum width=3cm, minimum height=2cm, align=center, font=\scriptsize, inner sep=-2pt},
+        process/.style={rectangle, draw=black!80, thick, fill=white, minimum width=2.5cm, minimum height=1cm, align=center, font=\footnotesize},
+        arrow/.style={->, >=Latex, thick, draw=black!80}
+    ]
+
+    % Nós
+    \node (start) [startend] {Vetor\\Inicial};
+    \node (route) [routing, below=of start] {MOSP};
+    \node (best)  [decision, below=of route] {Nova Melhor\\Solução?};
+    \node (stop)  [decision, below=1.5cm of best] {Atingiu\\limite?};
+    \node (end)   [startend, below=of stop] {FIM};
+    
+    \node (save)  [process, right=of best] {Guarda\\Vetor};
+    \node (alloc) [alloc, left=of best] {GA / NSGA-II};
+    
+    % Conexões principais
+    \draw [arrow] (start) -- (route);
+    \draw [arrow] (route) -- (best);
+    \draw [arrow] (best) -- node[right, font=\scriptsize] {Não} (stop);
+    \draw [arrow] (stop) -- node[right, font=\scriptsize] {Sim} (end);
+    
+    % Conexões de desvio
+    \draw [arrow] (best) -- node[above, font=\scriptsize] {Sim} (save);
+    \draw [arrow] (save) |- (stop);
+    
+    % Loop de Otimização
+    \draw [arrow] (stop) -| node[above left, font=\scriptsize] {Não} (alloc);
+    \draw [arrow] (alloc) |- (route);
+
+    \end{tikzpicture}
+    \caption{Diagrama de fluxo do Cenário 3. Focado na otimização estritamente multiobjetiva, o sistema fixa o roteamento de baixo nível no \textit{MOSP} e avalia a arquitetura de preservação de diversidade multiobjetivo (\textit{NSGA-II}).}
+    \label{fig:cenario3_fluxo}
+\end{figure}
+
+O terceiro cenário de avaliação expande a complexidade da alocação de tarefas ao tratar a redução do tempo de conclusão e a minimização do consumo energético como objetivos matematicamente independentes no nível global da operação %[cite: 7].
+Para garantir a consistência e a viabilidade desta análise, o algoritmo de roteamento de baixo nível é fixado estritamente no otimizador MOSP, assegurando que todas as trajetórias de voo fornecidas ao sistema já contemplem o balanço entre tempo e bateria.
+A variável de experimentação deste cenário reside exclusivamente na arquitetura evolutiva de escalonamento: o desempenho do Algoritmo Genético (GA) tradicional será diretamente contrastado com o \textit{Non-dominated Sorting Genetic Algorithm} (NSGA).
+
+Enquanto a modelagem padrão do GA aglutina as penalidades de atraso, consumo e espera em uma única função de aptidão agregada (através de uma soma ponderada), o NSGA preserva a dimensionalidade do problema.
+Ao invés de retornar uma única solução de compromisso, o NSGA estrutura a população através de uma ordenação por não-dominância, culminando na construção de uma fronteira de Pareto %[cite: 7].
+O propósito central deste cenário é verificar se a manutenção dessa diversidade multiobjetivo na camada de escalonamento de alto nível produz ganhos operacionais reais e fornece conjuntos de soluções superiores quando acoplada a um motor que também é multiobjetivo na camada de roteamento de baixo nível (MOSP).
+
+Adicionalmente, esta etapa visa quantificar o impacto no tempo de processamento imposto pelo mecanismo de ordenação do NSGA em comparação à seleção simples por torneio do GA.
+A análise comparativa revelará se a carga computacional extra exigida para gerar um leque de opções táticas variadas permitindo que os operadores humanos escolham entre um escalonamento puramente focado em velocidade ou um focado em preservação de frota justifica-se em ambientes de gestão de drones de grande escala e alta dinamicidade %[cite: 7].
+
+
+
+\subsection{Cenário 4: Avaliação de Aceleração por Inicialização Inteligente (Warm Start vs. Inicialização a Frio)}
+\label{sec:cenario4}
+
+O quarto cenário de avaliação tem por finalidade isolar o impacto do mecanismo de inicialização da população sobre a taxa de convergência e o custo computacional do Algoritmo Genético. Para estabelecer uma linha de base, avalia-se primeiramente o GA a Frio, cuja população inicial é construída pela heurística convencional de particionamento sequencial de pedidos, seguida de mutações estocásticas cegas às características cinemáticas das aeronaves. Em contrapartida, testa-se o GA com \textit{Warm Start} por IA, no qual a alocação da Geração~0 é inferida pelo modelo preditivo informado por física e ajustada com busca local determinística, sendo a diversidade populacional injetada por mutações pontuais em torno dessa semente.
+
+A dinâmica operacional deste cenário está sintetizada no fluxograma da Figura~\ref{fig:fluxo_cenario4}.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.5cm,
+        startend/.style={circle, draw=black!80, thick, minimum size=1.5cm, align=center, font=\footnotesize},
+        startwarm/.style={circle, draw=black!80, thick, fill=blue!70!black, text=white, minimum size=1.8cm, align=center, font=\footnotesize\bfseries},
+        routing/.style={rectangle, draw=black!80, thick, fill=yellow!35, minimum width=3.2cm, minimum height=1.1cm, align=center, font=\small\bfseries},
+        alloc/.style={rectangle, draw=black!80, thick, fill=red!70!black, text=white, minimum width=3cm, minimum height=1.1cm, align=center, font=\small\bfseries},
+        decision/.style={diamond, draw=black!80, thick, minimum width=3cm, minimum height=2.2cm, align=center, font=\scriptsize, inner sep=-2pt},
+        process/.style={rectangle, draw=black!80, thick, fill=white, minimum width=2.6cm, minimum height=1.1cm, align=center, font=\footnotesize},
+        arrow/.style={->, >=Latex, thick, draw=black!80}
+    ]
+
+        % Nós
+        \node (start) [startwarm] {Vetor Inicial\\(Warm Start)};
+        \node (route) [routing, below=of start] {MOSP};
+        \node (best)  [decision, below=of route] {Melhor\\Tempo};
+        \node (stop)  [decision, below=1.5cm of best] {Atingiu\\tempo ou n\textordmasculine\\de iterações};
+        \node (end)   [startend, below=of stop] {FIM};
+        
+        \node (save)  [process, right=of best] {Guarda\\Vetor};
+        \node (alloc) [alloc, left=of best] {GA};
+        
+        % Conexões principais
+        \draw [arrow] (start) -- (route);
+        \draw [arrow] (route) -- (best);
+        \draw [arrow] (best) -- node[right, font=\scriptsize] {Não} (stop);
+        \draw [arrow] (stop) -- node[right, font=\scriptsize] {Sim} (end);
+        
+        % Conexões de desvio
+        \draw [arrow] (best) -- node[above, font=\scriptsize] {Sim} (save);
+        \draw [arrow] (save) |- (stop);
+        
+        % Loop de Otimização
+        \draw [arrow] (stop) -| node[above left, font=\scriptsize] {Não} (alloc);
+        \draw [arrow] (alloc) |- (route);
+
+    \end{tikzpicture}
+    \caption{Diagrama de fluxo do Cenário~4. O motor de roteamento MOSP é mantido fixo, enquanto o escalonador inicia com o \textit{Vetor Inicial (Warm Start)} e executa o ciclo de otimização via \textit{GA} até satisfazer o critério de término.}
+    \label{fig:fluxo_cenario4}
+\end{figure}
+
+Como ilustra a Figura~\ref{fig:fluxo_cenario4}, o sistema inicia a avaliação a partir do \textit{Vetor Inicial (Warm Start)}, computando tempo e consumo no \textit{MOSP}. A cada iteração, soluções que melhoram o tempo de conclusão (\textit{Melhor Tempo}) são armazenadas (\textit{Guarda Vetor}). O laço repete-se pelo operador \textit{GA} até que o critério de parada por tempo ou estabilidade seja atingido (\textit{Atingiu tempo ou nº de iterações}), encerrando a busca (\textit{FIM}). O objetivo primário desse ciclo iterativo é quantificar a redução no tempo de convergência e o fator de aceleração computacional obtido ($\text{Speedup} = t_{\text{frio}} / t_{\text{IA}}$) sem perda de qualidade no \textit{makespan} e no consumo de energia final.

@@ -8,7 +8,7 @@ from city_builder import gerar_cidade
 import mission_control
 from uav_physics import Drone
 from navegation.pathfinder_tea_camadas import calcular_rota_tea_camadas
-from IA.teste import TrainingLogger
+from teste.logger_system import TrainingLogger
 
 t_total_inicio = time.perf_counter()
 

@@ -26,5 +26,85 @@
     "ap_pares": 0.1513,
     "prevalencia_pares": 0.1058,
     "ganho_ari_vs_kmeans": 0.0301
+  },
+  {
+    "quando": "2026-11-04 17:34:08",
+    "versao_modelo": 4,
+    "cenarios": 51,
+    "n_features_fisicas": 8,
+    "folds": 5,
+    "acuracia_perfil_velocidade": 0.7589,
+    "reducao_makespan_gen0_vs_seq_pct": 54.63,
+    "reducao_custo_gen0_vs_seq_pct": 18.73,
+    "importancia_features": {
+      "dist_cd_norm": 0.0912,
+      "peso_rel_capacidade": 0.0672,
+      "flag_sobrecarga": 0.21,
+      "vel_rel_frota": 0.0357,
+      "tempo_voo_norm": 0.0359,
+      "energia_rel_bateria": 0.1385,
+      "carga_acum_rel": 0.1906,
+      "acrescimo_makespan": 0.2309
+    }
+  },
+  {
+    "quando": "2026-11-04 18:43:05",
+    "versao_modelo": 4,
+    "cenarios": 51,
+    "n_features_fisicas": 8,
+    "folds": 5,
+    "acuracia_perfil_velocidade": 0.7038,
+    "reducao_makespan_gen0_vs_seq_pct": 25.23,
+    "reducao_custo_gen0_vs_seq_pct": 16.47,
+    "importancia_features": {
+      "dist_cd_norm": 0.0154,
+      "peso_rel_capacidade": 0.0303,
+      "flag_sobrecarga": 0.1253,
+      "vel_rel_frota": 0.2084,
+      "tempo_voo_norm": 0.0,
+      "energia_rel_bateria": 0.2328,
+      "carga_acum_rel": 0.2359,
+      "acrescimo_makespan": 0.1519
+    }
+  },
+  {
+    "quando": "2026-11-04 19:20:07",
+    "versao_modelo": 4,
+    "cenarios": 51,
+    "n_features_fisicas": 8,
+    "folds": 5,
+    "acuracia_perfil_velocidade": 0.7618,
+    "reducao_makespan_gen0_vs_seq_pct": 26.79,
+    "reducao_custo_gen0_vs_seq_pct": 17.65,
+    "importancia_features": {
+      "dist_cd_norm": 0.0087,
+      "peso_rel_capacidade": 0.0461,
+      "flag_sobrecarga": 0.2454,
+      "vel_rel_frota": 0.2146,
+      "tempo_voo_norm": 0.0,
+      "energia_rel_bateria": 0.2679,
+      "carga_acum_rel": 0.1704,
+      "acrescimo_makespan": 0.047
+    }
+  },
+  {
+    "quando": "2026-11-04 19:31:04",
+    "versao_modelo": 4,
+    "cenarios": 51,
+    "n_features_fisicas": 8,
+    "folds": 5,
+    "acuracia_perfil_velocidade": 0.6522,
+    "reducao_makespan_gen0_vs_seq_pct": 28.07,
+    "reducao_custo_gen0_vs_seq_pct": 18.31,
+    "importancia_features": {
+      "dist_cd_norm": 0.0346,
+      "peso_rel_capacidade": 0.052,
+      "flag_sobrecarga": 0.0039,
+      "vel_rel_frota": 0.2348,
+      "tempo_voo_norm": 0.0,
+      "energia_rel_bateria": 0.2444,
+      "carga_acum_rel": 0.2737,
+      "acrescimo_makespan": 0.1567
+    }
   }
 ]

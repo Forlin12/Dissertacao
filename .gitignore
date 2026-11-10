@@ -1,0 +1,14 @@
+# Ambientes virtuais e caches de compilação Python
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Configurações locais de IDE
+.idea/
+**/.idea/
+
+# Arquivos temporários de escrita atômica
+*.tmp.*

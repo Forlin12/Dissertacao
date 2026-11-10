@@ -1,5 +1,4 @@
 # config.py
-from sympy import false
 import os
 # [Controlo de Simulação]
 CENARIO_SEMPRE_NOVO = False

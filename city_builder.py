@@ -1,4 +1,5 @@
 # city_builder.py
+import os
 import osmnx as ox
 import geopandas as gpd
 import numpy as np
@@ -7,9 +8,18 @@ from shapely.ops import voronoi_diagram
 import config as cfg
 from shapely.geometry import box
 
+_DIR_RAIZ_CITY = os.path.dirname(os.path.abspath(__file__))
+_PASTA_CACHE_OSM = os.path.join(_DIR_RAIZ_CITY, "cache")
+if os.path.isdir(_PASTA_CACHE_OSM):
+    ox.settings.cache_folder = _PASTA_CACHE_OSM
+    ox.settings.use_cache = True
+
 
 def gerar_cidade():
     if not cfg.CENARIO_SEMPRE_NOVO: np.random.seed(42)
+    if os.path.isdir(_PASTA_CACHE_OSM):
+        ox.settings.cache_folder = _PASTA_CACHE_OSM
+        ox.settings.use_cache = True
 
     graph = ox.graph_from_point(cfg.COORDENADAS, dist=cfg.RAIO_M, network_type='drive')
     ruas = ox.graph_to_gdfs(graph, nodes=False, edges=True).to_crs(epsg=3857)

@@ -1,0 +1,781 @@
+[2026-11-05 02:25:48] =================================================================
+[2026-11-05 02:25:49] 🚀 INICIANDO TESTE 4D DE TODOS OS CENÁRIOS NA VM (APEREIRA-A69613)
+[2026-11-05 02:25:49] =================================================================
+[2026-11-05 02:25:52] 🏙️ Carregando malha urbana 3D (CIDADE_SEED=42)...
+[2026-11-05 02:26:27] 
+⚡ [ETAPA 1/2] Avaliando Geração 0 (IA Direta vs Sequencial vs GA Frio 8-Gen) em TODOS os cenários...
+[2026-11-05 02:26:28] ⏩ [Etapa 1] 5 drones / 10 entregas (A) (seed 900000) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 02:26:29] 
+-----------------------------------------------------------------
+[2026-11-05 02:26:30] 🔎 [Etapa 1 — 2/6] Cenário 5 drones / 10 entregas (B) (seed=900005)
+[2026-11-05 02:26:30] -----------------------------------------------------------------
+[2026-11-05 02:27:02]    • Avaliando Gen 0 Sequencial (10 entregas) no 4D...
+[2026-11-05 02:28:34]      -> Sequencial Gen 0: Makespan=7324f | Energia=840.6Wh | Custo=10350.2 (87.98s)
+[2026-11-05 02:28:34]    • Avaliando Gen 0 IA Direta (10 entregas) no 4D...
+[2026-11-05 02:29:37]      -> IA Direta Gen 0 : Makespan=6152f | Energia=837.71Wh | Custo=9167.8 (59.04s)
+[2026-11-05 02:29:37]      -> GA Frio (8 Gen) : Makespan=7371f | Energia=838.55Wh | Custo=10389.8 | Tempo=2316.25s
+[2026-11-05 02:29:38]    🏆 Ganho IA Gen 0 vs Seq Gen 0: Makespan -16.0% | vs GA Frio 8-Gen: -16.5%
+[2026-11-05 02:29:40] 
+-----------------------------------------------------------------
+[2026-11-05 02:29:40] 🔎 [Etapa 1 — 3/6] Cenário 5 drones / 20 entregas (seed=900001)
+[2026-11-05 02:29:41] -----------------------------------------------------------------
+[2026-11-05 02:30:42]    • Avaliando Gen 0 Sequencial (20 entregas) no 4D...
+[2026-11-05 02:33:00]      -> Sequencial Gen 0: Makespan=8809f | Energia=1106.39Wh | Custo=12792.0 (134.89s)
+[2026-11-05 02:33:56]    • Avaliando Gen 0 IA Direta (20 entregas) no 4D...
+[2026-11-05 02:35:24]      -> IA Direta Gen 0 : Makespan=6856f | Energia=1103.52Wh | Custo=10828.7 (85.55s)
+[2026-11-05 02:35:25]      -> GA Frio (8 Gen) : Makespan=7730f | Energia=1099.51Wh | Custo=11688.2 | Tempo=3915.34s
+[2026-11-05 02:35:25]    🏆 Ganho IA Gen 0 vs Seq Gen 0: Makespan -22.2% | vs GA Frio 8-Gen: -11.3%
+[2026-11-05 02:35:27] 
+-----------------------------------------------------------------
+[2026-11-05 02:35:28] 🔎 [Etapa 1 — 4/6] Cenário 10 drones / 20 entregas (seed=900003)
+[2026-11-05 02:35:28] -----------------------------------------------------------------
+[2026-11-05 02:36:28]    • Avaliando Gen 0 Sequencial (20 entregas) no 4D...
+[2026-11-05 02:38:47]      -> Sequencial Gen 0: Makespan=5031f | Energia=1144.71Wh | Custo=9152.0 (136.88s)
+[2026-11-05 02:38:47]    • Avaliando Gen 0 IA Direta (20 entregas) no 4D...
+[2026-11-05 02:45:06] =================================================================
+[2026-11-05 02:45:06] 🚀 INICIANDO TESTE 4D DE TODOS OS CENÁRIOS NA VM (LAPTOP-5EIRPO9H)
+[2026-11-05 02:45:06] =================================================================
+[2026-11-05 02:45:06] 🏙️ Carregando malha urbana 3D (CIDADE_SEED=42)...
+[2026-11-05 02:45:20] 
+⚡ [ETAPA 1/2] Avaliando Geração 0 (IA Direta vs Sequencial vs GA Frio 8-Gen) em TODOS os cenários...
+[2026-11-05 02:45:20] ⏩ [Etapa 1] 5 drones / 10 entregas (A) (seed 900000) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 02:45:20] ⏩ [Etapa 1] 5 drones / 10 entregas (B) (seed 900005) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 02:45:20] ⏩ [Etapa 1] 5 drones / 20 entregas (seed 900001) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 02:45:20] 
+-----------------------------------------------------------------
+[2026-11-05 02:45:20] 🔎 [Etapa 1 — 4/6] Cenário 10 drones / 20 entregas (seed=900003)
+[2026-11-05 02:45:20] -----------------------------------------------------------------
+[2026-11-05 02:45:42]    • Avaliando Gen 0 Sequencial (20 entregas) no 4D...
+[2026-11-05 02:45:42]      -> Sequencial Gen 0: Makespan=5031f | Energia=1144.71Wh | Custo=9152.0 (136.88s)
+[2026-11-05 02:45:42]    • Avaliando Gen 0 IA Direta (20 entregas) no 4D...
+[2026-11-05 02:46:31]      -> IA Direta Gen 0 : Makespan=3766f | Energia=1136.2Wh | Custo=7856.3 (48.68s)
+[2026-11-05 02:46:31]      -> GA Frio (8 Gen) : Makespan=4382f | Energia=1135.7Wh | Custo=8470.5 | Tempo=5424.04s
+[2026-11-05 02:46:31]    🏆 Ganho IA Gen 0 vs Seq Gen 0: Makespan -25.1% | vs GA Frio 8-Gen: -14.1%
+[2026-11-05 02:46:31] 
+-----------------------------------------------------------------
+[2026-11-05 02:46:31] 🔎 [Etapa 1 — 5/6] Cenário 5 drones / 40 entregas (seed=900002)
+[2026-11-05 02:46:31] -----------------------------------------------------------------
+[2026-11-05 02:47:10]    • Avaliando Gen 0 Sequencial (40 entregas) no 4D...
+[2026-11-05 02:48:26]      -> Sequencial Gen 0: Makespan=20880f | Energia=2565.11Wh | Custo=30114.4 (75.91s)
+[2026-11-05 02:48:26]    • Avaliando Gen 0 IA Direta (40 entregas) no 4D...
+[2026-11-05 02:49:42]      -> IA Direta Gen 0 : Makespan=15818f | Energia=2630.22Wh | Custo=25286.8 (75.87s)
+[2026-11-05 02:49:42]      -> GA Frio (8 Gen) : Makespan=16651f | Energia=2586.39Wh | Custo=25962.0 | Tempo=11444.39s
+[2026-11-05 02:49:42]    🏆 Ganho IA Gen 0 vs Seq Gen 0: Makespan -24.2% | vs GA Frio 8-Gen: -5.0%
+[2026-11-05 02:49:42] 
+-----------------------------------------------------------------
+[2026-11-05 02:49:42] 🔎 [Etapa 1 — 6/6] Cenário 10 drones / 40 entregas (seed=900004)
+[2026-11-05 02:49:42] -----------------------------------------------------------------
+[2026-11-05 02:50:34]    • Avaliando Gen 0 Sequencial (40 entregas) no 4D...
+[2026-11-05 02:52:23]      -> Sequencial Gen 0: Makespan=12191f | Energia=2662.75Wh | Custo=21776.9 (109.19s)
+[2026-11-05 02:52:23]    • Avaliando Gen 0 IA Direta (40 entregas) no 4D...
+[2026-11-05 02:53:52]      -> IA Direta Gen 0 : Makespan=8364f | Energia=2676.25Wh | Custo=17998.5 (88.8s)
+[2026-11-05 02:53:52]      -> GA Frio (8 Gen) : Makespan=10242f | Energia=2691.77Wh | Custo=19932.4 | Tempo=15315.1s
+[2026-11-05 02:53:52]    🏆 Ganho IA Gen 0 vs Seq Gen 0: Makespan -31.4% | vs GA Frio 8-Gen: -18.3%
+[2026-11-05 02:53:52] 
+🔥 [ETAPA 2/2] Rodando GA Completo (8 Gerações) com Warm Start da IA em TODOS os cenários...
+[2026-11-05 02:53:52] ⏩ [Etapa 2] 5 drones / 10 entregas (A) (seed 900000) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 02:53:52] 
+=================================================================
+[2026-11-05 02:53:52] 🧬 [Etapa 2 — 2/6] GA 8 Gerações Warm Start IA: 5 drones / 10 entregas (B) (seed=900005)
+[2026-11-05 02:53:52] =================================================================
+[2026-11-05 10:46:16] =================================================================
+[2026-11-05 10:46:16] 🚀 INICIANDO TESTE 4D DE TODOS OS CENÁRIOS NA VM (LAPTOP-5EIRPO9H)
+[2026-11-05 10:46:16] =================================================================
+[2026-11-05 10:46:16] 🏙️ Carregando malha urbana 3D (CIDADE_SEED=42)...
+[2026-11-05 10:46:31] 
+⚡ [ETAPA 1/2] Avaliando Geração 0 (IA Direta vs Sequencial vs GA Frio 8-Gen) em TODOS os cenários...
+[2026-11-05 10:46:31] ⏩ [Etapa 1] 5 drones / 10 entregas (A) (seed 900000) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 10:46:31] ⏩ [Etapa 1] 5 drones / 10 entregas (B) (seed 900005) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 10:46:31] ⏩ [Etapa 1] 5 drones / 20 entregas (seed 900001) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 10:46:31] ⏩ [Etapa 1] 10 drones / 20 entregas (seed 900003) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 10:46:31] ⏩ [Etapa 1] 5 drones / 40 entregas (seed 900002) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 10:46:31] ⏩ [Etapa 1] 10 drones / 40 entregas (seed 900004) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 10:46:31] 
+🔥 [ETAPA 2/2] Rodando GA Completo (8 Gerações) com Warm Start da IA em TODOS os cenários...
+[2026-11-05 10:46:31] ⏩ [Etapa 2] 5 drones / 10 entregas (A) (seed 900000) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 10:46:31] 
+=================================================================
+[2026-11-05 10:46:31] 🧬 [Etapa 2 — 2/6] GA 8 Gerações Warm Start IA: 5 drones / 10 entregas (B) (seed=900005)
+[2026-11-05 10:46:31] =================================================================
+[2026-11-05 11:16:57] ⏳ Inicializando script na máquina APEREIRA-A69613 e importando módulos...
+[2026-11-05 11:17:48] =================================================================
+[2026-11-05 11:17:48] 🚀 INICIANDO TESTE 4D DE TODOS OS CENÁRIOS NA VM (APEREIRA-A69613)
+[2026-11-05 11:17:49] =================================================================
+[2026-11-05 11:17:52] 🏙️ Carregando malha urbana 3D (CIDADE_SEED=42)...
+[2026-11-05 11:18:28] 
+⚡ [ETAPA 1] Avaliando Geração 0 (IA Direta vs Sequencial vs GA Frio 8-Gen) em TODOS os 11 cenários...
+[2026-11-05 11:18:28] ⏩ [Etapa 1] 5 drones / 10 entregas (A) (seed 900000) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 11:18:29] ⏩ [Etapa 1] 5 drones / 10 entregas (B) (seed 900005) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 11:18:29] ⏩ [Etapa 1] 5 drones / 20 entregas (seed 900001) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 11:18:30] ⏩ [Etapa 1] 10 drones / 20 entregas (seed 900003) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 11:18:30] ⏩ [Etapa 1] 5 drones / 40 entregas (seed 900002) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 11:18:31] ⏩ [Etapa 1] 10 drones / 40 entregas (seed 900004) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 11:18:32] 
+-----------------------------------------------------------------
+[2026-11-05 11:18:32] 🔎 [Etapa 1 — 7/11] Cenário 20 drones / 40 entregas (seed=12351)
+[2026-11-05 11:18:33] -----------------------------------------------------------------
+[2026-11-05 11:20:31]    • Avaliando Gen 0 Sequencial (40 entregas) no 4D...
+[2026-11-05 11:24:19]      -> Sequencial Gen 0: Makespan=6809f | Energia=2501.68Wh | Custo=15815.0 (224.5s)
+[2026-11-05 11:24:20]    • Avaliando Gen 0 IA Direta (40 entregas) no 4D...
+[2026-11-05 11:28:02]      -> IA Direta Gen 0 : Makespan=4997f | Energia=2481.67Wh | Custo=13931.0 (220.17s)
+[2026-11-05 11:28:03]      -> GA Frio (8 Gen) : Makespan=6736f | Energia=2464.92Wh | Custo=15609.7 | Tempo=22182.45s
+[2026-11-05 11:28:03]    🏆 Ganho IA Gen 0 vs Seq Gen 0: Makespan -26.6% | vs GA Frio 8-Gen: -25.8%
+[2026-11-05 11:28:05] 
+-----------------------------------------------------------------
+[2026-11-05 11:28:06] 🔎 [Etapa 1 — 8/11] Cenário 10 drones / 80 entregas (A) (seed=12350)
+[2026-11-05 11:28:06] -----------------------------------------------------------------
+[2026-11-05 11:32:02]    • Avaliando Gen 0 Sequencial (80 entregas) no 4D...
+[2026-11-05 11:38:27]      -> Sequencial Gen 0: Makespan=16312f | Energia=4295.44Wh | Custo=31775.6 (382.72s)
+[2026-11-05 11:38:28]    • Avaliando Gen 0 IA Direta (80 entregas) no 4D...
+[2026-11-05 11:44:23]      -> IA Direta Gen 0 : Makespan=12946f | Energia=4244.53Wh | Custo=28226.3 (352.92s)
+[2026-11-05 11:44:24]      -> GA Frio (8 Gen) : Makespan=16079f | Energia=4339.81Wh | Custo=31702.3 | Tempo=24543.51s
+[2026-11-05 11:44:24]    🏆 Ganho IA Gen 0 vs Seq Gen 0: Makespan -20.6% | vs GA Frio 8-Gen: -19.5%
+[2026-11-05 11:44:26] 
+-----------------------------------------------------------------
+[2026-11-05 11:44:26] 🔎 [Etapa 1 — 9/11] Cenário 10 drones / 80 entregas (B) (seed=12359)
+[2026-11-05 11:44:27] -----------------------------------------------------------------
+[2026-11-05 11:48:22]    • Avaliando Gen 0 Sequencial (80 entregas) no 4D...
+[2026-11-05 11:57:33]      -> Sequencial Gen 0: Makespan=22492f | Energia=5780.5Wh | Custo=43301.8 (549.2s)
+[2026-11-05 11:57:34]    • Avaliando Gen 0 IA Direta (80 entregas) no 4D...
+[2026-11-05 12:06:31]      -> IA Direta Gen 0 : Makespan=18521f | Energia=5736.84Wh | Custo=39173.6 (534.98s)
+[2026-11-05 12:06:32]      -> GA Frio (8 Gen) : Makespan=21188f | Energia=5759.16Wh | Custo=41921.0 | Tempo=18707.33s
+[2026-11-05 12:06:32]    🏆 Ganho IA Gen 0 vs Seq Gen 0: Makespan -17.7% | vs GA Frio 8-Gen: -12.6%
+[2026-11-05 12:06:34] 
+-----------------------------------------------------------------
+[2026-11-05 12:06:35] 🔎 [Etapa 1 — 10/11] Cenário 20 drones / 80 entregas (seed=12352)
+[2026-11-05 12:06:35] -----------------------------------------------------------------
+[2026-11-05 12:10:28]    • Avaliando Gen 0 Sequencial (80 entregas) no 4D...
+[2026-11-05 12:18:23]      -> Sequencial Gen 0: Makespan=14340f | Energia=5299.62Wh | Custo=33418.6 (472.13s)
+[2026-11-05 12:18:24]    • Avaliando Gen 0 IA Direta (80 entregas) no 4D...
+[2026-11-05 12:25:59]      -> IA Direta Gen 0 : Makespan=8804f | Energia=5214.74Wh | Custo=27577.1 (453.02s)
+[2026-11-05 12:25:59]      -> GA Frio (8 Gen) : Makespan=12702f | Energia=5159.13Wh | Custo=31274.9 | Tempo=68290.18s
+[2026-11-05 12:26:00]    🏆 Ganho IA Gen 0 vs Seq Gen 0: Makespan -38.6% | vs GA Frio 8-Gen: -30.7%
+[2026-11-05 12:26:02] 
+-----------------------------------------------------------------
+[2026-11-05 12:26:02] 🔎 [Etapa 1 — 11/11] Cenário 20 drones / 160 entregas (seed=12353)
+[2026-11-05 12:26:03] -----------------------------------------------------------------
+[2026-11-05 12:33:49]    • Avaliando Gen 0 Sequencial (160 entregas) no 4D...
+[2026-11-05 12:49:14]      -> Sequencial Gen 0: Makespan=20131f | Energia=9725.08Wh | Custo=55141.3 (921.5s)
+[2026-11-05 12:49:14]    • Avaliando Gen 0 IA Direta (160 entregas) no 4D...
+[2026-11-05 13:04:19]      -> IA Direta Gen 0 : Makespan=15473f | Energia=9665.04Wh | Custo=50267.1 (902.31s)
+[2026-11-05 13:04:20]      -> GA Frio (8 Gen) : Makespan=20400f | Energia=9753.78Wh | Custo=55513.6 | Tempo=41340.2s
+[2026-11-05 13:04:20]    🏆 Ganho IA Gen 0 vs Seq Gen 0: Makespan -23.1% | vs GA Frio 8-Gen: -24.2%
+[2026-11-05 13:04:22] 
+🎉 ETAPA 1 CONCLUÍDA EM TODOS OS 11 CENÁRIOS (INCLUINDO OS CENÁRIOS MAIORES)!
+[2026-11-05 14:37:19] ⏳ Inicializando script na máquina APEREIRA-A69613 e importando módulos...
+[2026-11-05 14:37:46] =================================================================
+[2026-11-05 14:37:47] 🚀 INICIANDO TESTE 4D DE TODOS OS CENÁRIOS NA VM (APEREIRA-A69613)
+[2026-11-05 14:37:47] =================================================================
+[2026-11-05 14:37:50] 🏙️ Carregando malha urbana 3D (CIDADE_SEED=42)...
+[2026-11-05 16:21:26] ⏳ Inicializando script na máquina APEREIRA-A69613 e importando módulos...
+[2026-11-05 16:22:01] =================================================================
+[2026-11-05 16:22:01] 🚀 INICIANDO TESTE 4D DE TODOS OS CENÁRIOS NA VM (APEREIRA-A69613)
+[2026-11-05 16:22:02] =================================================================
+[2026-11-05 16:22:04] 🏙️ Carregando malha urbana 3D (CIDADE_SEED=42)...
+[2026-11-05 16:22:39] 
+⚡ [ETAPA 1] Avaliando Geração 0 (IA Direta vs Sequencial vs GA Frio 8-Gen) em TODOS os 11 cenários...
+[2026-11-05 16:22:40] ⏩ [Etapa 1] 5 drones / 10 entregas (A) (seed 900000) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:40] ⏩ [Etapa 1] 5 drones / 10 entregas (B) (seed 900005) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:41] ⏩ [Etapa 1] 5 drones / 20 entregas (seed 900001) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:41] ⏩ [Etapa 1] 10 drones / 20 entregas (seed 900003) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:42] ⏩ [Etapa 1] 5 drones / 40 entregas (seed 900002) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:42] ⏩ [Etapa 1] 10 drones / 40 entregas (seed 900004) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:43] ⏩ [Etapa 1] 20 drones / 40 entregas (seed 12351) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:43] ⏩ [Etapa 1] 10 drones / 80 entregas (A) (seed 12350) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:43] ⏩ [Etapa 1] 10 drones / 80 entregas (B) (seed 12359) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:44] ⏩ [Etapa 1] 20 drones / 80 entregas (seed 12352) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:44] ⏩ [Etapa 1] 20 drones / 160 entregas (seed 12353) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 16:22:45] 
+🔥 [ETAPA 2/2] Rodando GA Completo (8 Gerações) com Warm Start da IA em TODOS os cenários...
+[2026-11-05 16:22:46] ⏩ [Etapa 2 — APEREIRA-A69613] 5 drones / 10 entregas (A) (seed 900000) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 16:22:48] 
+=================================================================
+[2026-11-05 16:22:48] 🧬 [Etapa 2 — APEREIRA-A69613 — 2/11] GA 8 Gerações Warm Start IA: 5 drones / 10 entregas (B) (seed=900005)
+[2026-11-05 16:22:49] =================================================================
+[2026-11-05 16:23:22]   🎯 [LANCE INICIAL WARM START IA] Makespan: 6152f | Esperas: 0 | Falhas: 0 | Energia: 837.7Wh | Custo: 9167.8
+[2026-11-05 16:23:23]   • [Sim # 2 | ⏱   2.2s] Avaliado 4D -> Makespan: 7324f | Energia: 840.6Wh | Custo: 10350.2
+[2026-11-05 16:32:17]   ⭐ NOVO RECORDE (Sim #3 | ⏱ 536.1s): 6081 frames! (Esperas: 0 | Falhas: 0 | Energia: 853.7Wh | Custo Físico: 9154.3)
+[2026-11-05 16:32:18]   • [Sim # 4 | ⏱ 537.5s] Avaliado 4D -> Makespan: 7754f | Energia: 816.4Wh | Custo: 10693.2
+[2026-11-05 16:32:20]   • [Sim # 5 | ⏱ 538.9s] Avaliado 4D -> Makespan: 7324f | Energia: 837.7Wh | Custo: 10339.8
+[2026-11-05 16:32:21]   • [Sim # 6 | ⏱ 540.3s] Avaliado 4D -> Makespan: 7454f | Energia: 837.7Wh | Custo: 10469.8
+[2026-11-05 16:32:22]   • [Sim # 7 | ⏱ 541.7s] Avaliado 4D -> Makespan: 7324f | Energia: 837.7Wh | Custo: 10339.8
+[2026-11-05 16:32:24]   • [Sim # 8 | ⏱ 543.0s] Avaliado 4D -> Makespan: 8833f | Energia: 811.8Wh | Custo: 11755.5
+[2026-11-05 16:32:25]   • [Sim # 9 | ⏱ 544.4s] Avaliado 4D -> Makespan: 10285f | Energia: 818.7Wh | Custo: 13232.5
+[2026-11-05 16:33:27]   • [Sim #10 | ⏱ 606.3s] Avaliado 4D -> Makespan: 8729f | Energia: 821.0Wh | Custo: 11684.8
+[2026-11-05 16:39:03]   • [Sim #11 | ⏱ 942.5s] Avaliado 4D -> Makespan: 8668f | Energia: 861.9Wh | Custo: 11770.9
+[2026-11-05 16:39:06]   • [Sim #12 | ⏱ 945.0s] Avaliado 4D -> Makespan: 6200f | Energia: 841.4Wh | Custo: 9229.2
+[2026-11-05 16:39:07]   • [Sim #13 | ⏱ 946.5s] Avaliado 4D -> Makespan: 6324f | Energia: 837.7Wh | Custo: 9339.8
+[2026-11-05 16:39:09]   ⭐ NOVO RECORDE (Sim #14 | ⏱ 947.9s): 6152 frames! (Esperas: 0 | Falhas: 0 | Energia: 833.1Wh | Custo Físico: 9151.0)
+[2026-11-05 16:39:10]   • [Sim #15 | ⏱ 949.3s] Avaliado 4D -> Makespan: 9099f | Energia: 821.0Wh | Custo: 12054.8
+[2026-11-05 16:39:10]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~9151 | ⏱ 949.8s | Cache: 15 rotas
+[2026-11-05 16:41:09]   • [Sim #16 | ⏱ 1068.3s] Avaliado 4D -> Makespan: 6416f | Energia: 836.8Wh | Custo: 9428.4
+[2026-11-05 16:41:10]   • [Sim #17 | ⏱ 1069.7s] Avaliado 4D -> Makespan: 6200f | Energia: 857.4Wh | Custo: 9286.7
+[2026-11-05 16:46:31]   • [Sim #18 | ⏱ 1390.0s] Avaliado 4D -> Makespan: 8661f | Energia: 869.4Wh | Custo: 11791.0
+[2026-11-05 16:46:32]   • [Sim #19 | ⏱ 1391.5s] Avaliado 4D -> Makespan: 6329f | Energia: 849.5Wh | Custo: 9387.1
+[2026-11-05 16:46:34]   • [Sim #20 | ⏱ 1392.9s] Avaliado 4D -> Makespan: 6200f | Energia: 857.4Wh | Custo: 9286.7
+[2026-11-05 16:46:35]   • [Sim #21 | ⏱ 1394.3s] Avaliado 4D -> Makespan: 8669f | Energia: 833.1Wh | Custo: 11668.0
+[2026-11-05 16:46:36]   • [Sim #22 | ⏱ 1395.7s] Avaliado 4D -> Makespan: 7454f | Energia: 837.7Wh | Custo: 10469.8
+[2026-11-05 16:46:37]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~9151 | ⏱ 1396.2s | Cache: 22 rotas
+[2026-11-05 16:48:33]   • [Sim #23 | ⏱ 1512.7s] Avaliado 4D -> Makespan: 6842f | Energia: 869.4Wh | Custo: 9972.0
+[2026-11-05 16:48:35]   • [Sim #24 | ⏱ 1514.1s] Avaliado 4D -> Makespan: 7454f | Energia: 870.4Wh | Custo: 10587.3
+[2026-11-05 16:53:59]   • [Sim #25 | ⏱ 1838.0s] Avaliado 4D -> Makespan: 7454f | Energia: 865.7Wh | Custo: 10570.6
+[2026-11-05 16:54:01]   • [Sim #26 | ⏱ 1840.0s] Avaliado 4D -> Makespan: 6842f | Energia: 874.1Wh | Custo: 9988.7
+[2026-11-05 16:54:02]   • [Sim #27 | ⏱ 1841.4s] Avaliado 4D -> Makespan: 8729f | Energia: 845.2Wh | Custo: 11771.9
+[2026-11-05 16:54:03]   • [Sim #28 | ⏱ 1842.8s] Avaliado 4D -> Makespan: 9099f | Energia: 837.7Wh | Custo: 12114.8
+[2026-11-05 16:54:05]   • [Sim #29 | ⏱ 1844.1s] Avaliado 4D -> Makespan: 7462f | Energia: 837.7Wh | Custo: 10477.8
+[2026-11-05 16:54:05]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~9151 | ⏱ 1844.6s | Cache: 29 rotas
+[2026-11-05 16:55:06]   • [Sim #30 | ⏱ 1905.7s] Avaliado 4D -> Makespan: 8729f | Energia: 816.4Wh | Custo: 11668.0
+[2026-11-05 16:59:09]   • [Sim #31 | ⏱ 2148.2s] Avaliado 4D -> Makespan: 10611f | Energia: 569.1Wh | Custo: 112659.8
+[2026-11-05 16:59:35]   • [Sim #32 | ⏱ 2174.0s] Avaliado 4D -> Makespan: 8487f | Energia: 865.7Wh | Custo: 11603.6
+[2026-11-05 16:59:36]   • [Sim #33 | ⏱ 2175.6s] Avaliado 4D -> Makespan: 8729f | Energia: 816.4Wh | Custo: 11668.0
+[2026-11-05 16:59:38]   • [Sim #34 | ⏱ 2177.0s] Avaliado 4D -> Makespan: 9144f | Energia: 816.4Wh | Custo: 12083.2
+[2026-11-05 16:59:38]   [██████████░░░░░░░░░░] Gen   4/8 | Custo Físico Melhor: ~9151 | ⏱ 2177.5s | Cache: 34 rotas
+[2026-11-05 16:59:41] ✅ [APEREIRA-A69613] Concluído 5 drones / 10 entregas (B) (seed 900005): Makespan=6152f | Energia=833.06Wh | Gerações=1 | Tempo=2217.03s
+[2026-11-05 16:59:43] 
+=================================================================
+[2026-11-05 16:59:43] 🧬 [Etapa 2 — APEREIRA-A69613 — 3/11] GA 8 Gerações Warm Start IA: 5 drones / 20 entregas (seed=900001)
+[2026-11-05 16:59:44] =================================================================
+[2026-11-05 17:00:47]   🎯 [LANCE INICIAL WARM START IA] Makespan: 6856f | Esperas: 0 | Falhas: 0 | Energia: 1103.5Wh | Custo: 10828.7
+[2026-11-05 17:14:07]   • [Sim # 2 | ⏱ 801.3s] Avaliado 4D -> Makespan: 10648f | Energia: 1129.2Wh | Custo: 14713.2
+[2026-11-05 17:14:08]   • [Sim # 3 | ⏱ 802.8s] Avaliado 4D -> Makespan: 8809f | Energia: 1106.4Wh | Custo: 12792.0
+[2026-11-05 17:14:13]   • [Sim # 4 | ⏱ 807.8s] Avaliado 4D -> Makespan: 8331f | Energia: 1103.7Wh | Custo: 12304.1
+[2026-11-05 17:14:15]   • [Sim # 5 | ⏱ 809.4s] Avaliado 4D -> Makespan: 7343f | Energia: 1101.3Wh | Custo: 11307.6
+[2026-11-05 17:14:16]   • [Sim # 6 | ⏱ 810.9s] Avaliado 4D -> Makespan: 9222f | Energia: 1103.5Wh | Custo: 13194.7
+[2026-11-05 17:14:17]   • [Sim # 7 | ⏱ 812.3s] Avaliado 4D -> Makespan: 7474f | Energia: 1110.5Wh | Custo: 11471.7
+[2026-11-05 17:14:19]   • [Sim # 8 | ⏱ 813.6s] Avaliado 4D -> Makespan: 6856f | Energia: 1105.0Wh | Custo: 10834.1
+[2026-11-05 17:14:20]   • [Sim # 9 | ⏱ 815.0s] Avaliado 4D -> Makespan: 7391f | Energia: 1103.5Wh | Custo: 11363.7
+[2026-11-05 17:14:22]   • [Sim #10 | ⏱ 816.4s] Avaliado 4D -> Makespan: 9727f | Energia: 1087.0Wh | Custo: 13640.2
+[2026-11-05 17:20:36]   • [Sim #11 | ⏱ 1191.2s] Avaliado 4D -> Makespan: 7343f | Energia: 1102.8Wh | Custo: 11313.0
+[2026-11-05 17:20:38]   • [Sim #12 | ⏱ 1192.6s] Avaliado 4D -> Makespan: 8204f | Energia: 1103.6Wh | Custo: 12177.1
+[2026-11-05 17:20:39]   • [Sim #13 | ⏱ 1194.0s] Avaliado 4D -> Makespan: 8331f | Energia: 1103.5Wh | Custo: 12303.7
+[2026-11-05 17:20:41]   • [Sim #14 | ⏱ 1195.4s] Avaliado 4D -> Makespan: 7070f | Energia: 1105.9Wh | Custo: 11051.2
+[2026-11-05 17:27:01]   • [Sim #15 | ⏱ 1575.6s] Avaliado 4D -> Makespan: 7343f | Energia: 1104.5Wh | Custo: 11319.2
+[2026-11-05 17:27:02]   • [Sim #16 | ⏱ 1577.2s] Avaliado 4D -> Makespan: 7343f | Energia: 1101.4Wh | Custo: 11308.0
+[2026-11-05 17:27:04]   • [Sim #17 | ⏱ 1578.8s] Avaliado 4D -> Makespan: 10425f | Energia: 1089.4Wh | Custo: 14346.7
+[2026-11-05 17:27:13]   • [Sim #18 | ⏱ 1588.2s] Avaliado 4D -> Makespan: 8546f | Energia: 1098.1Wh | Custo: 12499.3
+[2026-11-05 17:27:14]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~10828 | ⏱ 1588.7s | Cache: 18 rotas
+[2026-11-05 17:28:37]   • [Sim #19 | ⏱ 1671.6s] Avaliado 4D -> Makespan: 6997f | Energia: 1103.6Wh | Custo: 10970.1
+[2026-11-05 17:36:37]   • [Sim #20 | ⏱ 2152.0s] Avaliado 4D -> Makespan: 8283f | Energia: 1101.4Wh | Custo: 12248.0
+[2026-11-05 17:36:45]   • [Sim #21 | ⏱ 2159.4s] Avaliado 4D -> Makespan: 7563f | Energia: 1103.6Wh | Custo: 11536.1
+[2026-11-05 17:36:46]   • [Sim #22 | ⏱ 2160.9s] Avaliado 4D -> Makespan: 7201f | Energia: 1103.5Wh | Custo: 11173.7
+[2026-11-05 17:36:48]   • [Sim #23 | ⏱ 2162.3s] Avaliado 4D -> Makespan: 8024f | Energia: 1098.7Wh | Custo: 11979.3
+[2026-11-05 17:36:49]   • [Sim #24 | ⏱ 2163.8s] Avaliado 4D -> Makespan: 8378f | Energia: 1094.3Wh | Custo: 12317.6
+[2026-11-05 17:36:49]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~10828 | ⏱ 2164.2s | Cache: 24 rotas
+[2026-11-05 17:38:14]   • [Sim #25 | ⏱ 2249.1s] Avaliado 4D -> Makespan: 7170f | Energia: 1104.9Wh | Custo: 11147.6
+[2026-11-05 17:46:47]   • [Sim #26 | ⏱ 2762.1s] Avaliado 4D -> Makespan: 10722f | Energia: 1105.0Wh | Custo: 14700.1
+[2026-11-05 17:46:50]   • [Sim #27 | ⏱ 2764.6s] Avaliado 4D -> Makespan: 7332f | Energia: 1103.6Wh | Custo: 11305.1
+[2026-11-05 17:46:51]   • [Sim #28 | ⏱ 2766.2s] Avaliado 4D -> Makespan: 7101f | Energia: 1104.9Wh | Custo: 11078.6
+[2026-11-05 17:46:53]   • [Sim #29 | ⏱ 2768.2s] Avaliado 4D -> Makespan: 10216f | Energia: 1081.4Wh | Custo: 14109.2
+[2026-11-05 17:46:55]   • [Sim #30 | ⏱ 2769.6s] Avaliado 4D -> Makespan: 9058f | Energia: 1095.5Wh | Custo: 13001.7
+[2026-11-05 17:46:55]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~10828 | ⏱ 2770.1s | Cache: 30 rotas
+[2026-11-05 17:46:58] ✅ [APEREIRA-A69613] Concluído 5 drones / 20 entregas (seed 900001): Makespan=6856f | Energia=1103.52Wh | Gerações=0 | Tempo=2770.48s
+[2026-11-05 17:46:59] 
+=================================================================
+[2026-11-05 17:47:00] 🧬 [Etapa 2 — APEREIRA-A69613 — 4/11] GA 8 Gerações Warm Start IA: 10 drones / 20 entregas (seed=900003)
+[2026-11-05 17:47:00] =================================================================
+[2026-11-05 17:48:04]   🎯 [LANCE INICIAL WARM START IA] Makespan: 3766f | Esperas: 0 | Falhas: 0 | Energia: 1136.2Wh | Custo: 7856.3
+[2026-11-05 17:48:04]   • [Sim # 2 | ⏱   2.3s] Avaliado 4D -> Makespan: 5031f | Energia: 1144.7Wh | Custo: 9152.0
+[2026-11-05 18:02:55]   • [Sim # 3 | ⏱ 893.3s] Avaliado 4D -> Makespan: 4735f | Energia: 1135.0Wh | Custo: 8820.9
+[2026-11-05 18:02:57]   • [Sim # 4 | ⏱ 894.8s] Avaliado 4D -> Makespan: 3797f | Energia: 1134.4Wh | Custo: 7880.7
+[2026-11-05 18:02:59]   • [Sim # 5 | ⏱ 897.4s] Avaliado 4D -> Makespan: 4565f | Energia: 1136.0Wh | Custo: 8654.4
+[2026-11-05 18:03:02]   • [Sim # 6 | ⏱ 899.9s] Avaliado 4D -> Makespan: 4205f | Energia: 1132.9Wh | Custo: 8283.5
+[2026-11-05 18:03:04]   • [Sim # 7 | ⏱ 902.0s] Avaliado 4D -> Makespan: 3851f | Energia: 1129.9Wh | Custo: 7918.7
+[2026-11-05 18:03:05]   • [Sim # 8 | ⏱ 903.4s] Avaliado 4D -> Makespan: 7013f | Energia: 1124.1Wh | Custo: 11059.9
+[2026-11-05 18:03:07]   • [Sim # 9 | ⏱ 904.7s] Avaliado 4D -> Makespan: 5478f | Energia: 1135.0Wh | Custo: 9564.1
+[2026-11-05 18:04:44]   • [Sim #10 | ⏱ 1002.4s] Avaliado 4D -> Makespan: 4714f | Energia: 1140.2Wh | Custo: 8818.8
+[2026-11-05 18:14:35]   • [Sim #11 | ⏱ 1593.3s] Avaliado 4D -> Makespan: 3839f | Energia: 1129.9Wh | Custo: 7906.7
+[2026-11-05 18:14:37]   • [Sim #12 | ⏱ 1595.0s] Avaliado 4D -> Makespan: 5466f | Energia: 1135.0Wh | Custo: 9552.0
+[2026-11-05 18:14:39]   • [Sim #13 | ⏱ 1596.5s] Avaliado 4D -> Makespan: 5484f | Energia: 1148.7Wh | Custo: 9619.5
+[2026-11-05 18:14:40]   • [Sim #14 | ⏱ 1598.0s] Avaliado 4D -> Makespan: 5305f | Energia: 1147.8Wh | Custo: 9437.0
+[2026-11-05 18:14:45]   • [Sim #15 | ⏱ 1603.0s] Avaliado 4D -> Makespan: 6677f | Energia: 1129.9Wh | Custo: 10744.7
+[2026-11-05 18:14:46]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~7856 | ⏱ 1604.1s | Cache: 15 rotas
+[2026-11-05 18:16:38]   • [Sim #16 | ⏱ 1715.6s] Avaliado 4D -> Makespan: 4995f | Energia: 1129.1Wh | Custo: 9059.9
+[2026-11-05 18:26:43]   • [Sim #17 | ⏱ 2321.4s] Avaliado 4D -> Makespan: 4126f | Energia: 1135.0Wh | Custo: 8211.9
+[2026-11-05 18:26:59]   • [Sim #18 | ⏱ 2336.9s] Avaliado 4D -> Makespan: 4026f | Energia: 1133.0Wh | Custo: 8104.8
+[2026-11-05 18:27:05]   • [Sim #19 | ⏱ 2342.9s] Avaliado 4D -> Makespan: 5478f | Energia: 1140.3Wh | Custo: 9583.0
+[2026-11-05 18:27:19]   • [Sim #20 | ⏱ 2357.1s] Avaliado 4D -> Makespan: 7301f | Energia: 1129.9Wh | Custo: 11368.7
+[2026-11-05 18:27:35]   • [Sim #21 | ⏱ 2372.7s] Avaliado 4D -> Makespan: 5010f | Energia: 1120.8Wh | Custo: 9044.7
+[2026-11-05 18:27:36]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~7856 | ⏱ 2374.0s | Cache: 21 rotas
+[2026-11-05 18:38:19]   • [Sim #22 | ⏱ 3016.9s] Avaliado 4D -> Makespan: 6451f | Energia: 1135.0Wh | Custo: 10536.9
+[2026-11-05 18:38:20]   • [Sim #23 | ⏱ 3018.4s] Avaliado 4D -> Makespan: 5455f | Energia: 1147.8Wh | Custo: 9587.0
+[2026-11-05 18:38:22]   • [Sim #24 | ⏱ 3019.8s] Avaliado 4D -> Makespan: 6621f | Energia: 1135.0Wh | Custo: 10706.9
+[2026-11-05 18:38:23]   • [Sim #25 | ⏱ 3021.2s] Avaliado 4D -> Makespan: 6048f | Energia: 1126.3Wh | Custo: 10102.8
+[2026-11-05 18:38:25]   • [Sim #26 | ⏱ 3022.6s] Avaliado 4D -> Makespan: 5829f | Energia: 1124.7Wh | Custo: 9877.8
+[2026-11-05 18:38:25]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~7856 | ⏱ 3023.0s | Cache: 26 rotas
+[2026-11-05 18:38:27] ✅ [APEREIRA-A69613] Concluído 10 drones / 20 entregas (seed 900003): Makespan=3766f | Energia=1136.20Wh | Gerações=0 | Tempo=3023.44s
+[2026-11-05 18:38:29] 
+=================================================================
+[2026-11-05 18:38:30] 🧬 [Etapa 2 — APEREIRA-A69613 — 5/11] GA 8 Gerações Warm Start IA: 5 drones / 40 entregas (seed=900002)
+[2026-11-05 18:38:30] =================================================================
+[2026-11-05 18:40:32]   🎯 [LANCE INICIAL WARM START IA] Makespan: 15818f | Esperas: 0 | Falhas: 0 | Energia: 2630.2Wh | Custo: 25286.8
+[2026-11-05 19:06:43] ⏳ Inicializando script na máquina APEREIRA-A69613 e importando módulos...
+[2026-11-05 19:07:09] =================================================================
+[2026-11-05 19:07:09] 🚀 INICIANDO TESTE 4D DE TODOS OS CENÁRIOS NA VM (APEREIRA-A69613)
+[2026-11-05 19:07:10] =================================================================
+[2026-11-05 19:07:12] 🏙️ Carregando malha urbana 3D (CIDADE_SEED=42)...
+[2026-11-05 19:07:46] 
+⚡ [ETAPA 1] Avaliando Geração 0 (IA Direta vs Sequencial vs GA Frio 8-Gen) em TODOS os 11 cenários...
+[2026-11-05 19:07:47] ⏩ [Etapa 1] 5 drones / 10 entregas (A) (seed 900000) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:47] ⏩ [Etapa 1] 5 drones / 10 entregas (B) (seed 900005) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:48] ⏩ [Etapa 1] 5 drones / 20 entregas (seed 900001) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:48] ⏩ [Etapa 1] 10 drones / 20 entregas (seed 900003) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:49] ⏩ [Etapa 1] 5 drones / 40 entregas (seed 900002) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:49] ⏩ [Etapa 1] 10 drones / 40 entregas (seed 900004) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:50] ⏩ [Etapa 1] 20 drones / 40 entregas (seed 12351) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:50] ⏩ [Etapa 1] 10 drones / 80 entregas (A) (seed 12350) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:51] ⏩ [Etapa 1] 10 drones / 80 entregas (B) (seed 12359) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:51] ⏩ [Etapa 1] 20 drones / 80 entregas (seed 12352) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:51] ⏩ [Etapa 1] 20 drones / 160 entregas (seed 12353) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 19:07:52] 
+🔥 [ETAPA 2/2] Rodando GA Completo (8 Gerações) com Warm Start da IA em TODOS os cenários...
+[2026-11-05 19:07:53] ⏩ [Etapa 2 — APEREIRA-A69613] 5 drones / 10 entregas (A) (seed 900000) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 19:07:54] ⏩ [Etapa 2 — APEREIRA-A69613] 5 drones / 10 entregas (B) (seed 900005) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 19:07:55] ⏩ [Etapa 2 — APEREIRA-A69613] 5 drones / 20 entregas (seed 900001) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 19:07:56] ⏩ [Etapa 2 — APEREIRA-A69613] 10 drones / 20 entregas (seed 900003) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 19:07:58] 
+=================================================================
+[2026-11-05 19:07:59] 🧬 [Etapa 2 — APEREIRA-A69613 — 5/11] GA 8 Gerações Warm Start IA: 5 drones / 40 entregas (seed=900002)
+[2026-11-05 19:07:59] =================================================================
+[2026-11-05 19:09:58]   🎯 [LANCE INICIAL WARM START IA] Makespan: 15818f | Esperas: 0 | Falhas: 0 | Energia: 2630.2Wh | Custo: 25286.8
+[2026-11-05 19:25:31]   ✂️ [Sim # 2 | ⏱ 934.7s] PODADO no 4D! (Makespan parcial 16679f > Teto 15818f)
+[2026-11-05 19:25:32]   • [Sim # 3 | ⏱ 935.7s] Avaliado 4D -> Makespan: 20880f | Energia: 2565.1Wh | Custo: 30114.4
+[2026-11-05 19:26:30]   ✂️ [Sim # 4 | ⏱ 993.1s] PODADO no 4D! (Makespan parcial 16636f > Teto 15818f)
+[2026-11-05 19:32:10]   ✂️ [Sim # 5 | ⏱ 1333.2s] PODADO no 4D! (Makespan parcial 16797f > Teto 15818f)
+[2026-11-05 19:34:35]   ✂️ [Sim # 6 | ⏱ 1478.3s] PODADO no 4D! (Makespan parcial 15845f > Teto 15818f)
+[2026-11-05 19:34:36]   ✂️ [Sim # 7 | ⏱ 1479.8s] PODADO no 4D! (Makespan parcial 15845f > Teto 15818f)
+[2026-11-05 19:34:48]   ✂️ [Sim # 8 | ⏱ 1491.9s] PODADO no 4D! (Makespan parcial 15845f > Teto 15818f)
+[2026-11-05 19:34:50]   ✂️ [Sim # 9 | ⏱ 1494.0s] PODADO no 4D! (Makespan parcial 16880f > Teto 15818f)
+[2026-11-05 19:35:05]   ⭐ NOVO RECORDE (Sim #10 | ⏱ 1508.8s): 15535 frames! (Esperas: 0 | Falhas: 0 | Energia: 2639.7Wh | Custo Físico: 25037.9)
+[2026-11-05 19:37:56]   ✂️ [Sim #11 | ⏱ 1679.4s] PODADO no 4D! (Makespan parcial 16801f > Teto 15535f)
+[2026-11-05 19:50:08]   ✂️ [Sim #12 | ⏱ 2411.6s] PODADO no 4D! (Makespan parcial 15784f > Teto 15535f)
+[2026-11-05 19:50:53]   ✂️ [Sim #13 | ⏱ 2456.5s] PODADO no 4D! (Makespan parcial 15643f > Teto 15535f)
+[2026-11-05 19:51:19]   ✂️ [Sim #14 | ⏱ 2482.6s] PODADO no 4D! (Makespan parcial 15880f > Teto 15535f)
+[2026-11-05 19:51:21]   ✂️ [Sim #15 | ⏱ 2484.5s] PODADO no 4D! (Makespan parcial 16014f > Teto 15535f)
+[2026-11-05 19:51:53]   ✂️ [Sim #16 | ⏱ 2516.0s] PODADO no 4D! (Makespan parcial 15860f > Teto 15535f)
+[2026-11-05 19:51:53]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~25037 | ⏱ 2516.5s | Cache: 16 rotas
+[2026-11-05 19:53:41]   ✂️ [Sim #17 | ⏱ 2624.9s] PODADO no 4D! (Makespan parcial 16271f > Teto 15535f)
+[2026-11-05 19:55:32]   ✂️ [Sim #18 | ⏱ 2736.0s] PODADO no 4D! (Makespan parcial 16082f > Teto 15535f)
+[2026-11-05 19:55:34]   ✂️ [Sim #19 | ⏱ 2737.6s] PODADO no 4D! (Makespan parcial 16082f > Teto 15535f)
+[2026-11-05 19:58:51]   ✂️ [Sim #20 | ⏱ 2934.5s] PODADO no 4D! (Makespan parcial 16271f > Teto 15535f)
+[2026-11-05 20:01:00]   ✂️ [Sim #21 | ⏱ 3063.5s] PODADO no 4D! (Makespan parcial 15665f > Teto 15535f)
+[2026-11-05 20:02:22]   ✂️ [Sim #22 | ⏱ 3145.5s] PODADO no 4D! (Makespan parcial 16082f > Teto 15535f)
+[2026-11-05 20:02:31]   ✂️ [Sim #23 | ⏱ 3154.2s] PODADO no 4D! (Makespan parcial 15815f > Teto 15535f)
+[2026-11-05 20:03:17]   ✂️ [Sim #24 | ⏱ 3200.6s] PODADO no 4D! (Makespan parcial 17351f > Teto 15535f)
+[2026-11-05 20:03:18]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~25037 | ⏱ 3201.1s | Cache: 24 rotas
+[2026-11-05 20:10:06]   ✂️ [Sim #25 | ⏱ 3609.2s] PODADO no 4D! (Makespan parcial 16653f > Teto 15535f)
+[2026-11-05 20:10:18]   ✂️ [Sim #26 | ⏱ 3621.7s] PODADO no 4D! (Makespan parcial 15815f > Teto 15535f)
+[2026-11-05 20:12:37]   ✂️ [Sim #27 | ⏱ 3760.8s] PODADO no 4D! (Makespan parcial 16697f > Teto 15535f)
+[2026-11-05 20:12:51]   ✂️ [Sim #28 | ⏱ 3774.1s] PODADO no 4D! (Makespan parcial 15673f > Teto 15535f)
+[2026-11-05 21:01:11] ⏳ Inicializando script na máquina APEREIRA-A69613 e importando módulos...
+[2026-11-05 21:01:38] =================================================================
+[2026-11-05 21:01:40] 🚀 INICIANDO TESTE 4D DE TODOS OS CENÁRIOS NA VM (APEREIRA-A69613)
+[2026-11-05 21:01:42] =================================================================
+[2026-11-05 21:01:45] 🏙️ Carregando malha urbana 3D (CIDADE_SEED=42)...
+[2026-11-05 21:13:42] ⏳ Inicializando script na máquina APEREIRA-A69613 e importando módulos...
+[2026-11-05 21:14:08] =================================================================
+[2026-11-05 21:14:08] 🚀 INICIANDO TESTE 4D DE TODOS OS CENÁRIOS NA VM (APEREIRA-A69613)
+[2026-11-05 21:14:08] =================================================================
+[2026-11-05 21:14:11] 🏙️ Carregando malha urbana 3D (CIDADE_SEED=42)...
+[2026-11-05 21:14:46] 
+⚡ [ETAPA 1] Avaliando Geração 0 (IA Direta vs Sequencial vs GA Frio 8-Gen) em TODOS os 11 cenários...
+[2026-11-05 21:14:47] ⏩ [Etapa 1] 5 drones / 10 entregas (A) (seed 900000) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:47] ⏩ [Etapa 1] 5 drones / 10 entregas (B) (seed 900005) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:48] ⏩ [Etapa 1] 5 drones / 20 entregas (seed 900001) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:48] ⏩ [Etapa 1] 10 drones / 20 entregas (seed 900003) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:49] ⏩ [Etapa 1] 5 drones / 40 entregas (seed 900002) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:49] ⏩ [Etapa 1] 10 drones / 40 entregas (seed 900004) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:50] ⏩ [Etapa 1] 20 drones / 40 entregas (seed 12351) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:50] ⏩ [Etapa 1] 10 drones / 80 entregas (A) (seed 12350) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:51] ⏩ [Etapa 1] 10 drones / 80 entregas (B) (seed 12359) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:51] ⏩ [Etapa 1] 20 drones / 80 entregas (seed 12352) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:52] ⏩ [Etapa 1] 20 drones / 160 entregas (seed 12353) já possui avaliação Gen 0 em cache — pulando!
+[2026-11-05 21:14:52] 
+🔥 [ETAPA 2/2] Rodando GA Completo (8 Gerações) com Warm Start da IA em TODOS os cenários...
+[2026-11-05 21:14:53] ⏩ [Etapa 2 — APEREIRA-A69613] 5 drones / 10 entregas (A) (seed 900000) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 21:14:54] ⏩ [Etapa 2 — APEREIRA-A69613] 5 drones / 10 entregas (B) (seed 900005) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 21:14:55] ⏩ [Etapa 2 — APEREIRA-A69613] 5 drones / 20 entregas (seed 900001) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 21:14:57] ⏩ [Etapa 2 — APEREIRA-A69613] 10 drones / 20 entregas (seed 900003) já possui GA Completo 8-Gen salvo — pulando!
+[2026-11-05 21:14:58] 
+=================================================================
+[2026-11-05 21:14:59] 🧬 [Etapa 2 — APEREIRA-A69613 — 5/11] GA 8 Gerações Warm Start IA: 5 drones / 40 entregas (seed=900002)
+[2026-11-05 21:14:59] =================================================================
+[2026-11-05 21:16:57]   🎯 [LANCE INICIAL WARM START IA] Makespan: 15818f | Esperas: 0 | Falhas: 0 | Energia: 2630.2Wh | Custo: 25286.8
+[2026-11-05 21:16:57]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19458f > Teto 15818f)
+[2026-11-05 21:16:58]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24470f > Teto 15818f)
+[2026-11-05 21:16:58]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18834f > Teto 15818f)
+[2026-11-05 21:16:59]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19543f > Teto 15818f)
+[2026-11-05 21:16:59]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24131f > Teto 15818f)
+[2026-11-05 21:16:59]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19458f > Teto 15818f)
+[2026-11-05 21:17:00]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23505f > Teto 15818f)
+[2026-11-05 21:17:00]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23501f > Teto 15818f)
+[2026-11-05 21:17:01]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20145f > Teto 15818f)
+[2026-11-05 21:17:01]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19543f > Teto 15818f)
+[2026-11-05 21:17:02]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22929f > Teto 15818f)
+[2026-11-05 21:17:02]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24478f > Teto 15818f)
+[2026-11-05 21:17:03]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20306f > Teto 15818f)
+[2026-11-05 21:17:03]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 21770f > Teto 15818f)
+[2026-11-05 21:17:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20819f > Teto 15818f)
+[2026-11-05 21:17:04]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~25286 | ⏱   9.4s | Cache: 16 rotas
+[2026-11-05 21:17:05]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19720f > Teto 15818f)
+[2026-11-05 21:17:05]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22028f > Teto 15818f)
+[2026-11-05 21:17:06]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19668f > Teto 15818f)
+[2026-11-05 21:17:06]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 25906f > Teto 15818f)
+[2026-11-05 21:17:07]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 25827f > Teto 15818f)
+[2026-11-05 21:17:07]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20277f > Teto 15818f)
+[2026-11-05 21:17:08]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~25286 | ⏱  12.7s | Cache: 22 rotas
+[2026-11-05 21:17:08]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19668f > Teto 15818f)
+[2026-11-05 21:17:08]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19720f > Teto 15818f)
+[2026-11-05 21:17:09]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22524f > Teto 15818f)
+[2026-11-05 21:17:09]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22718f > Teto 15818f)
+[2026-11-05 21:17:10]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26563f > Teto 15818f)
+[2026-11-05 21:17:10]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 27067f > Teto 15818f)
+[2026-11-05 21:17:11]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26937f > Teto 15818f)
+[2026-11-05 21:17:11]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19638f > Teto 15818f)
+[2026-11-05 21:17:12]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~25286 | ⏱  16.9s | Cache: 30 rotas
+[2026-11-05 21:17:14] ✅ [APEREIRA-A69613] Concluído 5 drones / 40 entregas (seed 900002): Makespan=15818f | Energia=2630.22Wh | Gerações=0 | Tempo=3772.66s
+[2026-11-05 21:17:16] 
+=================================================================
+[2026-11-05 21:17:17] 🧬 [Etapa 2 — APEREIRA-A69613 — 6/11] GA 8 Gerações Warm Start IA: 10 drones / 40 entregas (seed=900004)
+[2026-11-05 21:17:17] =================================================================
+[2026-11-05 21:19:16]   🎯 [LANCE INICIAL WARM START IA] Makespan: 8364f | Esperas: 0 | Falhas: 0 | Energia: 2676.2Wh | Custo: 17998.5
+[2026-11-05 21:19:17]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10983f > Teto 8364f)
+[2026-11-05 21:19:17]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10230f > Teto 8364f)
+[2026-11-05 21:19:18]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11937f > Teto 8364f)
+[2026-11-05 21:19:18]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11266f > Teto 8364f)
+[2026-11-05 21:19:19]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10388f > Teto 8364f)
+[2026-11-05 21:19:19]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11035f > Teto 8364f)
+[2026-11-05 21:19:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11963f > Teto 8364f)
+[2026-11-05 21:19:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11695f > Teto 8364f)
+[2026-11-05 21:19:21]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14156f > Teto 8364f)
+[2026-11-05 21:19:21]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12815f > Teto 8364f)
+[2026-11-05 21:19:21]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13259f > Teto 8364f)
+[2026-11-05 21:19:22]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11206f > Teto 8364f)
+[2026-11-05 21:19:22]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10781f > Teto 8364f)
+[2026-11-05 21:19:23]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14077f > Teto 8364f)
+[2026-11-05 21:19:23]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15004f > Teto 8364f)
+[2026-11-05 21:19:24]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13259f > Teto 8364f)
+[2026-11-05 21:19:24]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~17998 | ⏱   9.8s | Cache: 17 rotas
+[2026-11-05 21:19:25]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10388f > Teto 8364f)
+[2026-11-05 21:19:25]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10781f > Teto 8364f)
+[2026-11-05 21:19:26]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12815f > Teto 8364f)
+[2026-11-05 21:19:26]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10768f > Teto 8364f)
+[2026-11-05 21:19:27]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12472f > Teto 8364f)
+[2026-11-05 21:19:27]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13851f > Teto 8364f)
+[2026-11-05 21:19:28]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15394f > Teto 8364f)
+[2026-11-05 21:19:28]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15134f > Teto 8364f)
+[2026-11-05 21:19:29]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~17998 | ⏱  14.1s | Cache: 25 rotas
+[2026-11-05 21:19:29]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10679f > Teto 8364f)
+[2026-11-05 21:19:29]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13259f > Teto 8364f)
+[2026-11-05 21:19:30]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10230f > Teto 8364f)
+[2026-11-05 21:19:30]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11942f > Teto 8364f)
+[2026-11-05 21:19:31]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13701f > Teto 8364f)
+[2026-11-05 21:19:31]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12279f > Teto 8364f)
+[2026-11-05 21:19:32]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13114f > Teto 8364f)
+[2026-11-05 21:19:32]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11976f > Teto 8364f)
+[2026-11-05 21:19:33]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~17998 | ⏱  18.3s | Cache: 33 rotas
+[2026-11-05 21:19:35] ✅ [APEREIRA-A69613] Concluído 10 drones / 40 entregas (seed 900004): Makespan=8364f | Energia=2676.25Wh | Gerações=0 | Tempo=19.35s
+[2026-11-05 21:19:37] 
+=================================================================
+[2026-11-05 21:19:38] 🧬 [Etapa 2 — APEREIRA-A69613 — 7/11] GA 8 Gerações Warm Start IA: 20 drones / 40 entregas (seed=12351)
+[2026-11-05 21:19:38] =================================================================
+[2026-11-05 21:21:36]   🎯 [LANCE INICIAL WARM START IA] Makespan: 4997f | Esperas: 0 | Falhas: 0 | Energia: 2481.7Wh | Custo: 13931.0
+[2026-11-05 21:21:36]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 6702f > Teto 4997f)
+[2026-11-05 21:21:37]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9326f > Teto 4997f)
+[2026-11-05 21:21:37]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 7728f > Teto 4997f)
+[2026-11-05 21:21:38]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 5863f > Teto 4997f)
+[2026-11-05 21:21:38]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 6999f > Teto 4997f)
+[2026-11-05 21:21:39]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 7776f > Teto 4997f)
+[2026-11-05 21:21:39]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 7528f > Teto 4997f)
+[2026-11-05 21:21:40]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 5863f > Teto 4997f)
+[2026-11-05 21:21:40]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 8005f > Teto 4997f)
+[2026-11-05 21:21:41]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 8513f > Teto 4997f)
+[2026-11-05 21:21:41]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 6546f > Teto 4997f)
+[2026-11-05 21:21:41]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 6782f > Teto 4997f)
+[2026-11-05 21:21:42]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 6786f > Teto 4997f)
+[2026-11-05 21:21:42]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~13931 | ⏱   8.4s | Cache: 14 rotas
+[2026-11-05 21:21:43]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9040f > Teto 4997f)
+[2026-11-05 21:21:43]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 6969f > Teto 4997f)
+[2026-11-05 21:21:44]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9867f > Teto 4997f)
+[2026-11-05 21:21:44]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 7528f > Teto 4997f)
+[2026-11-05 21:21:45]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 8389f > Teto 4997f)
+[2026-11-05 21:21:45]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~13931 | ⏱  11.3s | Cache: 19 rotas
+[2026-11-05 21:21:46]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 8663f > Teto 4997f)
+[2026-11-05 21:21:46]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 5863f > Teto 4997f)
+[2026-11-05 21:21:47]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10426f > Teto 4997f)
+[2026-11-05 21:21:47]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 5947f > Teto 4997f)
+[2026-11-05 21:21:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9661f > Teto 4997f)
+[2026-11-05 21:21:48]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~13931 | ⏱  14.1s | Cache: 24 rotas
+[2026-11-05 21:21:51] ✅ [APEREIRA-A69613] Concluído 20 drones / 40 entregas (seed 12351): Makespan=4997f | Energia=2481.67Wh | Gerações=0 | Tempo=15.07s
+[2026-11-05 21:21:53] 
+=================================================================
+[2026-11-05 21:21:53] 🧬 [Etapa 2 — APEREIRA-A69613 — 8/11] GA 8 Gerações Warm Start IA: 10 drones / 80 entregas (A) (seed=12350)
+[2026-11-05 21:21:54] =================================================================
+[2026-11-05 21:25:47]   🎯 [LANCE INICIAL WARM START IA] Makespan: 12946f | Esperas: 0 | Falhas: 0 | Energia: 4244.5Wh | Custo: 28226.3
+[2026-11-05 21:25:47]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15398f > Teto 12946f)
+[2026-11-05 21:25:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 16425f > Teto 12946f)
+[2026-11-05 21:25:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 17406f > Teto 12946f)
+[2026-11-05 21:25:49]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 17456f > Teto 12946f)
+[2026-11-05 21:25:49]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 16435f > Teto 12946f)
+[2026-11-05 21:25:50]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15953f > Teto 12946f)
+[2026-11-05 21:25:50]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15398f > Teto 12946f)
+[2026-11-05 21:25:51]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15736f > Teto 12946f)
+[2026-11-05 21:25:51]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18530f > Teto 12946f)
+[2026-11-05 21:25:52]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15953f > Teto 12946f)
+[2026-11-05 21:25:52]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20592f > Teto 12946f)
+[2026-11-05 21:25:52]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18639f > Teto 12946f)
+[2026-11-05 21:25:53]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 17942f > Teto 12946f)
+[2026-11-05 21:25:53]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19618f > Teto 12946f)
+[2026-11-05 21:25:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19891f > Teto 12946f)
+[2026-11-05 21:25:54]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~28226 | ⏱   9.4s | Cache: 16 rotas
+[2026-11-05 21:25:55]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15398f > Teto 12946f)
+[2026-11-05 21:25:55]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18049f > Teto 12946f)
+[2026-11-05 21:25:56]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19253f > Teto 12946f)
+[2026-11-05 21:25:56]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22734f > Teto 12946f)
+[2026-11-05 21:25:57]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 17037f > Teto 12946f)
+[2026-11-05 21:25:57]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18733f > Teto 12946f)
+[2026-11-05 21:25:58]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~28226 | ⏱  12.7s | Cache: 22 rotas
+[2026-11-05 21:25:58]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15398f > Teto 12946f)
+[2026-11-05 21:25:59]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15661f > Teto 12946f)
+[2026-11-05 21:25:59]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20542f > Teto 12946f)
+[2026-11-05 21:26:00]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 16708f > Teto 12946f)
+[2026-11-05 21:26:00]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24643f > Teto 12946f)
+[2026-11-05 21:26:01]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22833f > Teto 12946f)
+[2026-11-05 21:26:01]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15549f > Teto 12946f)
+[2026-11-05 21:26:01]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~28226 | ⏱  16.5s | Cache: 29 rotas
+[2026-11-05 21:26:04] ✅ [APEREIRA-A69613] Concluído 10 drones / 80 entregas (A) (seed 12350): Makespan=12946f | Energia=4244.53Wh | Gerações=0 | Tempo=17.43s
+[2026-11-05 21:26:06] 
+=================================================================
+[2026-11-05 21:26:06] 🧬 [Etapa 2 — APEREIRA-A69613 — 9/11] GA 8 Gerações Warm Start IA: 10 drones / 80 entregas (B) (seed=12359)
+[2026-11-05 21:26:07] =================================================================
+[2026-11-05 21:29:57]   🎯 [LANCE INICIAL WARM START IA] Makespan: 18521f | Esperas: 0 | Falhas: 0 | Energia: 5736.8Wh | Custo: 39173.6
+[2026-11-05 21:29:57]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22346f > Teto 18521f)
+[2026-11-05 21:29:58]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23596f > Teto 18521f)
+[2026-11-05 21:29:58]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24037f > Teto 18521f)
+[2026-11-05 21:29:59]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22346f > Teto 18521f)
+[2026-11-05 21:29:59]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24245f > Teto 18521f)
+[2026-11-05 21:29:59]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22346f > Teto 18521f)
+[2026-11-05 21:30:00]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22913f > Teto 18521f)
+[2026-11-05 21:30:00]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26346f > Teto 18521f)
+[2026-11-05 21:30:01]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24493f > Teto 18521f)
+[2026-11-05 21:30:01]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 25083f > Teto 18521f)
+[2026-11-05 21:30:02]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24339f > Teto 18521f)
+[2026-11-05 21:30:02]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23695f > Teto 18521f)
+[2026-11-05 21:30:03]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26161f > Teto 18521f)
+[2026-11-05 21:30:03]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 27572f > Teto 18521f)
+[2026-11-05 21:30:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 29561f > Teto 18521f)
+[2026-11-05 21:30:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 28203f > Teto 18521f)
+[2026-11-05 21:30:05]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~39173 | ⏱   9.8s | Cache: 17 rotas
+[2026-11-05 21:30:05]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24717f > Teto 18521f)
+[2026-11-05 21:30:06]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 27365f > Teto 18521f)
+[2026-11-05 21:30:06]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26149f > Teto 18521f)
+[2026-11-05 21:30:07]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 27725f > Teto 18521f)
+[2026-11-05 21:30:07]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 27231f > Teto 18521f)
+[2026-11-05 21:30:07]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~39173 | ⏱  12.7s | Cache: 22 rotas
+[2026-11-05 21:30:08]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 31892f > Teto 18521f)
+[2026-11-05 21:30:08]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 25761f > Teto 18521f)
+[2026-11-05 21:30:09]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 25343f > Teto 18521f)
+[2026-11-05 21:30:09]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 32237f > Teto 18521f)
+[2026-11-05 21:30:10]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26189f > Teto 18521f)
+[2026-11-05 21:30:10]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~39173 | ⏱  15.5s | Cache: 27 rotas
+[2026-11-05 21:30:13] ✅ [APEREIRA-A69613] Concluído 10 drones / 80 entregas (B) (seed 12359): Makespan=18521f | Energia=5736.84Wh | Gerações=0 | Tempo=16.5s
+[2026-11-05 21:30:15] 
+=================================================================
+[2026-11-05 21:30:15] 🧬 [Etapa 2 — APEREIRA-A69613 — 10/11] GA 8 Gerações Warm Start IA: 20 drones / 80 entregas (seed=12352)
+[2026-11-05 21:30:16] =================================================================
+[2026-11-05 21:34:08]   🎯 [LANCE INICIAL WARM START IA] Makespan: 8804f | Esperas: 0 | Falhas: 0 | Energia: 5214.7Wh | Custo: 27577.1
+[2026-11-05 21:34:09]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10204f > Teto 8804f)
+[2026-11-05 21:34:09]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10406f > Teto 8804f)
+[2026-11-05 21:34:10]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12648f > Teto 8804f)
+[2026-11-05 21:34:10]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10352f > Teto 8804f)
+[2026-11-05 21:34:11]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15881f > Teto 8804f)
+[2026-11-05 21:34:11]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10204f > Teto 8804f)
+[2026-11-05 21:34:11]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14164f > Teto 8804f)
+[2026-11-05 21:34:12]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13701f > Teto 8804f)
+[2026-11-05 21:34:12]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15626f > Teto 8804f)
+[2026-11-05 21:34:13]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13091f > Teto 8804f)
+[2026-11-05 21:34:13]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10204f > Teto 8804f)
+[2026-11-05 21:34:14]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13091f > Teto 8804f)
+[2026-11-05 21:34:14]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13091f > Teto 8804f)
+[2026-11-05 21:34:15]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14153f > Teto 8804f)
+[2026-11-05 21:34:15]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19019f > Teto 8804f)
+[2026-11-05 21:34:16]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14811f > Teto 8804f)
+[2026-11-05 21:34:16]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18123f > Teto 8804f)
+[2026-11-05 21:34:17]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15874f > Teto 8804f)
+[2026-11-05 21:34:17]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~27577 | ⏱  10.8s | Cache: 19 rotas
+[2026-11-05 21:34:18]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11795f > Teto 8804f)
+[2026-11-05 21:34:18]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15972f > Teto 8804f)
+[2026-11-05 21:34:19]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14620f > Teto 8804f)
+[2026-11-05 21:34:19]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14246f > Teto 8804f)
+[2026-11-05 21:34:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14639f > Teto 8804f)
+[2026-11-05 21:34:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10542f > Teto 8804f)
+[2026-11-05 21:34:20]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~27577 | ⏱  14.1s | Cache: 25 rotas
+[2026-11-05 21:34:21]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10204f > Teto 8804f)
+[2026-11-05 21:34:21]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13389f > Teto 8804f)
+[2026-11-05 21:34:22]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14948f > Teto 8804f)
+[2026-11-05 21:34:22]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14224f > Teto 8804f)
+[2026-11-05 21:34:23]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13821f > Teto 8804f)
+[2026-11-05 21:34:23]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15636f > Teto 8804f)
+[2026-11-05 21:34:24]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~27577 | ⏱  17.3s | Cache: 31 rotas
+[2026-11-05 21:34:26] ✅ [APEREIRA-A69613] Concluído 20 drones / 80 entregas (seed 12352): Makespan=8804f | Energia=5214.74Wh | Gerações=0 | Tempo=18.42s
+[2026-11-05 21:34:28] 
+=================================================================
+[2026-11-05 21:34:29] 🧬 [Etapa 2 — APEREIRA-A69613 — 11/11] GA 8 Gerações Warm Start IA: 20 drones / 160 entregas (seed=12353)
+[2026-11-05 21:34:29] =================================================================
+[2026-11-05 21:42:07]   🎯 [LANCE INICIAL WARM START IA] Makespan: 15473f | Esperas: 0 | Falhas: 0 | Energia: 9665.0Wh | Custo: 50267.1
+[2026-11-05 21:42:07]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18666f > Teto 15473f)
+[2026-11-05 21:42:07]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18968f > Teto 15473f)
+[2026-11-05 21:42:08]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18352f > Teto 15473f)
+[2026-11-05 21:42:08]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18442f > Teto 15473f)
+[2026-11-05 21:42:09]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20451f > Teto 15473f)
+[2026-11-05 21:42:09]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18352f > Teto 15473f)
+[2026-11-05 21:42:10]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18955f > Teto 15473f)
+[2026-11-05 21:42:10]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22602f > Teto 15473f)
+[2026-11-05 21:42:11]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23908f > Teto 15473f)
+[2026-11-05 21:42:11]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20143f > Teto 15473f)
+[2026-11-05 21:42:12]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18442f > Teto 15473f)
+[2026-11-05 21:42:12]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18352f > Teto 15473f)
+[2026-11-05 21:42:13]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18373f > Teto 15473f)
+[2026-11-05 21:42:14]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 27171f > Teto 15473f)
+[2026-11-05 21:42:14]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24963f > Teto 15473f)
+[2026-11-05 21:42:15]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26158f > Teto 15473f)
+[2026-11-05 21:42:15]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23332f > Teto 15473f)
+[2026-11-05 21:42:16]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22327f > Teto 15473f)
+[2026-11-05 21:42:16]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~50267 | ⏱  11.6s | Cache: 19 rotas
+[2026-11-05 21:42:17]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24491f > Teto 15473f)
+[2026-11-05 21:42:17]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 21214f > Teto 15473f)
+[2026-11-05 21:42:18]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26128f > Teto 15473f)
+[2026-11-05 21:42:18]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24812f > Teto 15473f)
+[2026-11-05 21:42:19]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 27526f > Teto 15473f)
+[2026-11-05 21:42:19]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~50267 | ⏱  14.4s | Cache: 24 rotas
+[2026-11-05 21:42:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20779f > Teto 15473f)
+[2026-11-05 21:42:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26315f > Teto 15473f)
+[2026-11-05 21:42:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23144f > Teto 15473f)
+[2026-11-05 21:42:21]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23262f > Teto 15473f)
+[2026-11-05 21:42:21]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 21993f > Teto 15473f)
+[2026-11-05 21:42:22]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~50267 | ⏱  17.2s | Cache: 29 rotas
+[2026-11-05 21:42:24] ✅ [APEREIRA-A69613] Concluído 20 drones / 160 entregas (seed 12353): Makespan=15473f | Energia=9665.04Wh | Gerações=0 | Tempo=18.18s
+[2026-11-05 21:42:26] 
+🎉 BATERIA DE TODOS OS CENÁRIOS CONCLUÍDA COM SUCESSO!
+[2026-11-06 17:09:54]   🎯 [LANCE INICIAL WARM START IA] Makespan: 7809f | Esperas: 0 | Falhas: 0 | Energia: 1076.7Wh | Custo: 11685.3
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9816f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 8908f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9488f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12733f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9560f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10075f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12633f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11252f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12811f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11851f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12053f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11203f > Teto 7809f)
+[2026-11-06 17:09:54]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~11685 | ⏱  80.9s | Cache: 13 rotas
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14322f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15028f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12163f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14322f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15028f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12993f > Teto 7809f)
+[2026-11-06 17:09:54]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~11685 | ⏱  80.9s | Cache: 19 rotas
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9666f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14063f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11961f > Teto 7809f)
+[2026-11-06 17:09:54]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13067f > Teto 7809f)
+[2026-11-06 17:09:54]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~11685 | ⏱  80.9s | Cache: 23 rotas
+[2026-11-06 17:15:20]   🎯 [LANCE INICIAL WARM START IA] Makespan: 16796f | Esperas: 0 | Falhas: 0 | Energia: 5419.7Wh | Custo: 36307.1
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22506f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22264f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 21333f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 31154f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23517f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20997f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24365f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20997f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24668f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 25656f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 25402f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 27702f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23130f > Teto 16796f)
+[2026-11-06 17:15:20]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~36307 | ⏱ 326.2s | Cache: 14 rotas
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 29402f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 22964f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26964f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 21461f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24437f > Teto 16796f)
+[2026-11-06 17:15:20]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~36307 | ⏱ 326.2s | Cache: 19 rotas
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 21747f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 25252f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 26818f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 24233f > Teto 16796f)
+[2026-11-06 17:15:20]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 23361f > Teto 16796f)
+[2026-11-06 17:15:20]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~36307 | ⏱ 326.2s | Cache: 24 rotas
+[2026-11-06 17:34:42]   • [Sim # 2 | ⏱ 331.9s] Avaliado 4D -> Makespan: 10423f | Energia: 1076.7Wh | Custo: 14299.3
+[2026-11-06 17:34:50]   • [Sim # 3 | ⏱ 339.1s] Avaliado 4D -> Makespan: 8643f | Energia: 1076.7Wh | Custo: 12519.3
+[2026-11-06 17:34:51]   • [Sim # 4 | ⏱ 340.2s] Avaliado 4D -> Makespan: 7831f | Energia: 1079.4Wh | Custo: 11717.0
+[2026-11-06 17:34:54]   • [Sim # 5 | ⏱ 343.4s] Avaliado 4D -> Makespan: 9247f | Energia: 1089.3Wh | Custo: 13168.6
+[2026-11-06 17:34:55]   • [Sim # 6 | ⏱ 344.8s] Avaliado 4D -> Makespan: 10916f | Energia: 1076.7Wh | Custo: 14792.3
+[2026-11-06 17:34:56]   ⭐ NOVO RECORDE (Sim #7 | ⏱ 346.0s): 7754 frames! (Esperas: 0 | Falhas: 0 | Energia: 1080.4Wh | Custo Físico: 11643.5)
+[2026-11-06 17:34:56]   ⭐ NOVO RECORDE (Sim #8 | ⏱ 346.0s): 7301 frames! (Esperas: 0 | Falhas: 0 | Energia: 1076.7Wh | Custo Físico: 11177.3)
+[2026-11-06 17:34:56]   • [Sim # 9 | ⏱ 346.0s] Avaliado 4D -> Makespan: 8061f | Energia: 1076.7Wh | Custo: 11937.3
+[2026-11-06 18:01:04]   🎯 [LANCE INICIAL WARM START IA] Makespan: 7809f | Esperas: 0 | Falhas: 0 | Energia: 1076.7Wh | Custo: 11685.3
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9816f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 8908f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9488f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12733f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11252f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10075f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12633f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9560f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 10075f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12053f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12085f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12633f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11979f > Teto 7809f)
+[2026-11-06 18:01:04]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~11685 | ⏱  32.8s | Cache: 14 rotas
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15206f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12737f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15206f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12733f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12455f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12053f > Teto 7809f)
+[2026-11-06 18:01:04]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~11685 | ⏱  32.8s | Cache: 20 rotas
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12609f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12159f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11981f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 9666f > Teto 7809f)
+[2026-11-06 18:01:04]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14647f > Teto 7809f)
+[2026-11-06 18:01:04]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~11685 | ⏱  32.8s | Cache: 25 rotas
+[2026-11-06 18:01:48]   🎯 [LANCE INICIAL WARM START IA] Makespan: 9793f | Esperas: 0 | Falhas: 0 | Energia: 1618.3Wh | Custo: 15619.0
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11990f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13348f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 17020f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11990f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 19048f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 20222f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15128f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 16760f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15633f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11821f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14671f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15766f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 16027f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15196f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 16027f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18263f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12628f > Teto 9793f)
+[2026-11-06 18:01:48]   [██░░░░░░░░░░░░░░░░░░] Gen   1/8 | Custo Físico Melhor: ~15618 | ⏱  43.3s | Cache: 18 rotas
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 15196f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12898f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 12612f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 16586f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 13063f > Teto 9793f)
+[2026-11-06 18:01:48]   [█████░░░░░░░░░░░░░░░] Gen   2/8 | Custo Físico Melhor: ~15618 | ⏱  43.3s | Cache: 23 rotas
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 21421f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 18700f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 11990f > Teto 9793f)
+[2026-11-06 18:01:48]   ⚡ [Poda Teórica Instantânea 0.0s] Rejeitado antes do 4D (Makespan min 14117f > Teto 9793f)
+[2026-11-06 18:01:48]   [███████░░░░░░░░░░░░░] Gen   3/8 | Custo Físico Melhor: ~15618 | ⏱  43.3s | Cache: 27 rotas
+[2026-11-09 11:52:06] ⏳ Inicializando script na máquina LAPTOP-5EIRPO9H e importando módulos...
+[2026-11-10 19:27:35] ⏳ Inicializando script na máquina LAPTOP-5EIRPO9H e importando módulos...
+[2026-11-10 19:28:22] ⏳ Inicializando script na máquina LAPTOP-5EIRPO9H e importando módulos...
+[2026-11-10 19:29:45] ⏳ Inicializando script na máquina LAPTOP-5EIRPO9H e importando módulos...

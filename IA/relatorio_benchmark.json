@@ -1,0 +1,40 @@
+{
+  "n_cenarios": 1,
+  "geracoes_frio": 6.0,
+  "geracoes_ml": 5.0,
+  "reducao_geracoes_ml_pct": 16.7,
+  "makespan_frio": 3507.0,
+  "makespan_ml": 3571.0,
+  "reducao_makespan_ml_pct": -1.8,
+  "ml_makespan_igual_ou_melhor": 0,
+  "tempo_frio_s": 2474.22,
+  "tempo_ml_s": 1182.15,
+  "detalhe": [
+    {
+      "cenario": [
+        5,
+        10,
+        "MOSP_CAMADAS"
+      ],
+      "seed": 900000,
+      "frio": {
+        "geracoes": 6,
+        "makespan": 3507,
+        "esperas": 0,
+        "falhas": 0,
+        "energia": 508.04,
+        "tempo_s": 2474.22
+      },
+      "ml": {
+        "geracoes": 5,
+        "makespan": 3571,
+        "esperas": 0,
+        "falhas": 0,
+        "energia": 491.68,
+        "tempo_s": 1182.15
+      },
+      "custo_frio": 5335.9,
+      "custo_ml": 5341.0
+    }
+  ]
+}

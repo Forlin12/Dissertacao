@@ -1,0 +1,628 @@
+% ==========================================================================
+% CAPÍTULO 4 - Desenvolvimento e Implementação Computacional
+% ==========================================================================
+\chapter{Desenvolvimento}\label{cap:development}
+
+Este capítulo descreve as decisões de projeto e a implementação computacional do sistema de gestão logística para frotas de Veículos Aéreos Não Tripulados (VANTs), traduzindo as formulações matemáticas e os cenários metodológicos definidos no Capítulo~\ref{cap:metodology} em componentes de software integrados. O sistema articula a geração procedural do ambiente operacional, a modelagem física e energética das aeronaves, o planejamento de trajetórias quadridimensionais livres de colisão e os algoritmos de escalonamento combinatório.
+
+A Seção~\ref{sec:arquitetura_sistema} apresenta a arquitetura geral do sistema e o fluxo de dados entre os módulos. A Seção~\ref{sec:ambiente_urbano} detalha a geração procedural do gêmeo digital urbano e das zonas de aterrissagem. A Seção~\ref{sec:modelo_fisico} formaliza as equações analíticas dos tempos de trânsito, das taxas de consumo de bateria e dos protocolos de recarga. A Seção~\ref{sec:parametrizacao_sistema} consolida todos os parâmetros numéricos em uma tabela única e analisa as constantes empíricas do código. As Seções~\ref{sec:dev_tea} e~\ref{sec:dev_mosp} descrevem os algoritmos de planejamento de trajetórias 4D, TEA* e MOSP. As Seções~\ref{sec:dev_ga}, \ref{sec:dev_nsga} e~\ref{sec:dev_bb} abordam os métodos de escalonamento: Algoritmo Genético, NSGA-II e \textit{Branch and Bound}. A Seção~\ref{sec:dev_ml_warmstart} detalha o modelo de aprendizado de máquina para inicialização assistida (\textit{Warm Start}). Por fim, a Seção~\ref{sec:dev_conclusao} sintetiza as contribuições do desenvolvimento.
+
+\section{Arquitetura Geral do Sistema}\label{sec:arquitetura_sistema}
+
+O sistema de gestão de frotas foi implementado em linguagem Python (versão 3.10+), estruturado de forma hierárquica e modular para dissociar o planejamento de rotas físicas no espaço contínuo da alocação combinatória de tarefas logísticas. A organização dos módulos reflete a cadeia de processamento exigida pela operação real, dividindo-se em quatro camadas interdependentes: pré-processamento do ambiente, modelagem dinâmica do veículo, navegação espacial temporal e otimização da frota.
+
+A camada de pré-processamento ambiental é encapsulada pelo módulo \texttt{city\_builder.py}, responsável por extrair a malha viária real e gerar as geometrias urbanas tridimensionais. O controle de missões é coordenado por \texttt{mission\_control.py}, que sorteia as posições do Centro de Distribuição (CD), os pontos de entrega e as massas das encomendas. A modelagem dinâmica e energética é provida pela classe \texttt{Drone} no módulo \texttt{uav\_physics.py}, que calcula as potências consumidas e verifica as condições físicas de integridade estrutural das aeronaves.
+
+O planejamento de trajetórias 4D reside no pacote \texttt{navegation/}, compreendendo os algoritmos \texttt{pathfinder\_tea\_camadas.py} e \texttt{pathfinder\_mosp\_camadas.py}. Esses módulos operam sobre matrizes de ocupação discretas compiladas via biblioteca Numba, garantindo tempos de resposta compatíveis com as milhares de avaliações exigidas pelas camadas superiores. A camada de escalonamento combinatório congrega os otimizadores desenvolvidos no pacote \texttt{teste/}: \texttt{ga\_optimizer.py} (Algoritmo Genético mono-objetivo), \texttt{nsga\_optimizer.py} (NSGA-II multiobjetivo) e \texttt{bb\_optimizer.py} (\textit{Branch and Bound} exato). O treinamento e a inferência do modelo preditivo de inicialização assistida são conduzidos no pacote \texttt{IA/}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    node distance=1.2cm and 1.0cm,
+    block/.style={rectangle, draw, rounded corners, minimum width=3.8cm, minimum height=0.9cm, text centered, font=\small},
+    decision/.style={diamond, draw, minimum width=2.8cm, minimum height=1.0cm, text centered, font=\small, aspect=2},
+    arrow/.style={-Latex, thick}
+]
+    \node[block, fill=blue!10] (env) {1. Geração do Ambiente Urbano\\(\texttt{city\_builder.py})};
+    \node[block, fill=blue!10, below=of env] (mission) {2. Geração da Demanda Logística\\(\texttt{mission\_control.py})};
+    \node[block, fill=blue!10, below=of mission] (fleet) {3. Parametrização da Frota\\(\texttt{uav\_physics.py})};
+    
+    \node[decision, fill=yellow!15, right=1.6cm of mission] (opt) {Camada de\\Escalonamento};
+    
+    \node[block, fill=green!10, above right=0.3cm and 1.5cm of opt] (ga) {Algoritmo Genético\\(\texttt{ga\_optimizer.py})};
+    \node[block, fill=green!10, right=1.5cm of opt] (nsga) {NSGA-II Multiobjetivo\\(\texttt{nsga\_optimizer.py})};
+    \node[block, fill=green!10, below right=0.3cm and 1.5cm of opt] (bb) {\textit{Branch and Bound} Exato\\(\texttt{bb\_optimizer.py})};
+    
+    \node[block, fill=orange!15, below=2.5cm of opt] (sim) {Simulador Físico 4D\\(\texttt{simular\_com\_tea})};
+    \node[block, fill=orange!15, left=1.2cm of sim] (nav) {Motor de Trajetórias 4D\\(TEA* / MOSP)};
+    \node[block, fill=gray!15, right=1.2cm of sim] (kpi) {Consolidação de KPIs e Logs\\(\textit{Makespan}, Energia, Esperas)};
+    
+    \draw[arrow] (env) -- (mission);
+    \draw[arrow] (mission) -- (fleet);
+    \draw[arrow] (fleet) -| (opt);
+    
+    \draw[arrow] (opt) |- (ga);
+    \draw[arrow] (opt) -- (nsga);
+    \draw[arrow] (opt) |- (bb);
+    
+    \draw[arrow] (ga) -| (sim);
+    \draw[arrow] (nsga) -| (sim);
+    \draw[arrow] (bb) -| (sim);
+    
+    \draw[arrow] (sim) -- (nav);
+    \draw[arrow] (nav) |- ([yshift=2mm]sim.south west) -- ([yshift=2mm]sim.south) -- (sim);
+    \draw[arrow] (sim) -- (kpi);
+    \draw[arrow] (kpi) |- ([yshift=-8mm]sim.south) -| (opt);
+\end{tikzpicture}
+\caption{Fluxo de execução do sistema integrado de escalonamento e planejamento de trajetórias 4D.}\label{fig:arquitetura_fluxo}
+\end{figure}
+
+O fluxo completo de execução ilustrado na Figura~\ref{fig:arquitetura_fluxo} inicia-se pela leitura das configurações centrais em \texttt{config.py}. O ambiente urbano e as missões são instanciados sob uma semente pseudoaleatória controlada (\texttt{np.random.seed(42)}). A camada de escalonamento ativa gera cromossomos ou nós de alocação que são enviados à função \texttt{simular\_com\_tea}. Essa rotina orquestra o despacho sequencial das aeronaves, computa rotas temporais através do motor de navegação de baixo nível e consolida o consumo de energia e o tempo total de conclusão (\textit{makespan}). O processo fecha seu ciclo retornando as métricas escalares ou vetoriais ao otimizador para direcionar as iterações subsequentes. As decisões geométricas subjacentes a esse ambiente são detalhadas a seguir.
+
+\section{Geração Procedural do Ambiente Urbano e Zonas de Operação}\label{sec:ambiente_urbano}
+
+A construção do espaço aéreo operacional fundamenta-se em dados cartográficos reais, eliminando abstrações puramente sintéticas que poderiam distorcer os padrões de congestionamento e desvio vertical. O sistema ancora-se na biblioteca \texttt{OSMnx} para baixar a malha viária em um raio de $1700\text{ m}$ (ou $200\text{ m}$ para testes comparativos) em torno do centro geográfico de Bragança, Portugal, situado nas coordenadas $(41{,}8058^\circ\text{ N}, -6{,}7572^\circ\text{ O})$.
+
+A rede de ruas extraída é projetada no plano bidimensional métrico através do pacote \texttt{GeoPandas}. Empregando a biblioteca \texttt{Shapely}, o algoritmo gera uma expansão geométrica (\textit{buffer}) contínua de largura $w_{\text{rua}} = 10\text{ m}$ sobre as polilinhas dos logradouros, criando a representação espacial do leito carroçável. A subtração booleana entre a caixa envolvente do mapa e a área viária pavimentada resulta na extração exata dos polígonos que delimitam os quarteirões da cidade.
+
+Para povoar os quarteirões com lotes e edificações realistas, o algoritmo recorre à geração procedural. Em cada quarteirão, distribuem-se pontos aleatórios proporcionais à sua área total, adotando uma área média esperada por lote de $\bar{A}_{\text{lote}} = 400\text{ m}^2$. A triangulação desses vértices gera um Diagrama de Voronoi cujas arestas são intersectadas pelas bordas do quarteirão. Aplica-se em seguida uma retração negativa (\textit{buffer} de $-1{,}2\text{ m}$) sobre as células resultantes, estabelecendo o recuo predial e as passagens laterais entre propriedades vizinhas.
+
+A terceira dimensão é atribuída por extrusão vertical probabilística. Cada lote gerado recebe uma edificação prismática com probabilidade de ocupação $\rho_{\text{pred}} = 0{,}6$. Aos lotes selecionados é sorteada uma altura vertical uniforme no intervalo $[z_{\text{min}}, z_{\text{max}}] = [20, 45]\text{ m}$. Os prismas resultantes compõem os obstáculos físicos do espaço aéreo. Todo o sistema de coordenadas é transladado para que a origem métrica coincida com $(0, 0, 0)$, padronizando o domínio de busca.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    scale=0.9,
+    block/.style={rectangle, draw, minimum width=2.5cm, minimum height=0.7cm, text centered, font=\footnotesize},
+    circ/.style={circle, draw, minimum size=0.8cm, text centered, font=\footnotesize},
+    arrow/.style={-Latex, thick}
+]
+    \node[block, fill=blue!10] (osm) {Rede Viária\\(OSMnx)};
+    \node[block, fill=blue!10, right=0.8cm of osm] (buf) {\textit{Buffer} Viário\\($w_{\text{rua}} = 10\text{ m}$)};
+    \node[block, fill=blue!10, right=0.8cm of buf] (sub) {Subtração e\\Quarteirões};
+    \node[block, fill=green!10, below=0.9cm of sub] (vor) {Partição Voronoi\\($\bar{A} = 400\text{ m}^2$)};
+    \node[block, fill=green!10, left=0.8cm of vor] (ext) {Extrusão Prismática\\($z \in [20, 45]\text{ m}$)};
+    \node[block, fill=orange!15, left=0.8cm of ext] (ras) {Rasterização 3D\\(Numba \textit{Ray-Casting})};
+    
+    \draw[arrow] (osm) -- (buf);
+    \draw[arrow] (buf) -- (sub);
+    \draw[arrow] (sub) -- (vor);
+    \draw[arrow] (vor) -- (ext);
+    \draw[arrow] (ext) -- (ras);
+\end{tikzpicture}
+\caption{Etapas da geração procedural do relevo urbano e discretização da malha estática.}\label{fig:pipeline_ambiente}
+\end{figure}
+
+Para assegurar o trânsito seguro durante o pouso e a decolagem, o módulo \texttt{mission\_control.py} implementa a função \texttt{esculpir\_ponto\_livre}. Essa rotina garante zonas de aterrissagem estritamente livres de edifícios tanto no Centro de Distribuição quanto nos destinos dos pedidos. O raio de varredura e limpeza perimetral $R_{\text{limpeza}}$ é definido analiticamente por:
+\begin{equation}\label{eq:raio_limpeza}
+R_{\text{limpeza}} = r_{\text{livre}} + \left[ \left(\lceil r_{\text{drone, max}} \rceil + 1\right) \times 1{,}415 \right] + r_{\text{drone, max}} + 1{,}0
+\end{equation}
+em que $r_{\text{livre}}$ é a margem operacional nominal ($7{,}0\text{ m}$ para o CD e $0{,}2\text{ m}$ para as entregas), $r_{\text{drone, max}}$ representa o maior raio físico entre os VANTs da frota, e o fator $1{,}415 \approx \sqrt{2}$ compensa a diagonal de corte da grade de busca. Para todas as parcelas construíveis cujos polígonos intersectam o círculo de raio $R_{\text{limpeza}}$ centrado nas coordenadas de pouso, a altura da estrutura é zerada forçadamente no banco de dados geoespacial (\texttt{lotes\_gdf.at[idx, 'altura\_z'] = 0}).
+
+Por fim, a conversão do relevo poligonal contínuo em uma grade booleana tridimensional discretizada é executada por um algoritmo de \textit{Ray-Casting} vetorizado. As edificações que interceptam cada camada de voo são infladas pelo raio do veículo acrescido de uma margem de segurança de $1{,}0\text{ m}$. Esse procedimento é acelerado via compilação Just-In-Time (JIT) em linguagem C com o suporte da biblioteca Numba, permitindo que a ocupação espacial estática seja consultada em tempo constante $O(1)$. Uma vez estabelecida a topologia estática, torna-se necessário modelar as restrições cinemáticas e o consumo energético que regem os deslocamentos dos VANTs.
+
+\section{Modelo Físico, Cinemático e Energético do VANT}\label{sec:modelo_fisico}
+
+A dinâmica operacional dos veículos é formulada em função dos deslocamentos espaciais entre coordenadas sucessivas no espaço contínuo. Considerem-se dois pontos sequenciais ao longo de uma trajetória tridimensional, denominados $\mathbf{p}_1 = (x_1, y_1, z_1)$ e $\mathbf{p}_2 = (x_2, y_2, z_2)$. A separação euclidiana no plano horizontal é expressa por $d_{xy} = \sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}$, ao passo que a variação vertical é dada por $\Delta z = z_2 - z_1$.
+
+\subsection{Duração Temporal das Fases de Voo}
+
+O tempo de trânsito contínuo $\Delta t$, em segundos, associado à transição entre os pontos $\mathbf{p}_1$ e $\mathbf{p}_2$ é modelado por uma função por partes que considera os limites cinemáticos independentes de subida ($v_{\text{sub}}$), descida ($v_{\text{desc}}$) e cruzeiro horizontal ($v_{\text{cru}}$):
+\begin{equation}\label{eq:delta_t_continuo}
+\Delta t = \begin{cases} 
+1{,}0, & \text{se } d_{xy} = 0 \text{ e } \Delta z = 0 \quad (\text{voo pairado}), \\
+\max\left( \dfrac{\Delta z}{v_{\text{sub}}}, \dfrac{d_{xy}}{v_{\text{cru}}} \right), & \text{se } \Delta z > 10^{-6} \text{ e } d_{xy} > 0, \\
+\max\left( \dfrac{|\Delta z|}{v_{\text{desc}}}, \dfrac{d_{xy}}{v_{\text{cru}}} \right), & \text{se } \Delta z < -10^{-6} \text{ e } d_{xy} > 0, \\
+\dfrac{\Delta z}{v_{\text{sub}}}, & \text{se } \Delta z > 10^{-6} \text{ e } d_{xy} = 0, \\
+\dfrac{|\Delta z|}{v_{\text{desc}}}, & \text{se } \Delta z < -10^{-6} \text{ e } d_{xy} = 0, \\
+\dfrac{d_{xy}}{v_{\text{cru}}}, & \text{se } \Delta z = 0 \text{ e } d_{xy} > 0.
+\end{cases}
+\end{equation}
+
+No nível do escalonador e dos algoritmos de roteamento em grade, o tempo físico é discretizado em passos inteiros denominados \textit{frames}. Para uma célula cúbica de dimensão linear $\Delta s_{\text{grid}} = 2{,}5\text{ m}$, o avanço cronológico $\Delta t_{\text{grid}}$ é contabilizado por:
+\begin{equation}\label{eq:delta_t_grid}
+\Delta t_{\text{grid}} = \begin{cases} 
+\lfloor \Delta s_{\text{grid}} \rfloor = 2 \text{ \textit{frames}}, & \text{para deslocamentos no plano horizontal } XY, \\
+1 \text{ \textit{frame}}, & \text{para transições verticais puras entre camadas contíguas}.
+\end{cases}
+\end{equation}
+A discretização horizontal em 2 \textit{frames} para cada $2{,}5\text{ m}$ percorridos impõe uma taxa nominal de avanço de $1{,}25\text{ m/\textit{frame}}$, que serve de referência de sincronização temporal contra colisões mútuas.
+
+\subsection{Consumo Energético por Fase de Deslocamento}
+
+O consumo de energia elétrica é quantificado em Watt-hora ($\text{Wh}$) integrando o gasto mecânico basal de cada fase e o incremento provocado pelo transporte de carga útil. Seja $m_{\text{carga}}$ a massa da mercadoria transportada em quilogramas e $p_{\text{carga}}$ o coeficiente linear de penalidade de carga em $\text{Wh/(kg}\cdot\text{m)}$. O acréscimo linear de consumo por unidade de distância é definido por:
+\begin{equation}\label{eq:c_peso}
+c_{\text{peso}} = m_{\text{carga}} \cdot p_{\text{carga}}.
+\end{equation}
+
+A energia líquida consumida nas diferentes etapas do perfil de voo é determinada pelas seguintes equações:
+\begin{align}
+E_{\text{subida}} &= \Delta z \cdot (c_{\text{sub}} + c_{\text{peso}}) \cdot f_w(0, 0, \Delta z, v_{\text{sub}}), \label{eq:energia_subida} \\
+E_{\text{descida}} &= |\Delta z| \cdot (c_{\text{desc}} + c_{\text{peso}}) \cdot f_w(0, 0, \Delta z, v_{\text{desc}}), \label{eq:energia_descida} \\
+E_{\text{cruzeiro}} &= d_{xy} \cdot (c_{\text{cru}} + c_{\text{peso}}) \cdot f_w(\Delta x, \Delta y, 0, v_{\text{cru}}), \label{eq:energia_cruzeiro} \\
+E_{\text{hover}} &= c_{\text{hover}} \cdot \Delta t, \label{eq:energia_hover} \\
+E_{\text{descarga}} &= T_{\text{desc}} \cdot \left[ c_{\text{hover}} + (m_{\text{pacote}} \cdot p_{\text{carga}} \cdot v_{\text{cru}}) \right]. \label{eq:energia_descarga}
+\end{align}
+
+Na Equação~\eqref{eq:energia_descarga}, o produto $m_{\text{pacote}} \cdot p_{\text{carga}} \cdot v_{\text{cru}}$ multiplica a penalidade espacial pela velocidade de cruzeiro horizontal, convertendo a dimensão física de $\text{Wh/(kg}\cdot\text{m)}$ para a taxa temporal correspondente em $\text{Wh/(kg}\cdot\text{s)}$. O tempo de descarga estacionária no cliente é fixado em $T_{\text{desc}} = 5\text{ s}$.
+
+O fator aerodinâmico de vento $f_w$ modula o arrasto incidente sobre a fuselagem. Sendo $\vec{v}_{\text{vento}}$ o vetor da corrente aérea e $\hat{u}$ o versor diretor do vetor velocidade da aeronave na fase ativa com módulo $v_{\text{fase}}$, o fator $f_w$ é calculado por:
+\begin{equation}\label{eq:fator_vento}
+f_w = \begin{cases}
+\max\left( 0{,}4, \; 1{,}0 + \dfrac{\vec{v}_{\text{vento}} \cdot (-\hat{u})}{v_{\text{fase}}} \right), & \text{se a simulação de vento estiver ativa}, \\
+1{,}0, & \text{em ar calmo (configuração padrão dos ensaios)}.
+\end{cases}
+\end{equation}
+O limite inferior empírico de $0{,}4$ previne anomalias computacionais com regeneração de energia infinita ou consumo nulo decorrentes de ventos de cauda acentuados.
+
+A massa da carga atua de forma assimétrica ao longo da missão. Durante a perna de ida (CD $\to$ cliente), o veículo opera carregado com $m_{\text{carga}} = \min(m_{\text{pacote}}, C_d)$, onde $C_d$ representa a capacidade de carga útil nominal da aeronave. Na etapa de entrega, o consumo estático incorpora o peso integral da mercadoria durante o intervalo $T_{\text{desc}}$. Concluído o descarregamento, a massa transportada é anulada imediatamente ($m_{\text{carga}} = 0{,}0\text{ kg}$), de modo que toda a perna de retorno (cliente $\to$ CD) é executada com a tara mínima do VANT.
+
+\subsection{Critério de Despacho e Recarga sob Demanda}
+
+Antes de autorizar a decolagem de uma aeronave para a missão $i$, o sistema realiza uma verificação prévia de suficiência energética. O consumo total estimado de ida e volta é extrapolado em linha reta:
+\begin{equation}\label{eq:energia_estimada}
+E_{\text{est}} = d_{\text{reta}} \cdot (c_{\text{cru}} + m_{\text{pacote}} \cdot p_{\text{carga}}) + d_{\text{reta}} \cdot c_{\text{cru}} + T_{\text{desc}} \cdot [c_{\text{hover}} + m_{\text{pacote}} \cdot p_{\text{carga}} \cdot v_{\text{cru}}],
+\end{equation}
+onde $d_{\text{reta}} = \|\mathbf{p}_i - \mathbf{p}_{\text{CD}}\|$. Para absorver manobras evasivas em 4D e contingências aerodinâmicas, o sistema exige uma margem de segurança de $50\%$:
+\begin{equation}\label{eq:energia_necessaria}
+E_{\text{nec}} = 1{,}5 \cdot E_{\text{est}}.
+\end{equation}
+
+Se $E_{\text{nec}} > B_{\text{cap}}$, a missão é cancelada prematuramente por inviabilidade de autonomia estrutural. Caso a aeronave possua bateria suficiente para a missão, mas seu nível instantâneo de energia disponível no CD ($B_{\text{atual}}$) seja inferior a $E_{\text{nec}}$, aciona-se o protocolo de recarga rápida sob demanda. O déficit de energia $E_{\text{falta}} = E_{\text{nec}} - B_{\text{atual}}$ é suprido à potência de recarga $P_{\text{rec}}$ da estação base, postergando o horário de partida do VANT pelo atraso temporal:
+\begin{equation}\label{eq:tempo_recarga}
+t_{\text{carga}} = \left\lfloor \frac{E_{\text{falta}}}{P_{\text{rec}}} \times 3600 \right\rfloor + 1 \quad [\text{segundos}].
+\end{equation}
+Após a espera $t_{\text{carga}}$, o nível da bateria é restaurado para $B_{\text{atual}} \leftarrow B_{\text{atual}} + E_{\text{falta}}$, e a aeronave é liberada para a decolagem. A parametrização completa desses modelos é sintetizada a seguir.
+
+\section{Parametrização Unificada do Sistema}\label{sec:parametrizacao_sistema}
+
+A reprodutibilidade dos experimentos numéricos requer a consolidação integral de todas as constantes e coeficientes que governam a simulação. A Tabela~\ref{tab:parametros_unificados} reúne a totalidade dos parâmetros físicos, espaciais e algorítmicos implementados na base de código, informando a notação matemática adotada, os valores numéricos, as unidades de medida e os módulos de software em que são instanciados.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Tabela unificada de parâmetros e constantes numéricas do sistema.}\label{tab:parametros_unificados}
+\begin{tabular}{p{3.2cm}ccp{1.2cm}p{3.2cm}p{3.8cm}}
+\toprule
+\textbf{Nome no Código} & \textbf{Símbolo} & \textbf{Valor} & \textbf{Unidade} & \textbf{Arquivo / Linha} & \textbf{Aplicação / Algoritmo} \\
+\midrule
+\multicolumn{6}{l}{\textit{Parâmetros do Ambiente Urbano e Logística}} \\
+\texttt{COORDENADAS} & $\mathbf{x}_{\text{ref}}$ & $(41{,}8058, -6{,}7572)$ & graus & \texttt{config.py:7} & Centro geográfico de Bragança (OSMnx) \\
+\texttt{RAIO\_M} & $R_{\text{urb}}$ & $1700$ (ou $200$) & m & \texttt{config.py:8} & Raio viário: Caso 1 ($200\text{ m}$), Casos 2 e 3 ($1700\text{ m}$) \\
+\texttt{LARGURA\_RUA} & $w_{\text{rua}}$ & $10{,}0$ & m & \texttt{config.py:9} & Expansão viária para delimitação de asfalto \\
+\texttt{AREA\_MEDIA\_LOTE} & $\bar{A}_{\text{lote}}$ & $400{,}0$ & $\text{m}^2$ & \texttt{config.py:10} & Área de referência para partição de Voronoi \\
+\texttt{ESPACO\_ENTRE\_LOTES} & $d_{\text{lotes}}$ & $1{,}2$ & m & \texttt{config.py:11} & Retração negativa entre edificações vizinhas \\
+\texttt{DENSIDADE\_PREDIOS} & $\rho_{\text{pred}}$ & $0{,}6$ & adim. & \texttt{config.py:12} & Probabilidade de extrusão vertical de lotes \\
+\texttt{ALTURA\_MIN}, \texttt{MAX} & $z_{\text{min}}, z_{\text{max}}$ & $[20, 45]$ & m & \texttt{config.py:13-14} & Faixa de altura das edificações urbanas \\
+\texttt{DISTANCIA\_MIN\_ENTREGA} & $d_{\text{min}}$ & $70{,}0$ & m & \texttt{config.py:40} & Raio radial mínimo de geração de pedidos \\
+\texttt{MARGEM\_SEGURANCA\_MAPA} & $m_{\text{mapa}}$ & $15{,}0$ & m & \texttt{config.py:41} & Recuo perimetral nas bordas do mapa \\
+\texttt{ZONA\_LIVRE\_CD} & $r_{\text{livre,CD}}$ & $7{,}0$ & m & \texttt{config.py:42} & Raio de limpeza predial na base operacional \\
+\texttt{ZONA\_LIVRE\_ENTREGA} & $r_{\text{livre,ent}}$ & $0{,}2$ & m & \texttt{config.py:43} & Raio de limpeza predial no cliente \\
+\texttt{m\_pacote} & $m_{\text{pacote}}$ & $[0{,}5;\,3{,}5]$ & kg & \texttt{mission\_control.py:58} & Intervalo estocástico de massa da carga \\
+\texttt{TEMPO\_DESCARGA} & $T_{\text{desc}}$ & $5$ & s (frames) & \texttt{config.py:82} & Duração do voo pairado para entrega \\
+\midrule
+\multicolumn{6}{l}{\textit{Parâmetros de Planejamento de Trajetórias (TEA* e MOSP)}} \\
+\texttt{VETOR\_CAMADAS\_VOO} & $\mathcal{Z}_{\text{voo}}$ & $[25, 28, 30, 35, 40, 50]$ & m & \texttt{config.py:47} & Camadas de altitude discretas de voo \\
+\texttt{FATOR\_ESCALA} & $\Delta s_{\text{grid}}$ & $2{,}5$ & m/célula & \texttt{pathfinder\_*.py:50} & Resolução da malha discretizada \\
+Inflação de obstáculos & $r_{\text{infl}}$ & $r_{\text{drone}} + 1{,}0$ & m & \texttt{pathfinder\_tea\_*.py:61} & Margem de segurança sobre o envelope do VANT \\
+\texttt{PESO\_HEURISTICA} & $w_h$ & $1{,}2$ & adim. & \texttt{pathfinder\_*.py:165} & Fator de aceleração heurística ($f = g + 1{,}2 h$) \\
+Limite rótulos por nó & $K_{\text{rot}}$ & $8$ & rótulos & \texttt{pathfinder\_mosp\_*.py:195} & Teto de rótulos de Pareto em cada célula \\
+Tolerância temporal & $\epsilon_t$ & $0{,}5$ & s & \texttt{pathfinder\_mosp\_*.py:67} & Margem de $\epsilon$-dominância para o tempo no MOSP \\
+Tolerância de energia & $\epsilon_e$ & $0{,}2$ & Wh & \texttt{pathfinder\_mosp\_*.py:68} & Margem de $\epsilon$-dominância para energia no MOSP \\
+Cota de rotas no destino & $N_{\text{sol,dest}}$ & $5$ & rotas & \texttt{pathfinder\_mosp\_*.py:213} & Critério de parada da busca no MOSP \\
+\midrule
+\multicolumn{6}{l}{\textit{Parâmetros de Otimização e Escalonamento (GA, NSGA-II e B\&B)}} \\
+Margem de segurança bateria & $k_{\text{bat}}$ & $1{,}5$ & adim. & \texttt{ga\_optimizer.py:192} & Fator de suficiência energética no despacho \\
+Penalidade de falha & $P_{\text{falha}}$ & $50\,000$ & frames/Wh & \texttt{ga\_optimizer.py:423} & Custo imposto por missão inviável ou colisão \\
+Fator penalidade espera & $w_{\text{esp}}$ & $0{,}5$ & adim. & \texttt{ga\_optimizer.py:426} & Coeficiente de penalidade por \textit{hover} em rota \\
+Conversão energia-tempo & $k_{\text{rec}}$ & $3{,}6$ & s/Wh & \texttt{ga\_optimizer.py:378} & Fator de equivalência (recarga a $1000\text{ W}$) \\
+Corte na simulação física & $\Delta M_{\text{poda}}$ & $50$ & frames & \texttt{ga\_optimizer.py:303} & Margem de interrupção por \textit{makespan} excedente \\
+Penalidade da poda teórica & $P_{\text{poda}}$ & $100\,000$ & adim. & \texttt{ga\_optimizer.py:411} & Incremento no divisor da aptidão rejeitada \\
+População do GA / NSGA-II & $N_{\text{pop}}$ & $24$ (GA) / $10$ (NSGA) & indivíduos & \texttt{ga\_optimizer.py:69} & Tamanho da população efetiva nos algoritmos \\
+Gerações evolutivas & $N_{\text{gen}}$ & $8$ & gerações & \texttt{ga\_optimizer.py:70} & Horizonte máximo de iterações evolutivas \\
+Critério de parada do GA & -- & \texttt{"saturate\_3"} & gerações & \texttt{ga\_optimizer.py:589} & Parada por estagnação do recorde por 3 gerações \\
+Taxa de mutação adaptativa & $\mu_{\text{adapt}}$ & $[10\%, 5\%]$ & adim. & \texttt{ga\_optimizer.py:581} & $10\%$ em baixa aptidão e $5\%$ em alta aptidão \\
+Teto temporal do B\&B & $T_{\text{max,BB}}$ & $21\,600$ ($6\text{ h}$) & s & \texttt{bb_optimizer.py:225} & Limite de execução da busca exata em profundidade \\
+\midrule
+\multicolumn{6}{l}{\textit{Parâmetros do Modelo de Aprendizado de Máquina (Warm Start)}} \\
+Regularização Ridge & $\lambda_{\text{L2}}$ & $1{,}0$ & adim. & \texttt{dataset\_generator.py:192} & Coeficiente de penalidade $L_2$ do regressor logístico \\
+Número de árvores rasas & $N_{\text{tree}}$ & $150$ & árvores & \texttt{dataset\_generator.py:570} & Conjunto de \textit{decision stumps} sobre os resíduos \\
+Ponderação do ensemble & $w_{\text{ens}}$ & $0{,}6\text{ lin} / 0{,}4\text{ tree}$ & adim. & \texttt{dataset\_generator.py:256} & Ponderação das importâncias relativas dos modelos \\
+Peso dos resíduos na predição & $w_{\text{res}}$ & $0{,}5$ & adim. & \texttt{dataset\_generator.py:270} & Composição: $s = s_{\text{linear}} + 0{,}5 \cdot s_{\text{árvores}}$ \\
+Velocidade proxy linear & $v_{\text{proxy}}$ & $1{,}45$ & m/s & \texttt{dataset\_generator.py:468} & Velocidade aproximada para extração rápida de features \\
+Diagonal de corte urbana & $D_{\text{proxy}}$ & $4808{,}33$ & m & \texttt{dataset\_generator.py:466} & Diagonal euclidiana teórica ($3400\sqrt{2}\text{ m}$) \\
+Iterações de busca local & $N_{\text{iter,LS}}$ & $8$ & ciclos & \texttt{dataset\_generator.py:482} & Ciclos de refinamento pós-predição (1-move e 2-swap) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A frota heterogênea avaliada nos Casos 2 e 3 alterna dois modelos comerciais amplamente adotados na indústria aeroespacial: o multirrotor DJI Matrice 300 RTK e a aeronave de asa híbrida (\textit{tilt-rotor}) Wingcopter 198. A Tabela~\ref{tab:perfis_drones} especifica os coeficientes físicos e energéticos individuais de cada modelo.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Parâmetros físicos e coeficientes de consumo da frota heterogênea.}\label{tab:perfis_drones}
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Parâmetro Físico} & \textbf{Símbolo} & \textbf{DJI Matrice 300 RTK} & \textbf{Wingcopter 198} & \textbf{Unidade} \\
+\midrule
+Raio físico de segurança & $r_{\text{drone}}$ & $2{,}0$ & $2{,}0$ & m \\
+Altitude base de cruzeiro & $z_{\text{base}}$ & $100$ & $100$ & m \\
+Capacidade máxima de carga & $C_d$ & $2{,}7$ & $5{,}0$ & kg \\
+Velocidade horizontal de cruzeiro & $v_{\text{cru}}$ & $8{,}0$ & $28{,}0$ & m/s \\
+Velocidade vertical de subida & $v_{\text{sub}}$ & $3{,}0$ & $3{,}0$ & m/s \\
+Velocidade vertical de descida & $v_{\text{desc}}$ & $2{,}5$ & $3{,}0$ & m/s \\
+Capacidade de bateria & $B_{\text{cap}}$ & $548{,}0$ & $1628{,}0$ & Wh \\
+Reserva mínima de segurança & $\text{SoC}_{\text{res}}$ & $20{,}0$ & $20{,}0$ & \% \\
+Taxa de recarga no CD & $P_{\text{rec}}$ & $992{,}0$ & $1085{,}3$ & W \\
+Consumo específico em cruzeiro & $c_{\text{cru}}$ & $0{,}02076$ & $0{,}01730$ & Wh/m \\
+Consumo específico em subida & $c_{\text{sub}}$ & $0{,}07988$ & $0{,}04500$ & Wh/m \\
+Consumo específico em descida & $c_{\text{desc}}$ & $0{,}06642$ & $0{,}05000$ & Wh/m \\
+Consumo em voo pairado & $c_{\text{hover}}$ & $0{,}1661$ & $1{,}4400$ & Wh/s \\
+Penalidade mecânica de carga & $p_{\text{carga}}$ & $0{,}003459$ & $0{,}001000$ & Wh/(kg$\cdot$m) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A auditoria exaustiva do repositório revelou um conjunto de discrepâncias técnicas e parâmetros mortos que demandam esclarecimento formal:
+\begin{enumerate}
+    \item \textbf{Constante Inativa \texttt{CUSTO\_ESPERA}:} Declarada em \texttt{config.py:46} com o valor de $4000$, essa constante é inoperante no código. As funções de custo em \texttt{ga\_optimizer.py:426}, \texttt{nsga\_optimizer.py:247} e \texttt{bb\_optimizer.py:166} utilizam diretamente o fator literal $0{,}5 \cdot \text{esperas}$.
+    \item \textbf{Vetor de Camadas de Voo de Contingência:} O arquivo \texttt{config.py:47} define o arranjo de camadas como $[25, 28, 30, 35, 40, 50]\text{ m}$. Contudo, os otimizadores \texttt{ga\_optimizer.py:66} e \texttt{nsga\_optimizer.py:56} contêm um vetor de contingência (\textit{fallback}) codificado como $[40, 50, 60, 70]\text{ m}$, utilizado caso o arquivo central não seja importado.
+    \item \textbf{Dimensionamento Populacional:} O texto preliminar da dissertação reportava uma população de 35 indivíduos para o GA e para o NSGA-II. O código executado em produção opera com $\texttt{SOL\_POP} = 24$ no GA mono-objetivo (\texttt{ga\_optimizer.py:69}) e $\texttt{SOL\_POP} = 10$ no NSGA-II (\texttt{nsga\_optimizer.py:59}), redução necessária para viabilizar as rodadas de teste em tempo computacional hábil.
+    \item \textbf{Velocidade e Diagonal Proxy na IA:} O extrator de atributos físicos da IA em \texttt{dataset\_generator.py:468} adota uma velocidade empírica de $v_{\text{proxy}} = 1{,}45\text{ m/s}$ e uma diagonal teórica de $D_{\text{proxy}} = 4808{,}33\text{ m}$ (correspondente a uma área de $3400\text{ m} \times 3400\text{ m}$). Esses valores funcionam como estimativas normalizadoras rápidas, evitando invocar o simulador geométrico durante a extração dos atributos.
+\end{enumerate}
+
+Uma vez fixados os parâmetros numéricos e sanadas as ambiguidades, as seções seguintes formalizam a mecânica interna dos algoritmos de planejamento de trajetórias e escalonamento.
+
+\section{Planejamento de Trajetórias 4D via TEA*}\label{sec:dev_tea}
+
+O algoritmo TEA* (\textit{Time-Extended A*}) atua na camada inferior do sistema, resolvendo o problema de encontrar trajetórias tridimensionais ao longo do tempo livres de colisões tanto contra os obstáculos urbanos estáticos quanto contra os outros veículos da frota em trânsito simultâneo. O espaço de busca estende as coordenadas tridimensionais clássicas adicionando a dimensão temporal explícita, configurando estados quadridimensionais $u = (x, y, z, t)$.
+
+A avaliação dos nós expandidos na fila de prioridade fundamenta-se na função clássica de busca heurística $f(u) = g(u) + w_h \cdot h(u)$. O custo acumulado real $g(u)$ computa o tempo de voo decorrido desde a partida, refletindo as transições cinemáticas do VANT. A função heurística $h(u)$ estima a distância euclidiana em linha reta até as coordenadas de destino no plano horizontal, dividida pela velocidade máxima da aeronave. Adota-se um fator de inflação heurística de $w_h = 1{,}2$, conferindo características de busca subótima com aceleração de convergência.
+
+O tratamento de conflitos espaço-temporais entre veículos baseia-se em uma tabela global de reservas $\mathcal{R}$. Essa estrutura armazena o histórico quadridimensional das aeronaves cujas rotas já foram consolidadas:
+\begin{equation}\label{eq:tabela_reservas}
+\mathcal{R}(x, y, z, t) = \text{id\_drone}.
+\end{equation}
+Durante a expansão de um nó, o algoritmo consulta essa tabela para prevenir dois modos fundamentais de colisão mútua:
+\begin{enumerate}
+    \item \textbf{Colisão por Ocupação Simultânea de Célula:} Rejeita-se a transição caso a coordenada visada $(x', y', z')$ já esteja reservada no instante futuro $t'$, isto é, $(x', y', z', t') \in \mathcal{R}$.
+    \item \textbf{Colisão Frontal Cruzada (\textit{Head-on Swap}):} Ocorre quando dois VANTs tentam permutar simultaneamente suas posições espaciais no mesmo passo de tempo ($t \to t+1$). O algoritmo detecta essa manobra verificando a condição de inversão mútua de identificadores:
+    \begin{equation}\label{eq:anti_swap}
+    \mathcal{R}(x', y', z', t) = \mathcal{R}(x, y, z, t') \neq \emptyset.
+    \end{equation}
+    Constatada a simetria de invasão, a transição é descartada sumariamente.
+\end{enumerate}
+
+O Algoritmo~\ref{alg:tea_expansao} apresenta o pseudocódigo da expansão quadridimensional do TEA*, demonstrando o bloqueio por ocupação e a barreira de colisão frontal cruzada.
+
+\begin{algorithm}[htbp]
+\caption{Expansão de Trajetórias Quadridimensionais no TEA*}\label{alg:tea_expansao}
+\begin{algorithmic}[1]
+\REQUIRE Origem $(s_x, s_y)$, Destino $(g_x, g_y)$, Camada $z_0$, Instante $t_0$, Tabela de Reservas $\mathcal{R}$
+\STATE Inserir $(h(\mathbf{s}) \cdot 1{,}2, 0, (s_x, s_y, z_0, t_0))$ na fila $\mathcal{Q}$; $\quad g(s_x, s_y, z_0, t_0) \leftarrow 0$
+\WHILE{$\mathcal{Q} \neq \emptyset$}
+    \STATE Extrair nó corrente $u = (x, y, z, t)$ de $\mathcal{Q}$ com menor $f$
+    \IF{$x = g_x$ \AND $y = g_y$} \RETURN $\text{ReconstruirCaminho}(u)$ \ENDIF
+    \IF{$t \ge T_{\text{max}}$} \textbf{continue} \ENDIF
+    \FORALL{transição válida $(dx, dy, dz, \Delta s) \in \text{Vizinhança}(z)$}
+        \STATE $(x', y', z') \leftarrow (x + dx, y + dy, z + dz)$
+        \IF{$\text{Bloqueado}(x', y', z')$} \textbf{continue} \ENDIF
+        \STATE $\Delta t \leftarrow \lfloor \Delta s_{\text{grid}} \rfloor \; (\text{se } dz = 0) \; \text{senão} \; 1; \quad t' \leftarrow t + \Delta t$
+        \IF{$(x', y', z', t') \in \mathcal{R}$} \textbf{continue} \ENDIF
+        \IF{$\mathcal{R}(x', y', z', t) = \mathcal{R}(x, y, z, t') \neq \emptyset$} \textbf{continue} \ENDIF \COMMENT{Anti-swap}
+        \STATE $\Delta g \leftarrow \Delta s / v_{\text{fase}}; \quad g_{\text{novo}} \leftarrow g(u) + \Delta g$
+        \IF{$g_{\text{novo}} < g(x', y', z', t')$}
+            \STATE $g(x', y', z', t') \leftarrow g_{\text{novo}}; \quad \text{pai}(x', y', z', t') \leftarrow u$
+            \STATE Inserir $(g_{\text{novo}} + 1{,}2 \cdot h(x', y'), g_{\text{novo}}, (x', y', z', t'))$ em $\mathcal{Q}$
+        \ENDIF
+    \ENDFOR
+\ENDWHILE
+\RETURN $\emptyset$ \COMMENT{Inviabilidade de trajetória}
+\end{algorithmic}
+\end{algorithm}
+
+Ao atingir o nó de destino, o caminho recuperado por retrocesso de ponteiros (\texttt{pai}) passa por uma interpolação escalar que reverte a discretização de $2{,}5\text{ m}$, convertendo as coordenadas da grade para o espaço contínuo métrico. Em seguida, aplica-se um filtro cinemático para eliminar transições redundantes de voo pairado geradas exclusivamente para sincronização temporal vertical, gerando perfis de voo suaves. Quando a operação exige a minimização simultânea do consumo de bateria, o TEA* é substituído pelo algoritmo multiobjetivo apresentado a seguir.
+
+\section{Planejamento Multiobjetivo de Trajetórias via MOSP}\label{sec:dev_mosp}
+
+O algoritmo MOSP (\textit{Multiple Objective Shortest Path}) expande a formulação quadridimensional do TEA* para buscar trajetórias que minimizem concorrentemente a duração temporal da entrega e a energia elétrica demandada da bateria. Essa formulação é indispensável diante de frotas heterogêneas, nas quais aeronaves mais velozes incorrem em penalidades energéticas severas durante manobras em baixa altitude.
+
+A busca substitui o custo escalar $g(u)$ por uma propagação de rótulos (\textit{Label Setting Algorithm}). Cada rótulo $l$ representa um estado de voo ativo contendo o vetor de objetivos acumulados e as coordenadas espaço-temporais:
+\begin{equation}\label{eq:definicao_rotulo}
+l = \big( \text{tempo}(l), \; \text{energia}(l), \; x, \; y, \; z, \; t \big).
+\end{equation}
+A dominância entre dois rótulos $l_1$ e $l_2$ que convergem para a mesma coordenada espacial $(x, y, z)$ é governada pelo conceito de $\epsilon$-dominância de Pareto com margens de tolerância numérica:
+\begin{equation}\label{eq:epsilon_dominancia}
+l_1 \succeq_\epsilon l_2 \iff \big(\text{tempo}(l_1) \le \text{tempo}(l_2) + \epsilon_t\big) \;\land\; \big(\text{energia}(l_1) \le \text{energia}(l_2) + \epsilon_e\big),
+\end{equation}
+com desigualdade estrita em pelo menos uma das dimensões. Fixam-se as tolerâncias em $\epsilon_t = 0{,}5\text{ s}$ e $\epsilon_e = 0{,}2\text{ Wh}$, prevenindo o descarte prematuro de trajetórias concorrentes devido a ruídos infinitesimais de arredondamento em ponto flutuante.
+
+Para conter a explosão combinatória na propagação de estados, a implementação impõe um teto estrito de retenção de no máximo $K_{\text{rot}} = 8$ rótulos não dominados por célula tridimensional. Quando um nono rótulo não dominado atinge uma célula saturada, ele é descartado da exploração. A busca interrompe-se assim que o conjunto de soluções não dominadas atinge uma cota de $N_{\text{sol,dest}} = 5$ trajetórias completas no nó de destino.
+
+A seleção da rota final encaminhada ao escalonador do Algoritmo Genético adota o critério da proximidade euclidiana ao ponto ideal normalizado. Sejam $T_{\text{min}}, T_{\text{max}}$ e $E_{\text{min}}, E_{\text{max}}$ os limites extremos de tempo e energia apurados entre as cinco soluções de $\mathcal{S}_{\text{dest}}$. Cada solução tem seus custos normalizados no intervalo $[0, 1]$:
+\begin{equation}\label{eq:normalizacao_mosp}
+\tilde{t}_l = \frac{\text{tempo}(l) - T_{\text{min}}}{\max(T_{\text{max}} - T_{\text{min}}, 10^{-4})}, \qquad \tilde{e}_l = \frac{\text{energia}(l) - E_{\text{min}}}{\max(E_{\text{max}} - E_{\text{min}}, 10^{-4})}.
+\end{equation}
+A rota selecionada $l^*$ é aquela que minimiza a distância ao ponto ideal teórico $(0, 0)$:
+\begin{equation}\label{eq:selecao_ponto_ideal}
+l^* = \arg\min_{l \in \mathcal{S}_{\text{dest}}} \sqrt{\tilde{t}_l^2 + \tilde{e}_l^2}.
+\end{equation}
+
+O Algoritmo~\ref{alg:mosp_rotulos} sintetiza a propagação de rótulos e a decisão final por distância euclidiana ao ponto ideal.
+
+\begin{algorithm}[htbp]
+\caption{Propagação de Rótulos e Seleção por Ponto Ideal no MOSP 4D}\label{alg:mosp_rotulos}
+\begin{algorithmic}[1]
+\REQUIRE Origem $(s_x, s_y)$, Destino $(g_x, g_y)$, Instante $t_0$, Tabela $\mathcal{R}$, Limite $K_{\text{rot}}=8$
+\STATE Criar rótulo inicial $l_0 = (0, 0, s_x, s_y, z_0, t_0)$; Inserir em $\mathcal{Q}$; $\mathcal{S}_{\text{dest}} \leftarrow \emptyset$
+\WHILE{$\mathcal{Q} \neq \emptyset$ \AND $|\mathcal{S}_{\text{dest}}| < 5$}
+    \STATE Extrair rótulo $l = (t_l, e_l, x, y, z, t)$ de $\mathcal{Q}$
+    \IF{$|\mathcal{L}_{\text{perm}}(x, y, z)| \ge 8$ \OR $\exists r \in \mathcal{L}_{\text{perm}}(x, y, z) : r \succeq_\epsilon l$} \textbf{continue} \ENDIF
+    \STATE Adicionar $l$ a $\mathcal{L}_{\text{perm}}(x, y, z)$
+    \IF{$x = g_x$ \AND $y = g_y$} $\mathcal{S}_{\text{dest}} \leftarrow \mathcal{S}_{\text{dest}} \cup \{l\}$; \textbf{continue} \ENDIF
+    \FORALL{transição desimpedida $(dx, dy, dz, \Delta t, c_t, c_e)$ livre de conflito em $\mathcal{R}$}
+        \STATE $l' \leftarrow (t_l + c_t, e_l + c_e, x+dx, y+dy, z+dz, t+\Delta t, \text{pai}=l)$
+        \IF{$\nexists r \in \mathcal{L}_{\text{perm}}(x', y', z') : r \succeq_\epsilon l'$}
+            \STATE Inserir $(t_{l'} + 1{,}2 \cdot h(x', y'), l')$ em $\mathcal{Q}$
+        \ENDIF
+    \ENDFOR
+\ENDWHILE
+\STATE Normalizar $(t_l, e_l) \to (\tilde{t}_l, \tilde{e}_l) \in [0, 1]^2$ para todo $l \in \mathcal{S}_{\text{dest}}$
+\STATE $l^* \leftarrow \arg\min_{l \in \mathcal{S}_{\text{dest}}} \sqrt{\tilde{t}_l^2 + \tilde{e}_l^2}$ \COMMENT{Proximidade ao ponto ideal $(0,0)$}
+\RETURN $\text{ReconstruirCaminho}(l^*)$
+\end{algorithmic}
+\end{algorithm}
+
+A rota $l^*$ assegura um equilíbrio estrito entre celeridade de transporte e conservação de carga de bateria. Uma vez concluído o projeto dos roteadores de baixo nível, a seção seguinte detalha a camada superior de escalonamento baseada no Algoritmo Genético mono-objetivo.
+
+\section{Escalonamento Mono-objetivo via Algoritmo Genético}\label{sec:dev_ga}
+
+A distribuição das tarefas logísticas entre os múltiplos VANTs da frota é formulada como um problema de otimização combinatória de alto nível. O sistema implementa uma camada baseada em Algoritmos Genéticos (GA), estruturada com a biblioteca \texttt{pygad} e reforçada com mecanismos de aceleração computacional voltados a mitigar o custo das simulações físicas 4D.
+
+\subsection{Codificação Cromossômica e Sequenciamento Cronológico}
+
+O arranjo genético afasta-se de matrizes de adjacência multidimensionais e adota um vetor unidimensional de inteiros $\mathbf{s} \in \{0, 1, \dots, K-1\}^N$, onde $N$ denota o número total de pedidos de entrega e $K$ representa a quantidade de VANTs disponíveis na frota. Cada gene $i \in \{0, \dots, N-1\}$ corresponde a uma missão logística específica, e seu conteúdo inteiro armazena o identificador do VANT encarregado daquela operação.
+
+Uma característica estrutural crítica da implementação reside na dissociação entre a alocação e o ordenamento das missões. O cromossomo codifica estritamente a partição de tarefas por veículo, mas \textbf{não codifica a ordem de execução}. O despachador em \texttt{teste/ga\_optimizer.py:164-171} processa as entregas de cada VANT obedecendo rigidamente à \textbf{ordem crescente do identificador do pedido} ($0, 1, 2, \dots$):
+\begin{equation}\label{eq:ordem_execucao}
+\text{Fila de Execução do VANT } d = \big( i \in \mathcal{P} \;\big|\; \mathbf{s}[i] = d \big) \quad \text{ordenada por } i \text{ ascendente}.
+\end{equation}
+Se o VANT $0$ receber a atribuição dos pedidos $\{7, 2, 11\}$, ele cumprirá obrigatoriamente a rota para a entrega 2, retornará à base, partirá para a entrega 7, retornará, e por fim realizará a entrega 11.
+
+\subsection{Ordem de Reserva Espaço-Temporal e Tratamento de Falhas}
+
+As reservas na tabela quadridimensional $\mathcal{R}$ são gravadas de forma cronológica irreversível conforme a fila global de missões é desempilhada. Consequentemente, as trajetórias validadas para as primeiras entregas tornam-se obstáculos fixos inegociáveis para as entregas subsequentes. Alterar a ordenação inicial do vetor de pedidos modifica as trajetórias de desvio, os tempos de espera em voo pairado e o consumo de energia da frota.
+
+O sistema trata falhas de missão (inviabilidade de desvio ou colisão no ar) através de uma política de repescagem com teto de $N_{\text{tent}} = 2$ tentativas (\texttt{tentativa} $\in \{0, 1\}$). Se uma colisão é detectada durante o voo de ida na tentativa inicial (0), a missão tem seu despacho cancelado, a recarga de bateria realizada no CD é estornada, e a entrega é reinserida no fim da fila de despacho global para uma segunda tentativa com novas condições de ocupação aérea. Caso a falha persista na tentativa final (1), a missão é cancelada em definitivo, incrementando o contador de falhas $N_{\text{falha}}$ e penalizando severamente o indivíduo.
+
+\subsection{Função de Aptidão, Limite Inferior e Cache Concorrente}
+
+A avaliação de cada indivíduo pelo simulador físico computa o custo agregado do cromossomo:
+\begin{equation}\label{eq:custo_ga}
+\text{custo}_{\text{GA}} = \text{makespan} + 0{,}5 \cdot \text{esperas} + 50\,000 \cdot N_{\text{falha}} + 3{,}6 \cdot \text{energia},
+\end{equation}
+onde \textit{makespan} e \textit{esperas} são contabilizados em \textit{frames}, a \textit{energia} é dada em $\text{Wh}$ e $N_{\text{falha}}$ representa a quantidade de missões não concluídas. O valor de aptidão (\textit{fitness}) é calculado como o inverso desse custo:
+\begin{equation}\label{eq:fitness_ga}
+\text{aptidão}_{\text{GA}} = \frac{1{,}0}{\text{custo}_{\text{GA}} + 0{,}0001}.
+\end{equation}
+
+Devido ao elevadíssimo custo computacional de simular dezenas de voos quadridimensionais para cada solução, a função de aptidão introduz uma cascata de dois filtros de aceleração:
+\begin{enumerate}
+    \item \textbf{Memória Compartilhada (\textit{Memoization}):} Um dicionário em memória (\texttt{\_fitness\_cache}) indexado pela tupla do cromossomo armazena os resultados calculados. Trava de concorrência (\texttt{\_ga\_lock}) protege o acesso entre as múltiplas \textit{threads} paralelas, garantindo que arranjos genéticos idênticos gerados por cruzamento nunca sejam simulados duas vezes.
+    \item \textbf{Poda Física Teórica (Limite Inferior Otimista):} Antes de invocar o simulador 4D, computa-se um limite inferior ideal assumindo voos retilíneos na velocidade máxima de cruzeiro ($v^{\text{max}}_d$) e na taxa de consumo mínima ($c^{\text{min}}_d$):
+    \begin{align}
+    t_{\text{ideal}, d} &= \sum_{i \in \text{pedidos}(d)} \left( \frac{2 \cdot d_{\text{reta}, i}}{v^{\text{max}}_d} + T_{\text{desc}} \right), \label{eq:t_ideal} \\
+    E_{\text{ideal}} &= \sum_{d \in \mathcal{D}} \sum_{i \in \text{pedidos}(d)} \left( 2 \cdot d_{\text{reta}, i} \cdot c^{\text{min}}_d \right), \label{eq:e_ideal} \\
+    \text{custo}_{\text{teorico}} &= \max_{d \in \mathcal{D}}(t_{\text{ideal}, d}) + 3{,}6 \cdot E_{\text{ideal}}. \label{eq:custo_teorico}
+    \end{align}
+    Se $\text{custo}_{\text{teorico}} \ge \text{melhor\_custo\_registrado}$, a solução é fisicamente incapaz de superar o recorde vigente. O simulador 4D é ignorado, e o cromossomo recebe uma aptidão punitiva de rejeição imediata:
+    \begin{equation}\label{eq:fitness_rejeitado}
+    \text{aptidão}_{\text{rejeitada}} = \frac{1{,}0}{\text{custo}_{\text{teorico}} + 100\,000}.
+    \end{equation}
+\end{enumerate}
+
+O Algoritmo~\ref{alg:fitness_ga} formaliza a função de aptidão do Algoritmo Genético, integrando a verificação de cache, a poda física por limite inferior e a simulação 4D.
+
+\begin{algorithm}[htbp]
+\caption{Avaliação de Aptidão com Poda Física Teórica e Cache (\textit{Memoization})}\label{alg:fitness_ga}
+\begin{algorithmic}[1]
+\REQUIRE Cromossomo $\mathbf{s}$, instância evolutiva, registros $\mathcal{H}_{\text{cache}}$ e recorde de custo $C^*$
+\STATE $\mathbf{s}_{\text{tup}} \leftarrow \text{Tupla}(\mathbf{s})$
+\IF{$\mathbf{s}_{\text{tup}} \in \mathcal{H}_{\text{cache}}$} \RETURN $\mathcal{H}_{\text{cache}}[\mathbf{s}_{\text{tup}}]$ \ENDIF
+\STATE $t_{\text{ideal}, d} \leftarrow 0 \; (\forall d \in \mathcal{D}), \quad E_{\text{ideal}} \leftarrow 0$
+\FORALL{pedido $i \in \mathcal{P}$ alocado ao VANT $d = \mathbf{s}[i]$}
+    \STATE $d_{\text{reta}} \leftarrow \|\mathbf{p}_i - \mathbf{p}_{\text{CD}}\|, \quad t_{\text{ideal}, d} \leftarrow t_{\text{ideal}, d} + \frac{2 \cdot d_{\text{reta}}}{v^{\text{max}}_d} + T_{\text{desc}}$
+    \STATE $E_{\text{ideal}} \leftarrow E_{\text{ideal}} + 2 \cdot d_{\text{reta}} \cdot c^{\text{min}}_d$
+\ENDFOR
+\STATE $C_{\text{teorico}} \leftarrow \max_{d \in \mathcal{D}}(t_{\text{ideal}, d}) + 3{,}6 \cdot E_{\text{ideal}}$
+\IF{$C^* \neq \infty$ \AND $C_{\text{teorico}} \ge C^*$}
+    \STATE $f_{\text{rej}} \leftarrow 1{,}0 / (C_{\text{teorico}} + 100\,000)$
+    \STATE $\mathcal{H}_{\text{cache}}[\mathbf{s}_{\text{tup}}] \leftarrow f_{\text{rej}}$
+    \RETURN $f_{\text{rej}}$
+\ENDIF
+\STATE $(M, H, N_{\text{falha}}, E) \leftarrow \text{SimularComTEA}(\mathbf{s}, \text{teto}=C^*)$
+\STATE $C \leftarrow M + 0{,}5 \cdot H + 50\,000 \cdot N_{\text{falha}} + 3{,}6 \cdot E$
+\STATE $f \leftarrow 1{,}0 / (C + 10^{-4})$
+\IF{$N_{\text{falha}} = 0$ \AND $C < C^*$}
+    \STATE $C^* \leftarrow C$; $\quad \text{AtualizarRecorde}(C, M, E)$
+\ENDIF
+\STATE $\mathcal{H}_{\text{cache}}[\mathbf{s}_{\text{tup}}] \leftarrow f$
+\RETURN $f$
+\end{algorithmic}
+\end{algorithm}
+
+O operador de seleção emprega torneio de tamanho $K_{\text{tourn}} = \min(5, \max(2, N_{\text{pop}}//2))$. A recombinação opera por cruzamento de dois pontos (\textit{two-point crossover}). A mutação comporta-se de maneira adaptativa: indivíduos com aptidão abaixo da média populacional recebem taxa de mutação de $10\%$, enquanto os melhores indivíduos sofrem apenas $5\%$ de alteração genética. Preserva-se elitismo estrito com cópia do melhor indivíduo. Quando a gestão logística exige separar tempo e energia como frentes de decisão autônomas, adota-se o algoritmo multiobjetivo apresentado a seguir.
+
+\section{Escalonamento Multiobjetivo via NSGA-II}\label{sec:dev_nsga}
+
+Quando a redução do \textit{makespan} e a conservação de energia elétrica passam a ser tratadas como critérios de otimização concorrentes na camada de escalonamento, a agregação escalar da Equação~\eqref{eq:custo_ga} torna-se inadequada. Para mapear o conjunto de compromissos ótimos de Pareto, o sistema implementa o algoritmo NSGA-II (\textit{Non-dominated Sorting Genetic Algorithm II}) através do módulo \texttt{teste/nsga\_optimizer.py}.
+
+A arquitetura do NSGA-II reaproveita a codificação cromossômica vetorial, os operadores genéticos e o motor de simulação física do Algoritmo Genético, mas reestrutura a função de aptidão para retornar um vetor bidimensional $[f_1, f_2]$ composto pelos inversos dos custos independentes de tempo e energia:
+\begin{align}
+\text{custo}_{\text{tempo}} &= \text{makespan} + 0{,}5 \cdot \text{esperas} + 50\,000 \cdot N_{\text{falha}}, \label{eq:custo_tempo_nsga} \\
+f_1 &= \frac{1{,}0}{\text{custo}_{\text{tempo}} + 0{,}0001}, \label{eq:f1_nsga} \\
+\text{custo}_{\text{energia}} &= (3{,}6 \cdot \text{energia}) + 50\,000 \cdot N_{\text{falha}}, \label{eq:custo_energia_nsga} \\
+f_2 &= \frac{1{,}0}{\text{custo}_{\text{energia}} + 0{,}0001}. \label{eq:f2_nsga}
+\end{align}
+O coeficiente $3{,}6$ aplicado à energia mantém a uniformidade de escala com o GA mono-objetivo. Por ser uma transformação estritamente monótona crescente, ele não altera a relação de dominância de Pareto entre as soluções.
+
+Diferentemente do GA mono-objetivo, o NSGA-II não pode descartar soluções a partir de um limite inferior escalar único, sob pena de eliminar indivíduos com tempo desfavorável que apresentem excelente eficiência energética. Em seu lugar, a implementação adota um mecanismo de \textbf{corte parcial durante a simulação}: à medida que as missões do cromossomo são desempilhadas, se o \textit{makespan} parcial acumulado ultrapassar o melhor \textit{makespan} registrado acrescido de uma margem de segurança de $\Delta M_{\text{poda}} = 50\text{ \textit{frames}}$, a simulação é imediatamente interrompida. As missões não processadas são computadas como falhas, desqualificando o indivíduo por excesso de atraso.
+
+A ordenação não dominada e o cálculo da distância de aglomeração (\textit{crowding distance}) são executados nativamente pelo PyGAD configurando o parâmetro \texttt{parent\_selection\_type="nsga2"}. A cada geração, a população é particionada em frentes de dominância $\mathcal{F}_1, \mathcal{F}_2, \dots$, preservando a diversidade ao longo da fronteira.
+
+Ao término da execução, as soluções não dominadas geradas são pós-processadas pelo script \texttt{logs/teste-mosp-nsga/teste-nsga.py} para identificar três soluções representativas da fronteira:
+\begin{enumerate}
+    \item \textbf{Extremo 1 (Foco em Celeridade):} Solução com o menor \textit{makespan} absoluto registrado;
+    \item \textbf{Extremo 2 (Foco em Eficiência Energética):} Solução com o menor consumo elétrico acumulado;
+    \item \textbf{Ponto de Joelho (\textit{Knee Point}):} Solução que representa o compromisso mais equilibrado, determinada pela distância euclidiana mínima ao ponto ideal das soluções normalizadas:
+    \begin{equation}\label{eq:knee_point}
+    \mathbf{s}_{\text{joelho}} = \arg\min_{\mathbf{s} \in \mathcal{F}_1} \sqrt{ \left(\frac{M(\mathbf{s}) - M_{\text{min}}}{M_{\text{max}} - M_{\text{min}}}\right)^2 + \left(\frac{E(\mathbf{s}) - E_{\text{min}}}{E_{\text{max}} - E_{\text{min}}}\right)^2 }.
+    \end{equation}
+\end{enumerate}
+
+Para fornecer uma linha de base determinística e verificar a qualidade das soluções heurísticas em instâncias menores, o sistema desenvolve paralelamente o método exato descrito a seguir.
+
+\section{Escalonamento Exato via Branch and Bound}\label{sec:dev_bb}
+
+O algoritmo \textit{Branch and Bound} (B\&B), implementado no módulo \texttt{teste/bb\_optimizer.py}, constitui a abordagem exata contra a qual as meta-heurísticas são confrontadas no Caso 1. O método explora sistematicamente a árvore combinatória de atribuição de tarefas por meio de busca em profundidade (\textit{Depth-First Search}), garantindo matematicamente a identificação da solução de custo ótimo global caso a varredura se complete.
+
+A árvore de busca é estruturada em níveis hierárquicos: a profundidade do nó corresponde ao índice da tarefa $k \in \{0, \dots, N-1\}$ que está sendo atribuída, e as ramificações representam os VANTs candidatos $d \in \mathcal{D}$ que podem assumir o pedido. A explosão combinatória inerente ao espaço $O(K^N)$ inviabilizaria a exploração até mesmo para pequenas frotas. Para conferir exequibilidade prática ao método, o B\&B implementa três técnicas avançadas de otimização estrutural:
+\begin{enumerate}
+    \item \textbf{Solução Inicial Incumbente:} Antes de deflagrar a descida na árvore, o algoritmo recebe o vetor de alocação de alta qualidade gerado pelo Algoritmo Genético (\texttt{solucao\_ga\_conhecida}). Essa solução inicial é simulada integralmente para estabelecer o recorde incumbente de custo $C^*$, permitindo podas imediatas em ramos de custo superior logo nas camadas superiores da árvore.
+    \item \textbf{Quebra Estrita de Simetria:} Como as aeronaves no Caso 1 constituem uma frota homogênea com bases idênticas, a permutação dos identificadores de veículos vazios geraria subárvores simétricas com custos físicos rigorosamente equivalentes. O algoritmo elimina essa redundância restringindo os ramos de busca: em qualquer nó, as tarefas só podem ser atribuídas aos VANTs que já possuem tarefas alocadas no ramo corrente mais \textbf{exatamente um VANT virgem}:
+    \begin{equation}\label{eq:quebra_simetria}
+    \mathcal{D}_{\text{candidatos}} = \mathcal{D}_{\text{usados}} \;\cup\; \big\{ |\mathcal{D}_{\text{usados}}| \big\} \quad \text{se } |\mathcal{D}_{\text{usados}}| < K.
+    \end{equation}
+    Essa restrição suprime milhares de permutações espúrias sem excluir nenhuma partição única do espaço viável.
+    \item \textbf{Simulação Incremental com Herança de Estado:} A transição do nó pai para o nó filho é calculada de forma incremental através da função \texttt{simular\_tarefa\_incremental}. Em vez de recalcular todas as trajetórias precedentes, o nó filho clona por cópia profunda (\texttt{copy.deepcopy}) o estado físico do pai, herdando a tabela quadridimensional de reservas $\mathcal{R}$ e os instantes de liberação das aeronaves. O simulador TEA* é invocado unicamente para traçar as rotas de ida e volta do novo pedido atribuído.
+\end{enumerate}
+
+O ramo é podado sumariamente se o custo parcial acumulado (composto por \textit{makespan}, penalidade de espera $0{,}5 \cdot H$ e falhas) igualar ou superar a incumbente $C^*$. O Algoritmo~\ref{alg:bb_incremental} formaliza o procedimento recursivo do \textit{Branch and Bound}.
+
+\begin{algorithm}[htbp]
+\caption{Branch and Bound Incremental com Quebra de Simetria}\label{alg:bb_incremental}
+\begin{algorithmic}[1]
+\REQUIRE Índice da tarefa $k$, Atribuição parcial $\mathbf{s}$, Estado físico $\mathcal{E}$, Incumbente $C^*$
+\IF{$\text{TempoDecorrido}() \ge T_{\text{max,BB}}$} \RETURN \ENDIF
+\IF{$k = |\mathcal{P}|$}
+    \STATE $C \leftarrow \text{CalcularCustoFinal}(\mathcal{E})$
+    \IF{$C < C^*$} $C^* \leftarrow C; \quad \mathbf{s}^* \leftarrow \text{Cópia}(\mathbf{s})$ \ENDIF
+    \RETURN
+\ENDIF
+\STATE $\mathcal{D}_{\text{usados}} \leftarrow \text{DronesDistintos}(\mathbf{s}); \quad \mathcal{D}_{\text{cand}} \leftarrow \text{Lista}(\mathcal{D}_{\text{usados}})$
+\IF{$|\mathcal{D}_{\text{usados}}| < |\mathcal{D}|$} $\mathcal{D}_{\text{cand}} \leftarrow \mathcal{D}_{\text{cand}} \cup \{|\mathcal{D}_{\text{usados}}|\}$ \ENDIF \COMMENT{Quebra de simetria}
+\FORALL{$d \in \text{Ordenar}(\mathcal{D}_{\text{cand}})$}
+    \STATE $(\mathcal{E}_{\text{filho}}, C_{\text{parcial}}) \leftarrow \text{SimularTarefaIncremental}(k, d, \mathcal{E}, \text{teto}=C^*)$
+    \IF{$\mathcal{E}_{\text{filho}} = \text{None}$ \OR $C_{\text{parcial}} \ge C^*$}
+        \STATE $\text{PodarRamo}()$; \textbf{continue}
+    \ENDIF
+    \STATE $\mathbf{s} \leftarrow \mathbf{s} \cup \{d\}$
+    \STATE $\text{BranchAndBound}(k + 1, \mathbf{s}, \mathcal{E}_{\text{filho}}, C^*)$
+    \STATE $\mathbf{s} \leftarrow \mathbf{s} \setminus \{d\}$
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+O tempo máximo de varredura é limitado a $T_{\text{max,BB}} = 21\,600\text{ s}$ ($6\text{ horas}$). Se o cronômetro expirar, o algoritmo retorna a melhor solução incumbente encontrada até a interrupção. Para eliminar a dependência de inicializações heurísticas ingênuas no GA, a seção seguinte desenvolve o modelo preditivo de \textit{Warm Start}.
+
+\section{Modelo de Aprendizado de Máquina para Inicialização Assistida (Warm Start)}\label{sec:dev_ml_warmstart}
+
+Nas abordagens evolutivas clássicas, a população inicial é instanciada por sorteio aleatório ou por divisões em blocos sequenciais arbitrários (\textit{inicialização heurística sequencial}). Em frotas heterogêneas operando sobre malhas urbanas extensas, soluções iniciais que ignoram restrições de massa e bateria incorrem em taxas massivas de falha de missão, retardando a convergência do Algoritmo Genético. Para superar essa barreira, propõe-se um modelo preditivo baseado em aprendizado de máquina supervisionado para guiar a inicialização assistida (\textit{Warm Start}) do escalonador.
+
+\subsection{Espaço de Atributos Físicos e Normalizações}
+
+O modelo rejeita coordenadas geográficas absolutas para garantir invariância espacial e generalização sobre topologias urbanas inéditas. A compatibilidade física entre uma tarefa logística $i \in \mathcal{P}$ e um VANT candidato $d \in \mathcal{D}$ é mapeada por um vetor de atributos $\mathbf{x}_{i, d} \in \mathbb{R}^8$, calculado dinamicamente em função do estado acumulado da frota:
+\begin{enumerate}
+    \item $d^{\text{norm}}_i$: Distância euclidiana normalizada da entrega ao CD:
+    \begin{equation}\label{eq:feat_dist}
+    d^{\text{norm}}_i = \frac{\|\mathbf{p}_i - \mathbf{p}_{\text{CD}}\|}{D_{\text{mapa}}}, \quad \text{onde } D_{\text{mapa}} = \sqrt{(\max_x)^2 + (\max_y)^2}.
+    \end{equation}
+    \item $p^{\text{rel}}_{i, d}$: Razão de carga útil entre o pacote e a capacidade da aeronave:
+    \begin{equation}\label{eq:feat_peso}
+    p^{\text{rel}}_{i, d} = \frac{m_{\text{pacote}, i}}{\max(C_d, 0{,}1)}.
+    \end{equation}
+    \item $\delta^{\text{sob}}_{i, d}$: Indicador binário estrito de sobrecarga mecânica:
+    \begin{equation}\label{eq:feat_sobrecarga}
+    \delta^{\text{sob}}_{i, d} = \mathbb{I}(m_{\text{pacote}, i} > C_d + 10^{-6}).
+    \end{equation}
+    \item $v^{\text{rel}}_d$: Velocidade de cruzeiro relativa à aeronave mais rápida da frota:
+    \begin{equation}\label{eq:feat_vel}
+    v^{\text{rel}}_d = \frac{v_{\text{cru}, d}}{\max_{k \in \mathcal{D}}(v_{\text{cru}, k})}.
+    \end{equation}
+    \item $t^{\text{norm}}_{i, d}$: Atributo de tempo nominal de voo. No código-fonte (\texttt{dataset\_generator.py:156}), essa variável está fixada como um vetor unitário constante (\texttt{np.ones}), resultando em variância nula e atuação inoperante no classificador.
+    \item $e^{\text{rel}}_{i, d}$: Projeção de consumo de energia relativa à capacidade da bateria:
+    \begin{equation}\label{eq:feat_energia}
+    e^{\text{rel}}_{i, d} = \frac{E_{\text{est}, i, d}}{\max_{k \in \mathcal{D}}(E_{\text{est}, i, k})}, \quad \text{com } E_{\text{est}, i, d} = 2 d_i c_{\text{cru}, d} + \min(m_i, C_d) p_{\text{carga}, d}.
+    \end{equation}
+    \item $W^{\text{acum}}_d$: Desbalanceamento do tempo de voo já atribuído ao VANT em relação à média da frota:
+    \begin{equation}\label{eq:feat_carga_acum}
+    W^{\text{acum}}_d = \frac{W_d - \bar{W}}{\max(\max W - \min W, 2 d_i, 10^{-4})}.
+    \end{equation}
+    \item $\Delta M_{i, d}$: Acréscimo marginal normalizado no \textit{makespan} global da frota:
+    \begin{equation}\label{eq:feat_delta_m}
+    \Delta M_{i, d} = \frac{\max(M, W_d + 2 d_i) - M}{\max(2 d_i, 10^{-6})}.
+    \end{equation}
+\end{enumerate}
+
+\subsection{Arquitetura do Ensemble e Treinamento Supervisionado}
+
+O modelo de compatibilidade é estruturado na classe \texttt{EnsembleFisicoEnxuto}, que implementa uma arquitetura híbrida em dois estágios complementares:
+\begin{itemize}
+    \item \textbf{Estágio Linear Regularizado (Ridge / Logística $L_2$):} Resolve a equação analítica dos mínimos quadrados com coeficiente de penalidade de Tikhonov $\lambda_{\text{L2}} = 1{,}0$ e ponderação de classes inversa à frequência das amostras. Este componente estabelece o gradiente contínuo de custo entre velocidade e energia.
+    \item \textbf{Estágio de Árvores Rasas sobre os Resíduos:} Treina uma floresta com $N_{\text{tree}} = 150$ árvores de decisão rasas (\textit{decision stumps} com profundidade máxima igual a 2) diretamente sobre os resíduos do modelo linear ($\mathbf{y} - \mathbf{y}_{\text{linear}}$). Este estágio captura descontinuidades rígidas não lineares, como a barreira binária de saturação de carga útil ($\delta^{\text{sob}}$).
+\end{itemize}
+
+O conjunto de dados de treino compõe-se de $16\,500$ pares (tarefa $\times$ VANT) derivados de 51 cenários simulados (\texttt{IA/dataset\_treino.csv}). Os rótulos de alocação de alta qualidade foram refinados pelo script \texttt{IA/corrigir\_dataset.py} via heurística construtiva de balanceamento físico seguida de busca local por perturbação (\textit{Iterated Local Search} - ILS), suprimindo os vícios de alocações sequenciais ingênuas.
+
+\subsection{Validação Cruzada e Importância dos Atributos}
+
+A validação foi conduzida via \textit{5-Fold Cross Validation} agrupada por cenário (\textit{GroupKFold}), blindando o modelo contra contaminação entre conjuntos de treino e teste (\textit{data leakage}). A validação apurou uma acurácia de perfil de velocidade (alocação correta entre aeronave rápida vs. lenta) de $65{,}22\%$.
+
+A importância relativa dos atributos consolida a contribuição dos dois estágios através da ponderação $\mathbf{I} = 0{,}6 \cdot \mathbf{I}_{\text{linear}} + 0{,}4 \cdot \mathbf{I}_{\text{árvores}}$. A Tabela~\ref{tab:importancia_features} compara as importâncias extraídas do arquivo oficial de validação (\texttt{IA/relatorio\_validacao.json}) contra os valores registrados no texto preliminar da dissertação.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Importância relativa dos atributos físicos no modelo de \textit{Warm Start}.}\label{tab:importancia_features}
+\begin{tabular}{l c c l}
+\toprule
+\textbf{Atributo Físico} & \textbf{Código (\texttt{relatorio\_validacao.json})} & \textbf{Texto Preliminar} & \textbf{Papel Físico na Decisão} \\
+\midrule
+\texttt{carga\_acum\_rel} & \textbf{27,37\%} & $26{,}2\%$ & Equilíbrio de carga e nivelamento de voo \\
+\texttt{energia\_rel\_bateria} & \textbf{24,44\%} & $25{,}4\%$ (conjunto) & Prevenção de exaustão prematura da bateria \\
+\texttt{vel\_rel\_frota} & \textbf{23,48\%} & $25{,}4\%$ (conjunto) & Atribuição de missões longas a drones velozes \\
+\texttt{acrescimo\_makespan} & \textbf{15,67\%} & $38{,}1\%$ & Contenção do avanço do gargalo temporal \\
+\texttt{peso\_rel\_capacidade} & \textbf{5,20\%} & $10{,}3\%$ (conjunto) & Respeito aos limites mecânicos de carga \\
+\texttt{dist\_cd\_norm} & \textbf{3,46\%} & $10{,}3\%$ (conjunto) & Priorização de pedidos perimetrais \\
+\texttt{flag\_sobrecarga} & \textbf{0,39\%} & adjetivo de corte & Veto binário a cargas excessivas \\
+\texttt{tempo\_voo\_norm} & \textbf{0,00\%} & não avaliado & Atributo inoperante (\texttt{np.ones}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A auditoria comprova que o balanço entre carga acumulada, bateria e velocidade responde por mais de $75\%$ do peso decisório do modelo, desmistificando a premissa anterior de que o acréscimo isolado no \textit{makespan} dominava a classificação.
+
+\subsection{Algoritmo de Inferência e Busca Local Pós-Predição}
+
+A geração do cromossomo fundador da Geração 0 atua de maneira híbrida em duas fases: predição gulosa orientada pelo ensemble e refinamento combinatorial por busca local. A fase preditiva ordena as entregas decrescentemente pela exigência física de transporte:
+\begin{equation}\label{eq:prioridade_entrega}
+\text{prioridade}_i = \|\mathbf{p}_i - \mathbf{p}_{\text{CD}}\| \cdot \big(1{,}0 + 0{,}08 \cdot m_{\text{pacote}, i}\big).
+\end{equation}
+Para cada entrega nessa ordem, calcula-se o score de compatibilidade combinando as predições do modelo: $s_{i, d} = s_{\text{linear}} + 0{,}5 \cdot s_{\text{árvores}}$. A tarefa é atribuída ao VANT com maior pontuação: $d^* = \arg\max_{d \in \mathcal{D}}(s_{i, d})$.
+
+Após a alocação gulosa, o vetor passa por um ciclo de busca local de 8 iterações (\texttt{dataset\_generator.py:482-510}) para mitigar miopias da inferência pontual:
+\begin{enumerate}
+    \item \textbf{Movimento Unilateral (1-Move):} Testa transferir cada entrega para outro VANT. Se o custo proxy combinado diminuir, a alteração é aceita imediatamente.
+    \item \textbf{Permutação Bilateral (2-Swap):} Identifica o VANT que configura o gargalo temporal da frota e permuta sistematicamente suas entregas com as atribuições dos demais veículos.
+\end{enumerate}
+
+A solução refinada é injetada diretamente na Geração 0 do Algoritmo Genético como cromossomo pioneiro do \textit{Warm Start}, estabelecendo uma fronteira inicial altamente viável e acelerando o processo evolutivo.
+
+\section{Considerações Finais do Capítulo}\label{sec:dev_conclusao}
+
+Este capítulo detalhou a modelagem matemática e a implementação computacional do sistema de gestão logística de frotas de VANTs. As soluções de software desenvolvidas responderam rigorosamente aos desafios impostos pela não linearidade do ambiente urbano tridimensional e pelo acoplamento entre alocação de tarefas e planejamento de trajetórias 4D.
+
+A extração geométrica ancorada no OpenStreetMap combinada à compilação JIT com Numba viabilizou a detecção de colisões estáticas e dinâmicas em milissegundos. No nível de trajetória, a incorporação de tabelas de reservas espaço-temporais e filtros anti-swap no TEA* e a propagação de rótulos por $\epsilon$-dominância no MOSP asseguraram rotas fisicamente realizáveis com compromisso explícito entre tempo e energia. No nível de escalonamento, a introdução de limites inferiores teóricos, podas de simulação parcial, quebra de simetria no B\&B e a inicialização assistida (\textit{Warm Start}) por aprendizado de máquina contornaram os gargalos combinatórios do sistema.
+
+A parametrização unificada e a elucidação das divergências entre o código-fonte e o texto preliminar consolidam uma base metodológica transparente e reproduzível. Estabelecidas as decisões estruturais de implementação, o Capítulo~\ref{cap:test} submete essas arquiteturas ao protocolo experimental comparativo, avaliando quantitativamente o desempenho, o consumo de recursos e a escalabilidade dos métodos propostos.

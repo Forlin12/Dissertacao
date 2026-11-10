@@ -1,0 +1,3 @@
+[Mon 11/09/2026 18:17:02.92] Iniciando Agente VM em APEREIRA-A69613 (Usuario: a69613) 
+Pasta mapeada: W:\Users\Forlin\Dissertação (CWD: W:\Users\Forlin\Dissertação\IA | Origem: \\tsclient\C\Users\Forlin\Dissertação) 
+[3/4] Iniciando Agente com Python VENV do Workspace: "W:\Users\Forlin\Dissertação\.venv\Scripts\python.exe" 

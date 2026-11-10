@@ -1,0 +1,64 @@
+\chapter{Introduction}\label{cap:intro}
+
+The concept of an Unmanned Aerial Vehicle (UAV) dates back to the early twentieth century, when the first prototypes of aircraft controlled remotely or by rudimentary guidance systems were developed for military purposes. The Kettering Bug, tested by the United States Army in 1918, is frequently cited as one of the earliest examples of an aircraft designed to operate without a pilot on board. In the following decades, these vehicles were mainly employed as training targets for anti-aircraft artillery, a use that is frequently associated, according to part of the historical literature, with the consolidation of the term \textit{drone} itself. During the Cold War, the development of reconnaissance platforms, such as the Ryan Firebee family, expanded the scope of these aircraft to surveillance missions, consolidating their presence in military applications throughout the second half of the twentieth century.
+
+The transition of UAVs from an almost exclusively military domain to civil and commercial applications occurred more markedly starting in the 2010s. This movement was driven by the popularization of compact multirotors, the miniaturization of satellite positioning systems, and advances in the energy density of lithium batteries. These advancements made drones accessible to a much wider audience, enabling applications in aerial photography, precision agriculture, infrastructure inspection, and, more recently, transport logistics. It is within this context of technological maturation that the use of UAVs for parcel delivery began to be explored by both industry and the academic community.
+
+Parallel to the evolution of UAVs, parcel delivery models underwent transformations of their own. From animal-drawn and rail distribution in the nineteenth century to the consolidation of motorized road transport throughout the twentieth century, logistics has always sought to reduce the time and cost between the distribution center and the end consumer. The expansion of e-commerce starting in the late 1990s, driven by companies such as Amazon, substantially altered the scale and frequency of these deliveries, shifting the focus to the so-called last-mile problem. This final distribution stage is frequently identified in the literature as one of the most complex and costly phases of the entire logistics process.
+
+It was in this scenario of growing pressure on the last mile that UAV delivery emerged as a proposed solution. In 2013, Amazon publicly announced the Prime Air project, proposing the use of drones for short-term deliveries in urban and suburban areas. Similar initiatives followed, such as Alphabet's Wing service and the programs by Zipline, which since 2016 has operated commercial drone routes for transporting medical supplies in Rwanda. These projects, widely discussed in recent literature, demonstrated the technical feasibility of autonomous aerial delivery, but also exposed the operational complexity of coordinating fleets in dense urban environments, where flight safety, limited battery autonomy, and the need to fulfill multiple orders simultaneously impose constraints that traditional ground logistics does not face to the same degree.
+
+The use of UAVs for parcel delivery has therefore consolidated itself as an alternative to traditional last-mile logistics models. By operating in a three-dimensional space relatively free of road traffic congestion, these vehicles offer the potential to reduce delivery time and operational cost.
+
+The operational feasibility of a UAV fleet depends, however, on the simultaneous resolution of two decision problems of distinct natures. The first is the allocation and sequencing of transport tasks among the available vehicles, deciding which UAV fulfills which order and in what sequence. The second is the planning of the physical trajectories that each vehicle traverses to execute these tasks, ensuring that movement occurs without collisions with obstacles or with other vehicles in the fleet sharing the same airspace.
+
+\section{Research Problem}
+
+The central problem of this thesis consists of integrating delivery task scheduling and trajectory planning for a UAV fleet in a three-dimensional environment that is dynamic in the temporal domain.
+
+This integration leads to the investigation of different optimization strategies for the two decision layers. At the scheduling level, the aim is to evaluate different ways of distributing and ordering tasks among the available vehicles. At the navigation level, the aim is to determine trajectories that allow the execution of these tasks while respecting the spatial and temporal constraints of the environment.
+
+However, because evaluating each candidate scheduling solution requires the explicit simulation of four-dimensional trajectories for the entire fleet, evolutionary methods initialized solely via standard sequential heuristics face a slow convergence rate due to the rigid deterministic bias of traditional methods. To overcome this limitation, we investigate a hybrid machine-learning mechanism based on physics-based features to initialize the population with high-fitness solutions (\textit{Warm Start}).
+
+Based on this problem statement, the research seeks to answer the following questions:
+
+\begin{enumerate}
+\item How do different optimization strategies applied to task scheduling affect solution quality and computational cost as operational complexity increases?
+
+\item What is the impact of considering energy consumption, in addition to flight time, in the trajectory planning of UAVs?
+
+\item In what ways do the decisions made in the scheduling and trajectory planning layers influence overall operational performance when these layers are integrated?
+
+\item How does inducing an intelligent initial solution via physics-based predictive models (\textit{Warm Start}) impact the convergence rate and execution time of the Genetic Algorithm compared to sequential heuristic initialization in logistics instances?
+\end{enumerate}
+
+\section{Objectives}
+
+\subsection{General Objective}
+
+To develop and evaluate a logistics management system for UAV fleets that integrates delivery task scheduling with four-dimensional trajectory planning, comparing different optimization architectures across both decision layers and investigating the impact of machine-learning-assisted initialization on evolutionary convergence.
+
+\subsection{Specific Objectives}
+
+\begin{itemize}
+\item To model the allocation and sequencing problem of delivery tasks for a UAV fleet, considering the travel cost between consecutive deliveries as a function of the physical trajectory traversed.
+\item To implement and compare the performance of an exact method (\textit{Branch and Bound}) and evolutionary methods (Genetic Algorithm and NSGA-II) in solving the scheduling problem, evaluating the trade-off between solution quality and processing time.
+\item To implement and compare the performance of a single-objective routing algorithm (\textit{Time-Extended A*}) and a multi-objective routing algorithm (\textit{Multi-Objective Shortest Path}) in determining collision-free four-dimensional trajectories, evaluating the impact of incorporating energy consumption on processing time and the quality of the obtained routes.
+\item To evaluate the effect of combining single- and multi-objective scheduling and routing architectures on the joint performance of the system.
+\item To implement a computational prototype of the proposed system, employing geospatial modeling and evolutionary optimization tools from the Python ecosystem.
+\item To design, train, and integrate a machine learning model based on physical features (\textit{physics-based warm start}) to predict a high-fitness initial allocation (Generation 0), reducing the simulation rounds required for Genetic Algorithm convergence.
+\end{itemize}
+
+\section{Justification}
+
+The relevance of this work is related to the need to develop computational strategies capable of coordinating multiple UAVs in logistics operations in which different objectives and constraints must be considered simultaneously. The literature on optimization applied to UAVs presents a wide variety of formulations and methods for routing, allocation, and operations planning problems. However, integrating different decision levels presents additional challenges, especially when scheduling decisions directly influence the trajectories and resources required for task execution.
+
+From an energy standpoint, this issue is particularly relevant due to the autonomy limitations characteristic of UAVs. A trajectory that exclusively minimizes flight time may not necessarily represent the most suitable alternative when energy consumption is considered. Similarly, a task distribution that is efficient from a temporal perspective may produce an uneven utilization of fleet resources when payload and travel characteristics are incorporated into the evaluation.
+
+Furthermore, from a computational standpoint, the direct coupling between population-based metaheuristics and spatiotemporal route simulators imposes a processing time bottleneck as the operational scale grows. Proposing a hybrid \textit{Warm Start} architecture, capable of incorporating physical features and global operational trends to guide the initial generation of the Genetic Algorithm, is justified by the need to overcome the rigid bias of traditional sequential heuristics and enable decision-making within timeframes compatible with real logistics scenarios.
+
+Thus, the joint investigation of these different dimensions makes it possible to analyze not only the individual performance of the employed algorithms, but also the effects arising from the interaction between the decision layers. The contribution of this work therefore consists of the systematic evaluation of different optimization architectures for scheduling and trajectory planning within a single fleet management system, alongside the design and integration of a machine-learning-assisted initialization model (\textit{Warm Start}) to optimize convergence performance in a controlled simulation environment.
+
+\section{Thesis Structure}
+
+This document is organized as follows. Chapter~\ref{cap:conceptual} presents the theoretical background and computational tools utilized, covering scheduling models, exact and evolutionary optimization methods employed in the scheduling layer, the hybrid machine learning architecture for assisted initialization (\textit{Warm Start}), and trajectory planning algorithms employed in the navigation layer. Chapter~\ref{cap:metodologia} describes the adopted experimental methodology, detailing the test scenarios used to isolate and compare the performance of each system component. Subsequent chapters present the obtained results and the conclusions of the work.
