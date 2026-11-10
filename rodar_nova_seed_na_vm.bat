@@ -31,30 +31,36 @@ cd /d "%RAIZ_VM%" 2>nul
 
 echo [3/4] Localizando Python da VM...
 
-if exist "%RAIZ_VM%\.venv\Scripts\python.exe" (
-    echo [4/4] Iniciando os 9 Cenarios com Python VENV do Workspace: "%RAIZ_VM%\.venv\Scripts\python.exe" %*
-    "%RAIZ_VM%\.venv\Scripts\python.exe" -u "%RAIZ_VM%\IA\teste_nova_seed_vm.py" %*
-    goto :fim
-)
-
 set "PY_VENV=C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe"
 if exist "%PY_VENV%" (
-    echo [4/4] Iniciando os 9 Cenarios com: "%PY_VENV%" %*
+    echo [4/4] Iniciando os 9 Cenarios (Seed Unica 777777) com: "%PY_VENV%" %*
     "%PY_VENV%" -u "%RAIZ_VM%\IA\teste_nova_seed_vm.py" %*
     goto :fim
 )
 
 set "PY_VM=C:\Users\a69613\AppData\Local\Programs\Python\Python311\python.exe"
 if exist "%PY_VM%" (
-    echo [4/4] Iniciando os 9 Cenarios com: "%PY_VM%" %*
+    echo [4/4] Iniciando os 9 Cenarios (Seed Unica 777777) com: "%PY_VM%" %*
     "%PY_VM%" -u "%RAIZ_VM%\IA\teste_nova_seed_vm.py" %*
     goto :fim
 )
 
 for /d %%d in ("%USERPROFILE%\PycharmProjects\*\venv" "%USERPROFILE%\PycharmProjects\*\.venv") do (
     if exist "%%d\Scripts\python.exe" (
-        echo [4/4] Iniciando os 9 Cenarios com VENV encontrado: "%%d\Scripts\python.exe" %*
-        "%%d\Scripts\python.exe" -u "%RAIZ_VM%\IA\teste_nova_seed_vm.py" %*
+        "%%d\Scripts\python.exe" -c "import numpy" >nul 2>&1
+        if not errorlevel 1 (
+            echo [4/4] Iniciando os 9 Cenarios (Seed Unica 777777) com VENV: "%%d\Scripts\python.exe" %*
+            "%%d\Scripts\python.exe" -u "%RAIZ_VM%\IA\teste_nova_seed_vm.py" %*
+            goto :fim
+        )
+    )
+)
+
+if exist "%RAIZ_VM%\.venv\Scripts\python.exe" (
+    "%RAIZ_VM%\.venv\Scripts\python.exe" -c "import numpy" >nul 2>&1
+    if not errorlevel 1 (
+        echo [4/4] Iniciando os 9 Cenarios (Seed Unica 777777) com VENV do Workspace: "%RAIZ_VM%\.venv\Scripts\python.exe" %*
+        "%RAIZ_VM%\.venv\Scripts\python.exe" -u "%RAIZ_VM%\IA\teste_nova_seed_vm.py" %*
         goto :fim
     )
 )

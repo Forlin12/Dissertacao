@@ -34,14 +34,6 @@ cd /d "%RAIZ_VM%\IA" 2>nul
 echo [%DATE% %TIME%] Iniciando Agente VM em %COMPUTERNAME% (Usuario: %USERNAME%) > "%RAIZ_VM%\IA\vm_cmd_debug.txt"
 echo Pasta mapeada: %RAIZ_VM% (CWD: %CD% ^| Origem: %PASTA_SCRIPT%) >> "%RAIZ_VM%\IA\vm_cmd_debug.txt"
 
-REM 1. Verifica se existe o venv local do workspace (no PC local ou VM)
-if exist "%RAIZ_VM%\.venv\Scripts\python.exe" (
-    echo [3/4] Iniciando Agente com Python VENV do Workspace: "%RAIZ_VM%\.venv\Scripts\python.exe"
-    echo [3/4] Iniciando Agente com Python VENV do Workspace: "%RAIZ_VM%\.venv\Scripts\python.exe" >> "%RAIZ_VM%\IA\vm_cmd_debug.txt"
-    "%RAIZ_VM%\.venv\Scripts\python.exe" -u "%RAIZ_VM%\IA\agente_vm.py"
-    goto :fim
-)
-
 set "PY_VENV=C:\Users\a69613\PycharmProjects\Dissertacao\.venv\Scripts\python.exe"
 if exist "%PY_VENV%" (
     echo [3/4] Iniciando Agente com Python VENV: "%PY_VENV%"
@@ -56,6 +48,17 @@ if exist "%PY_VM%" (
     echo [3/4] Iniciando Agente com Python da VM: "%PY_VM%" >> "%RAIZ_VM%\IA\vm_cmd_debug.txt"
     "%PY_VM%" -u "%RAIZ_VM%\IA\agente_vm.py"
     goto :fim
+)
+
+REM Verifica se existe o venv local do workspace valido
+if exist "%RAIZ_VM%\.venv\Scripts\python.exe" (
+    "%RAIZ_VM%\.venv\Scripts\python.exe" -c "import numpy" >nul 2>&1
+    if not errorlevel 1 (
+        echo [3/4] Iniciando Agente com Python VENV do Workspace: "%RAIZ_VM%\.venv\Scripts\python.exe"
+        echo [3/4] Iniciando Agente com Python VENV do Workspace: "%RAIZ_VM%\.venv\Scripts\python.exe" >> "%RAIZ_VM%\IA\vm_cmd_debug.txt"
+        "%RAIZ_VM%\.venv\Scripts\python.exe" -u "%RAIZ_VM%\IA\agente_vm.py"
+        goto :fim
+    )
 )
 
 for /d %%d in ("%LOCALAPPDATA%\Programs\Python\Python*" "C:\Python*" "C:\Program Files\Python*") do (

@@ -100,6 +100,11 @@ def executar_simulacao():
 
     print("1/6: A gerar gémeo digital...")
     lotes_gdf, max_x, max_y = gerar_cidade()
+    if not getattr(cfg, 'CENARIO_SEMPRE_NOVO', False):
+        import random
+        _seed_cen = getattr(cfg, 'SEED_CENARIO', 777777)
+        random.seed(_seed_cen)
+        np.random.seed(_seed_cen)
     print("2/6: A gerar tarefas logísticas...")
     cds, missoes = mission_control.gerar_tarefas_logisticas(max_x, max_y, lotes_gdf)
 

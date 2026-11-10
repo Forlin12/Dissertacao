@@ -483,7 +483,7 @@ def _obter_tempo_acumulado_ga(chave_ga, t_wall):
 
 def main():
     parser = argparse.ArgumentParser(description="Bateria 4D com Seed Unica nos 9 Cenarios")
-    parser.add_argument("--seed", type=int, default=910000, help="Seed unica para todos os cenarios (default: 910000)")
+    parser.add_argument("--seed", type=int, default=getattr(cfg, "SEED_CENARIO", 777777), help="Seed unica para todos os cenarios (default: 777777)")
     args, _ = parser.parse_known_args()
     seed_unica = args.seed
 

@@ -2,6 +2,7 @@
 import os
 # [Controlo de Simulação]
 CENARIO_SEMPRE_NOVO = False
+SEED_CENARIO = 777777  # Seed única nova igual para todos os 9 cenários
 
 # [Geografia e Topologia]
 COORDENADAS = (41.8058, -6.7572) # Bragança
@@ -16,19 +17,19 @@ USAR_MINI_MAPA = False
 TAMANHO_MINI_MAPA = 500
 
 # ==========================================
-# MATRIZ DE TESTES AUTOMATIZADOS (BATCH RUN)
+# MATRIZ DE TESTES AUTOMATIZADOS (BATCH RUN) — TODOS OS 9 CENÁRIOS
 # ==========================================
 # Formato: [ [Nº Drones, Nº Entregas, 'ALGORITMO'], ... ]
 MATRIZ_TESTES = [
-    # [5, 10, 'MOSP_CAMADAS'],  # Teste 1: Otimizado para Tempo
-    # [5, 20, 'MOSP_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
-    [5, 40, 'MOSP_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
-    # [10, 20, 'MOSP_CAMADAS'],  # Teste 1: Otimizado para Tempo
-    # [10, 40, 'MOSP_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
-    # [10, 80, 'MOSP_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
-    # [20, 40, 'TEA_STAR_CAMADAS'],  # Teste 1: Otimizado para Tempo
-    # [20, 80, 'TEA_STAR_CAMADAS'],      # Teste 2: O mesmo cenário, focado em Tempo+Energia
-    # [20, 160, 'TEA_STAR_CAMADAS'],  # Teste 3: Cenário de alta pressão (poucos drones, muita carga)
+    [5,  10,  'MOSP_CAMADAS'],
+    [5,  20,  'MOSP_CAMADAS'],
+    [10, 20,  'MOSP_CAMADAS'],
+    [5,  40,  'MOSP_CAMADAS'],
+    [10, 40,  'MOSP_CAMADAS'],
+    [20, 40,  'MOSP_CAMADAS'],
+    [10, 80,  'MOSP_CAMADAS'],
+    [20, 80,  'MOSP_CAMADAS'],
+    [20, 160, 'MOSP_CAMADAS'],
 ]
 
 # (Valores de fallback caso o loop não sobrescreva)
