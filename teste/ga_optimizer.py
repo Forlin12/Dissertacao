@@ -462,19 +462,45 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
 
     # Geração em que o melhor fitness melhorou pela última vez (0 = população inicial já era a melhor)
     _estado_conv = {"melhor": -math.inf, "gen": 0, "historico_custo": []}
+    _melhor_sol_rastreada = [None]
 
     def on_start(ga_instance):
         try:
             f = ga_instance.cal_pop_fitness()
-            best_f = float(np.max(f))
+            best_idx = int(np.argmax(f))
+            best_f = float(f[best_idx])
             _estado_conv["melhor"] = best_f
+            _melhor_sol_rastreada[0] = [int(g) for g in ga_instance.population[best_idx]]
             _estado_conv["historico_custo"].append(round(1.0 / best_f, 1))
         except Exception:
             _estado_conv["melhor"] = -math.inf
 
     def on_generation(ga_instance):
         gen = ga_instance.generations_completed
-        _, best_fit, _ = ga_instance.best_solution()
+        best_sol, best_fit, _ = ga_instance.best_solution()
+        if _melhor_sol_rastreada[0] is None or best_fit > _estado_conv["melhor"]:
+            _melhor_sol_rastreada[0] = [int(g) for g in best_sol]
+
+        # Operador evolutivo guiado por alívio de gargalo (refina o Warm Start da Árvore de Decisão + L2 ao longo das gerações)
+        if usando_warm and _melhor_sol_rastreada[0] is not None:
+            try:
+                from IA.dataset_generator import evoluir_individuo_gargalo, _pos_cd
+                cd_xy_local = _pos_cd(cds, max_x, max_y)
+                filho_guiado = evoluir_individuo_gargalo(
+                    _melhor_sol_rastreada[0], missoes, cd_xy_local, max_x, max_y,
+                    num_drones, cfg.PERFIS_DRONES, max_passos=2
+                )
+                if tuple(filho_guiado) != tuple(_melhor_sol_rastreada[0]):
+                    worst_idx = int(np.argmin(ga_instance.last_generation_fitness))
+                    fit_guiado = fitness_func(ga_instance, filho_guiado, worst_idx)
+                    ga_instance.population[worst_idx] = np.array(filho_guiado, dtype=int)
+                    ga_instance.last_generation_fitness[worst_idx] = fit_guiado
+                    if fit_guiado > best_fit:
+                        best_fit = fit_guiado
+                        _melhor_sol_rastreada[0] = list(filho_guiado)
+            except Exception:
+                pass
+
         if best_fit > _estado_conv["melhor"] * (1 + 1e-9):
             _estado_conv["melhor"] = float(best_fit)
             _estado_conv["gen"] = gen
@@ -606,6 +632,8 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
     t_ga = time.perf_counter() - t0_ga
 
     solution, solution_fitness, _ = ga_instance.best_solution()
+    if _melhor_sol_rastreada[0] is not None and _estado_conv["melhor"] > solution_fitness:
+        solution = np.array(_melhor_sol_rastreada[0], dtype=int)
     vetor_perfeito = [int(g) for g in solution]
 
     log_info("A validar solução final detalhada...")

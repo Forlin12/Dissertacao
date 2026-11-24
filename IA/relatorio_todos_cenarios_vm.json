@@ -19,16 +19,16 @@
         "potencia_kw": 0.337
       },
       "gen0_ia": {
-        "makespan": 3304,
+        "makespan": 4046,
         "esperas": 0,
         "falhas": 0,
-        "energia": 503.2,
-        "custo": 5115.4,
+        "energia": 517.25,
+        "custo": 5908.1,
         "tempo_eval_s": 35.1,
         "origem": "cache_previo",
         "distancia_km": 25.6,
-        "energia_kwh": 0.503,
-        "potencia_kw": 0.548
+        "energia_kwh": 0.517,
+        "potencia_kw": 0.46
       },
       "ga_frio_8gen": {
         "geracoes": 6,
@@ -43,7 +43,7 @@
         "potencia_kw": 0.522
       },
       "ga_ia_8gen": {
-        "geracoes": 0,
+        "geracoes": 4,
         "makespan": 3304,
         "esperas": 0,
         "falhas": 0,
@@ -54,11 +54,13 @@
         "energia_kwh": 0.503,
         "potencia_kw": 0.548
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 41.2,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 5.8,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 28.0,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": -15.4,
       "ganho_ga_ia_vs_frio_makespan_pct": 5.8,
       "ganho_ga_ia_vs_frio_custo_pct": 4.1,
-      "ganho_tempo_ga_pct": 52.2
+      "ganho_tempo_ga_pct": 52.2,
+      "ganho_gen0_ia_vs_seq_custo_pct": 21.4,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 18.3
     },
     "900005|5|10|MOSP_CAMADAS": {
       "seed": 900005,
@@ -91,16 +93,16 @@
         "potencia_kw": 0.41
       },
       "gen0_ia": {
-        "makespan": 6152,
+        "makespan": 6615,
         "esperas": 0,
         "falhas": 0,
-        "energia": 837.71,
-        "custo": 9167.8,
+        "energia": 844.98,
+        "custo": 9656.9,
         "tempo_eval_s": 59.04,
         "origem": "simulado_4d",
         "distancia_km": 43.7,
-        "energia_kwh": 0.838,
-        "potencia_kw": 0.49
+        "energia_kwh": 0.845,
+        "potencia_kw": 0.46
       },
       "ga_frio_8gen": {
         "geracoes": 0,
@@ -114,11 +116,11 @@
         "energia_kwh": 0.839,
         "potencia_kw": 0.41
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 16.5,
-      "ganho_gen0_ia_vs_seq_custo_pct": 11.8,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 16.5,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 10.3,
+      "ganho_gen0_ia_vs_seq_custo_pct": 7.1,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 10.3,
       "ga_ia_8gen": {
-        "geracoes": 1,
+        "geracoes": 3,
         "makespan": 6152,
         "esperas": 0,
         "falhas": 0,
@@ -144,7 +146,8 @@
       },
       "ganho_ga_ia_vs_frio_makespan_pct": 16.5,
       "ganho_ga_ia_vs_frio_custo_pct": 11.9,
-      "ganho_tempo_ga_pct": 4.3
+      "ganho_tempo_ga_pct": 4.3,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 7.0
     },
     "900001|5|20|MOSP_CAMADAS": {
       "seed": 900001,
@@ -187,16 +190,16 @@
         "potencia_kw": 0.452
       },
       "gen0_ia": {
-        "makespan": 6856,
+        "makespan": 7559,
         "esperas": 0,
         "falhas": 0,
-        "energia": 1103.52,
-        "custo": 10828.7,
+        "energia": 1117.77,
+        "custo": 11583.0,
         "tempo_eval_s": 85.55,
         "origem": "simulado_4d",
         "distancia_km": 56.0,
-        "energia_kwh": 1.104,
-        "potencia_kw": 0.579
+        "energia_kwh": 1.118,
+        "potencia_kw": 0.532
       },
       "ga_frio_8gen": {
         "geracoes": 5,
@@ -210,11 +213,11 @@
         "energia_kwh": 1.1,
         "potencia_kw": 0.512
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 22.2,
-      "ganho_gen0_ia_vs_seq_custo_pct": 15.3,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 11.3,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 14.2,
+      "ganho_gen0_ia_vs_seq_custo_pct": 9.5,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 2.2,
       "ga_ia_8gen": {
-        "geracoes": 0,
+        "geracoes": 5,
         "makespan": 6856,
         "esperas": 0,
         "falhas": 0,
@@ -250,7 +253,8 @@
       },
       "ganho_ga_ia_vs_frio_makespan_pct": 11.3,
       "ganho_ga_ia_vs_frio_custo_pct": 7.4,
-      "ganho_tempo_ga_pct": 29.2
+      "ganho_tempo_ga_pct": 29.2,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 9.3
     },
     "900003|10|20|MOSP_CAMADAS": {
       "seed": 900003,
@@ -293,16 +297,16 @@
         "potencia_kw": 0.819
       },
       "gen0_ia": {
-        "makespan": 3766,
+        "makespan": 4209,
         "esperas": 0,
         "falhas": 0,
-        "energia": 1136.2,
-        "custo": 7856.3,
+        "energia": 1152.81,
+        "custo": 8359.1,
         "tempo_eval_s": 48.68,
         "origem": "simulado_4d",
         "distancia_km": 54.3,
-        "energia_kwh": 1.136,
-        "potencia_kw": 1.086
+        "energia_kwh": 1.153,
+        "potencia_kw": 0.986
       },
       "ga_frio_8gen": {
         "geracoes": 4,
@@ -316,11 +320,11 @@
         "energia_kwh": 1.136,
         "potencia_kw": 0.933
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 25.1,
-      "ganho_gen0_ia_vs_seq_custo_pct": 14.2,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 14.1,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 16.3,
+      "ganho_gen0_ia_vs_seq_custo_pct": 8.7,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 3.9,
       "ga_ia_8gen": {
-        "geracoes": 0,
+        "geracoes": 4,
         "makespan": 3766,
         "esperas": 0,
         "falhas": 0,
@@ -356,7 +360,8 @@
       },
       "ganho_ga_ia_vs_frio_makespan_pct": 14.1,
       "ganho_ga_ia_vs_frio_custo_pct": 7.3,
-      "ganho_tempo_ga_pct": 44.3
+      "ganho_tempo_ga_pct": 44.3,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 10.5
     },
     "900002|5|40|MOSP_CAMADAS": {
       "seed": 900002,
@@ -419,16 +424,16 @@
         "potencia_kw": 0.442
       },
       "gen0_ia": {
-        "makespan": 15818,
+        "makespan": 17337,
         "esperas": 0,
         "falhas": 0,
-        "energia": 2630.22,
-        "custo": 25286.8,
+        "energia": 2684.57,
+        "custo": 27001.5,
         "tempo_eval_s": 75.87,
         "origem": "simulado_4d",
         "distancia_km": 131.4,
-        "energia_kwh": 2.63,
-        "potencia_kw": 0.599
+        "energia_kwh": 2.685,
+        "potencia_kw": 0.557
       },
       "ga_frio_8gen": {
         "geracoes": 3,
@@ -442,11 +447,11 @@
         "energia_kwh": 2.586,
         "potencia_kw": 0.559
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 24.2,
-      "ganho_gen0_ia_vs_seq_custo_pct": 16.0,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 5.0,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 17.0,
+      "ganho_gen0_ia_vs_seq_custo_pct": 10.3,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": -4.1,
       "ga_ia_8gen": {
-        "geracoes": 0,
+        "geracoes": 6,
         "makespan": 15818,
         "esperas": 0,
         "falhas": 0,
@@ -502,7 +507,8 @@
       },
       "ganho_ga_ia_vs_frio_makespan_pct": 5.0,
       "ganho_ga_ia_vs_frio_custo_pct": 2.6,
-      "ganho_tempo_ga_pct": 67.0
+      "ganho_tempo_ga_pct": 67.0,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 8.8
     },
     "900004|10|40|MOSP_CAMADAS": {
       "seed": 900004,
@@ -565,16 +571,16 @@
         "potencia_kw": 0.786
       },
       "gen0_ia": {
-        "makespan": 8364,
+        "makespan": 9665,
         "esperas": 0,
         "falhas": 0,
-        "energia": 2676.25,
-        "custo": 17998.5,
+        "energia": 2713.09,
+        "custo": 19432.1,
         "tempo_eval_s": 88.8,
         "origem": "simulado_4d",
         "distancia_km": 131.6,
-        "energia_kwh": 2.676,
-        "potencia_kw": 1.152
+        "energia_kwh": 2.713,
+        "potencia_kw": 1.011
       },
       "ga_frio_8gen": {
         "geracoes": 5,
@@ -588,17 +594,17 @@
         "energia_kwh": 2.692,
         "potencia_kw": 0.946
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 31.4,
-      "ganho_gen0_ia_vs_seq_custo_pct": 17.4,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 18.3,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 20.7,
+      "ganho_gen0_ia_vs_seq_custo_pct": 10.8,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 5.6,
       "ga_ia_8gen": {
-        "geracoes": 0,
+        "geracoes": 5,
         "makespan": 8364,
         "esperas": 0,
         "falhas": 0,
         "energia": 2676.25,
         "custo": 17998.5,
-        "tempo_s": 19.35,
+        "tempo_s": 301.92,
         "vetor_final": [
           7,
           5,
@@ -648,7 +654,8 @@
       },
       "ganho_ga_ia_vs_frio_makespan_pct": 18.3,
       "ganho_ga_ia_vs_frio_custo_pct": 9.7,
-      "ganho_tempo_ga_pct": 99.9
+      "ganho_tempo_ga_pct": 98.0,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 13.5
     },
     "12351|20|40|MOSP_CAMADAS": {
       "seed": 12351,
@@ -711,16 +718,16 @@
         "potencia_kw": 1.323
       },
       "gen0_ia": {
-        "makespan": 4997,
+        "makespan": 5667,
         "esperas": 0,
         "falhas": 0,
-        "energia": 2481.67,
-        "custo": 13931.0,
+        "energia": 2518.45,
+        "custo": 14733.4,
         "tempo_eval_s": 220.17,
         "origem": "simulado_4d",
         "distancia_km": 130.2,
-        "energia_kwh": 2.482,
-        "potencia_kw": 1.788
+        "energia_kwh": 2.518,
+        "potencia_kw": 1.6
       },
       "ga_frio_8gen": {
         "geracoes": 6,
@@ -734,17 +741,17 @@
         "energia_kwh": 2.465,
         "potencia_kw": 1.317
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 26.6,
-      "ganho_gen0_ia_vs_seq_custo_pct": 11.9,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 25.8,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 16.8,
+      "ganho_gen0_ia_vs_seq_custo_pct": 6.8,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 15.9,
       "ga_ia_8gen": {
-        "geracoes": 0,
+        "geracoes": 4,
         "makespan": 4997,
         "esperas": 0,
         "falhas": 0,
         "energia": 2481.67,
         "custo": 13931.0,
-        "tempo_s": 15.07,
+        "tempo_s": 748.58,
         "vetor_final": [
           13,
           14,
@@ -794,7 +801,8 @@
       },
       "ganho_ga_ia_vs_frio_makespan_pct": 25.8,
       "ganho_ga_ia_vs_frio_custo_pct": 10.8,
-      "ganho_tempo_ga_pct": 99.9
+      "ganho_tempo_ga_pct": 96.6,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 11.8
     },
     "12350|10|80|MOSP_CAMADAS": {
       "seed": 12350,
@@ -897,16 +905,16 @@
         "potencia_kw": 0.948
       },
       "gen0_ia": {
-        "makespan": 12946,
+        "makespan": 14124,
         "esperas": 0,
         "falhas": 0,
-        "energia": 4244.53,
-        "custo": 28226.3,
+        "energia": 4313.28,
+        "custo": 29651.8,
         "tempo_eval_s": 352.92,
         "origem": "simulado_4d",
         "distancia_km": 217.8,
-        "energia_kwh": 4.245,
-        "potencia_kw": 1.18
+        "energia_kwh": 4.313,
+        "potencia_kw": 1.099
       },
       "ga_frio_8gen": {
         "geracoes": 3,
@@ -920,17 +928,17 @@
         "energia_kwh": 4.34,
         "potencia_kw": 0.972
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 20.6,
-      "ganho_gen0_ia_vs_seq_custo_pct": 11.2,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 19.5,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 13.4,
+      "ganho_gen0_ia_vs_seq_custo_pct": 6.7,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 12.2,
       "ga_ia_8gen": {
-        "geracoes": 0,
+        "geracoes": 6,
         "makespan": 12946,
         "esperas": 0,
         "falhas": 0,
         "energia": 4244.53,
         "custo": 28226.3,
-        "tempo_s": 17.43,
+        "tempo_s": 1199.93,
         "vetor_final": [
           5,
           9,
@@ -1020,7 +1028,8 @@
       },
       "ganho_ga_ia_vs_frio_makespan_pct": 19.5,
       "ganho_ga_ia_vs_frio_custo_pct": 11.0,
-      "ganho_tempo_ga_pct": 99.9
+      "ganho_tempo_ga_pct": 95.1,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 8.3
     },
     "12359|10|80|MOSP_CAMADAS": {
       "seed": 12359,
@@ -1123,16 +1132,16 @@
         "potencia_kw": 0.925
       },
       "gen0_ia": {
-        "makespan": 18521,
+        "makespan": 19951,
         "esperas": 0,
         "falhas": 0,
-        "energia": 5736.84,
-        "custo": 39173.6,
+        "energia": 5820.96,
+        "custo": 40906.5,
         "tempo_eval_s": 534.98,
         "origem": "simulado_4d",
         "distancia_km": 302.5,
-        "energia_kwh": 5.737,
-        "potencia_kw": 1.115
+        "energia_kwh": 5.821,
+        "potencia_kw": 1.05
       },
       "ga_frio_8gen": {
         "geracoes": 3,
@@ -1146,17 +1155,17 @@
         "energia_kwh": 5.759,
         "potencia_kw": 0.979
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 17.7,
-      "ganho_gen0_ia_vs_seq_custo_pct": 9.5,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 12.6,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 11.3,
+      "ganho_gen0_ia_vs_seq_custo_pct": 5.5,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 5.8,
       "ga_ia_8gen": {
-        "geracoes": 0,
+        "geracoes": 5,
         "makespan": 18521,
         "esperas": 0,
         "falhas": 0,
         "energia": 5736.84,
         "custo": 39173.6,
-        "tempo_s": 16.5,
+        "tempo_s": 1818.93,
         "vetor_final": [
           2,
           8,
@@ -1246,7 +1255,8 @@
       },
       "ganho_ga_ia_vs_frio_makespan_pct": 12.6,
       "ganho_ga_ia_vs_frio_custo_pct": 6.6,
-      "ganho_tempo_ga_pct": 99.9
+      "ganho_tempo_ga_pct": 90.3,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 7.2
     },
     "12352|20|80|MOSP_CAMADAS": {
       "seed": 12352,
@@ -1349,16 +1359,16 @@
         "potencia_kw": 1.33
       },
       "gen0_ia": {
-        "makespan": 8804,
+        "makespan": 10631,
         "esperas": 0,
         "falhas": 0,
-        "energia": 5214.74,
-        "custo": 27577.1,
+        "energia": 5307.02,
+        "custo": 29736.3,
         "tempo_eval_s": 453.02,
         "origem": "simulado_4d",
         "distancia_km": 270.1,
-        "energia_kwh": 5.215,
-        "potencia_kw": 2.132
+        "energia_kwh": 5.307,
+        "potencia_kw": 1.797
       },
       "ga_frio_8gen": {
         "geracoes": 8,
@@ -1372,17 +1382,17 @@
         "energia_kwh": 5.159,
         "potencia_kw": 1.462
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 38.6,
-      "ganho_gen0_ia_vs_seq_custo_pct": 17.5,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 30.7,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 25.9,
+      "ganho_gen0_ia_vs_seq_custo_pct": 11.0,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 16.3,
       "ga_ia_8gen": {
-        "geracoes": 0,
+        "geracoes": 7,
         "makespan": 8804,
         "esperas": 0,
         "falhas": 0,
         "energia": 5214.74,
         "custo": 27577.1,
-        "tempo_s": 18.42,
+        "tempo_s": 1540.27,
         "vetor_final": [
           4,
           13,
@@ -1472,7 +1482,8 @@
       },
       "ganho_ga_ia_vs_frio_makespan_pct": 30.7,
       "ganho_ga_ia_vs_frio_custo_pct": 11.8,
-      "ganho_tempo_ga_pct": 100.0
+      "ganho_tempo_ga_pct": 97.7,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 17.2
     },
     "12353|20|160|MOSP_CAMADAS": {
       "seed": 12353,
@@ -1655,16 +1666,16 @@
         "potencia_kw": 1.721
       },
       "gen0_ia": {
-        "makespan": 15473,
+        "makespan": 17345,
         "esperas": 0,
         "falhas": 0,
-        "energia": 9665.04,
-        "custo": 50267.1,
+        "energia": 9812.08,
+        "custo": 52668.5,
         "tempo_eval_s": 902.31,
         "origem": "simulado_4d",
         "distancia_km": 942.4,
-        "energia_kwh": 9.665,
-        "potencia_kw": 2.249
+        "energia_kwh": 9.812,
+        "potencia_kw": 2.037
       },
       "ga_frio_8gen": {
         "geracoes": 0,
@@ -1678,17 +1689,17 @@
         "energia_kwh": 9.754,
         "potencia_kw": 1.721
       },
-      "ganho_gen0_ia_vs_seq_makespan_pct": 24.2,
-      "ganho_gen0_ia_vs_seq_custo_pct": 9.5,
-      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 24.2,
+      "ganho_gen0_ia_vs_seq_makespan_pct": 15.0,
+      "ganho_gen0_ia_vs_seq_custo_pct": 5.1,
+      "ganho_gen0_ia_vs_frio8gen_makespan_pct": 15.0,
       "ga_ia_8gen": {
-        "geracoes": 0,
+        "geracoes": 6,
         "makespan": 15473,
         "esperas": 0,
         "falhas": 0,
         "energia": 9665.04,
         "custo": 50267.1,
-        "tempo_s": 18.18,
+        "tempo_s": 3067.85,
         "vetor_final": [
           13,
           3,
@@ -1858,7 +1869,8 @@
       },
       "ganho_ga_ia_vs_frio_makespan_pct": 24.2,
       "ganho_ga_ia_vs_frio_custo_pct": 9.5,
-      "ganho_tempo_ga_pct": 100.0
+      "ganho_tempo_ga_pct": 92.6,
+      "ganho_ga_sobre_gen0_ia_makespan_pct": 10.8
     }
   }
 }

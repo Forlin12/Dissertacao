@@ -405,6 +405,7 @@ def exportar_csv(relatorio):
 
         ganho_g0 = pct(mk_seq, mk_ia0)
         ganho_g8 = pct(mk_frio, mk_ia8) if mk_frio else 0.0
+        ganho_ga_sobre_g0_ia = pct(mk_ia0, mk_ia8) if mk_ia0 else 0.0
         ganho_custo_g0 = pct(custo_seq, custo_ia0)
         ganho_custo_g8 = pct(custo_frio, custo_ia8) if custo_frio else 0.0
         ganho_tempo_ga = pct(t_sol_frio, t_sol_ia8) if t_sol_frio else 0.0
@@ -453,6 +454,7 @@ def exportar_csv(relatorio):
             "gen8_com_ia_geracao_conv": ger_ia8,
             # Ganhos e Speedup
             "ganho_mk_gen0_ia_pct": ganho_g0,
+            "ganho_ga_sobre_gen0_ia_pct": ganho_ga_sobre_g0_ia,
             "ganho_mk_gen8_ia_pct": ganho_g8,
             "ganho_custo_gen0_ia_pct": ganho_custo_g0,
             "ganho_custo_gen8_ia_pct": ganho_custo_g8,
