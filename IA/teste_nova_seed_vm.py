@@ -37,10 +37,14 @@ import csv
 DIR_IA = os.path.dirname(os.path.abspath(__file__))
 DIR_RAIZ = os.path.dirname(DIR_IA)
 
-_local_cache = os.path.join(os.environ.get("LOCALAPPDATA", "C:\\Temp"), "dissertacao_vm_cache")
-os.makedirs(_local_cache, exist_ok=True)
-os.environ["NUMBA_CACHE_DIR"] = _local_cache
-sys.pycache_prefix = _local_cache
+_local_cache = os.environ.get("NUMBA_CACHE_DIR") or os.path.join(os.environ.get("LOCALAPPDATA", "C:\\Temp"), "dissertacao_vm_cache")
+try:
+    os.makedirs(_local_cache, exist_ok=True)
+    os.environ.setdefault("NUMBA_CACHE_DIR", _local_cache)
+    if not sys.pycache_prefix:
+        sys.pycache_prefix = _local_cache
+except Exception:
+    pass
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")

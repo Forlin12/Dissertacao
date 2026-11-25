@@ -316,17 +316,16 @@ def executar_otimizacao_batch(teste_idx, num_drones, num_entregas, algoritmo,
     # ==========================================
     import json
     _dir_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    _caminho_cache_ind = os.path.join(_dir_raiz, "IA", "cache_individuos_4d.json")
-    _modo_tag = "IA" if (populacao_inicial is not None and len(populacao_inicial) > 0) else "FRIO"
+    _caminho_cache_ind = getattr(cfg, "CAMINHO_CACHE_IND_4D", None) or os.path.join(_dir_raiz, "IA", "cache_individuos_4d.json")
+    _modo_tag = "IA_DTL2" if (populacao_inicial is not None and len(populacao_inicial) > 0) else "FRIO"
     _chave_cenario_cache = f"{seed_ga or getattr(cfg, 'SEED_CENARIO', 42)}|{num_drones}|{NUM_PEDIDOS}|{algoritmo}|{_modo_tag}"
-    _chave_cenario_legado = f"{seed_ga or getattr(cfg, 'SEED_CENARIO', 42)}|{num_drones}|{NUM_PEDIDOS}|{algoritmo}"
     _cache_disco_lock = threading.Lock()
     _cache_disco_mem = {}
     if os.path.exists(_caminho_cache_ind):
         try:
             with open(_caminho_cache_ind, "r", encoding="utf-8") as _f_c:
                 _dados_c = json.load(_f_c)
-                _cache_disco_mem = _dados_c.get(_chave_cenario_cache, _dados_c.get(_chave_cenario_legado, {})).copy()
+                _cache_disco_mem = _dados_c.get(_chave_cenario_cache, {}).copy()
         except Exception:
             _cache_disco_mem = {}
     _tempo_acum_anterior = float(_cache_disco_mem.get("__tempo_acum_s__", 0.0))

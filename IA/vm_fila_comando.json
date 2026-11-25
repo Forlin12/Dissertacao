@@ -1,6 +1,5 @@
 {
-  "id": 10,
-  "script": "IA/teste_nova_seed_vm.py",
-  "args": ["--seed", "777777"],
+  "id": 11,
+  "script": "IA/teste_todos_cenarios_vm.py",
   "status": "PENDENTE"
 }

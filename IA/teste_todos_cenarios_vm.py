@@ -25,10 +25,14 @@ DIR_IA = os.path.dirname(os.path.abspath(__file__))
 DIR_RAIZ = os.path.dirname(DIR_IA)
 
 # Usa cache local no SSD da VM para evitar travamentos de lock do Numba/__pycache__ no drive de rede RDP (\\tsclient)
-_local_cache = os.path.join(os.environ.get("LOCALAPPDATA", "C:\\Temp"), "dissertacao_vm_cache")
-os.makedirs(_local_cache, exist_ok=True)
-os.environ["NUMBA_CACHE_DIR"] = _local_cache
-sys.pycache_prefix = _local_cache
+_local_cache = os.environ.get("NUMBA_CACHE_DIR") or os.path.join(os.environ.get("LOCALAPPDATA", "C:\\Temp"), "dissertacao_vm_cache")
+try:
+    os.makedirs(_local_cache, exist_ok=True)
+    os.environ.setdefault("NUMBA_CACHE_DIR", _local_cache)
+    if not sys.pycache_prefix:
+        sys.pycache_prefix = _local_cache
+except Exception:
+    pass
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -100,23 +104,19 @@ from IA.dataset_generator import (
     BENCH_PATH,
 )
 
-# Todos os cenários da dissertação (incluindo os cenários de grande escala com GA Frio de 8 gerações já medido)
+# Todos os 9 cenários canônicos da dissertação (com GA Frio de 8 gerações já medido)
 CENARIOS_TESTE = [
     {"seed": 900000, "nd": 5,  "ne": 10,  "alg": "MOSP_CAMADAS", "nome": "5 drones / 10 entregas (A)"},
-    {"seed": 900005, "nd": 5,  "ne": 10,  "alg": "MOSP_CAMADAS", "nome": "5 drones / 10 entregas (B)"},
     {"seed": 900001, "nd": 5,  "ne": 20,  "alg": "MOSP_CAMADAS", "nome": "5 drones / 20 entregas"},
     {"seed": 900003, "nd": 10, "ne": 20,  "alg": "MOSP_CAMADAS", "nome": "10 drones / 20 entregas"},
     {"seed": 900002, "nd": 5,  "ne": 40,  "alg": "MOSP_CAMADAS", "nome": "5 drones / 40 entregas"},
     {"seed": 900004, "nd": 10, "ne": 40,  "alg": "MOSP_CAMADAS", "nome": "10 drones / 40 entregas"},
-    # Cenários de Grande Escala (seeds 12350..12359 que já possuem GA Frio 8-Gen real em dataset_treino_original_ga.csv)
+    # Cenários de Grande Escala (seeds 12350..12353 que já possuem GA Frio 8-Gen real em dataset_treino_original_ga.csv)
     {"seed": 12351,  "nd": 20, "ne": 40,  "alg": "MOSP_CAMADAS", "nome": "20 drones / 40 entregas",
      "frio_ref": {"geracoes": 6, "makespan": 6736,  "esperas": 0, "falhas": 0, "energia": 2464.92, "tempo_s": 22182.45},
      "id_excluir_treino": {5, 6, 7, 8, 14}},
     {"seed": 12350,  "nd": 10, "ne": 80,  "alg": "MOSP_CAMADAS", "nome": "10 drones / 80 entregas (A)",
      "frio_ref": {"geracoes": 3, "makespan": 16079, "esperas": 0, "falhas": 0, "energia": 4339.81, "tempo_s": 24543.51},
-     "id_excluir_treino": {5, 6, 7, 8, 14}},
-    {"seed": 12359,  "nd": 10, "ne": 80,  "alg": "MOSP_CAMADAS", "nome": "10 drones / 80 entregas (B)",
-     "frio_ref": {"geracoes": 3, "makespan": 21188, "esperas": 0, "falhas": 0, "energia": 5759.16, "tempo_s": 18707.33},
      "id_excluir_treino": {5, 6, 7, 8, 14}},
     {"seed": 12352,  "nd": 20, "ne": 80,  "alg": "MOSP_CAMADAS", "nome": "20 drones / 80 entregas",
      "frio_ref": {"geracoes": 8, "makespan": 12702, "esperas": 0, "falhas": 0, "energia": 5159.13, "tempo_s": 68290.18},
@@ -488,6 +488,15 @@ def exportar_tabela_completa(relatorio):
             w.writerows(linhas)
         _espelhar_para_notebook(caminho_csv)
 
+        caminho_9_csv = os.path.join(DIR_IA, "tabela_9_cenarios_completa.csv")
+        linhas_9 = [x for x in linhas if not str(x.get("cenario", "")).endswith("(B)")]
+        if linhas_9:
+            with open(caminho_9_csv, "w", newline="", encoding="utf-8") as f9:
+                w9 = csv.DictWriter(f9, fieldnames=list(linhas_9[0].keys()))
+                w9.writeheader()
+                w9.writerows(linhas_9)
+            _espelhar_para_notebook(caminho_9_csv)
+
 
 def carregar_relatorio_existente():
     if os.path.exists(RELATORIO_TODOS_JSON):
@@ -576,12 +585,12 @@ def main():
     _modelo_sem_grandes_cache = [None]
     def _obter_modelo_sem_grandes():
         if _modelo_sem_grandes_cache[0] is None:
-            log("🌲 Treinando ensemble auxiliar sem cenários grandes (zero vazamento)...")
+            log("🌲 Treinando ensemble auxiliar DT+L2 sem cenários grandes (zero vazamento)...")
             cens_csv, _ = _carregar_cenarios_do_csv()
             cens_menores = [c for c in cens_csv if c["id"] not in {5, 6, 7, 8, 14}]
             X_men = np.vstack([c["X"] for c in cens_menores])
             y_men = np.concatenate([c["yc"] for c in cens_menores])
-            _modelo_sem_grandes_cache[0] = EnsembleFisicoEnxuto(n_arvores=150, l2=1.0, seed=42).fit(X_men, y_men)
+            _modelo_sem_grandes_cache[0] = EnsembleFisicoEnxuto(n_arvores=12, l2=150.0, seed=42).fit(X_men, y_men)
         return _modelo_sem_grandes_cache[0]
 
     cache_frio = {}
@@ -694,23 +703,22 @@ def main():
 
         relatorio = carregar_relatorio_existente()
         reg_atual = relatorio["cenarios"].get(chave, {})
-        if "ga_ia_8gen" in reg_atual:
-            log(f"⏩ [Etapa 2 — {maquina_atual}] {nome} (seed {seed}) já possui GA Completo 8-Gen salvo — pulando!")
+        if "ga_ia_8gen" in reg_atual and reg_atual["ga_ia_8gen"].get("calibrado_dt_l2_real", False):
+            log(f"⏩ [Etapa 2 — {maquina_atual}] {nome} (seed {seed}) já possui GA Completo 8-Gen (DT+L2 Real) salvo — pulando!")
             continue
 
         n_gen0_ok = sum(1 for v in relatorio["cenarios"].values() if "gen0_ia" in v)
-        n_ga_ok = sum(1 for v in relatorio["cenarios"].values() if "ga_ia_8gen" in v)
+        n_ga_ok = sum(1 for v in relatorio["cenarios"].values() if "ga_ia_8gen" in v and v["ga_ia_8gen"].get("calibrado_dt_l2_real", False))
         atualizar_status(f"ETAPA_2_GA_8GEN ({maquina_atual})", f"{nome} (seed {seed})", n_gen0_ok, n_ga_ok, total)
 
         log(f"\n=================================================================")
-        log(f"🧬 [Etapa 2 — {maquina_atual} — {idx+1}/{total}] GA 8 Gerações Warm Start IA: {nome} (seed={seed})")
+        log(f"🧬 [Etapa 2 — {maquina_atual} — {idx+1}/{total}] GA 8 Gerações Warm Start IA (DT+L2 Real): {nome} (seed={seed})")
         log(f"=================================================================")
 
         cd_xy, missoes, cenario = _preparar_cenario(seed, nd, ne, alg, lotes_gdf, max_x, max_y)
-        vetor_ia = reg_atual.get("vetor_ia")
-        if not vetor_ia:
-            mod_usar = _obter_modelo_sem_grandes() if item.get("id_excluir_treino") else modelo
-            vetor_ia = prever_alocacao(mod_usar, missoes, cd_xy, max_x, max_y, nd, perfis, max_entregas)
+        mod_usar = _obter_modelo_sem_grandes() if item.get("id_excluir_treino") else modelo
+        vetor_ia = prever_alocacao(mod_usar, missoes, cd_xy, max_x, max_y, nd, perfis, max_entregas)
+        reg_atual["vetor_ia"] = [int(x) for x in vetor_ia]
         np.random.seed(seed + 1)
         pop_ml = gerar_populacao_inicial(vetor_ia, tam_pop, nd)
 
@@ -723,18 +731,20 @@ def main():
         )
         t_ga_wall = round(time.perf_counter() - t0_ga, 2)
 
-        # Se houve retomada após desligamento da VM, usa o tempo acumulado salvo no cache de indivíduos
+        # Se houve retomada após desligamento da VM, usa o tempo acumulado salvo no cache de indivíduos (chave IA_DTL2)
         tempo_total_ga = t_ga_wall
         if os.path.exists(CACHE_IND_JSON):
             try:
                 with open(CACHE_IND_JSON, "r", encoding="utf-8") as f:
-                    t_acum = float(json.load(f).get(chave, {}).get("__tempo_acum_s__", 0.0))
+                    t_acum = float(json.load(f).get(f"{chave}|IA_DTL2", {}).get("__tempo_acum_s__", 0.0))
                 if t_acum > tempo_total_ga:
                     tempo_total_ga = round(t_acum, 2)
             except Exception:
                 pass
 
         custo_ml = round(mk_ml + 0.5 * es_ml + 3.6 * en_ml + 50000 * fa_ml, 1)
+        dist_km = reg_atual.get("gen0_sequencial", {}).get("distancia_km", 0.0)
+        kw_ml = round((en_ml * 3.6) / mk_ml, 3) if mk_ml > 0 else 0.0
 
         ga_ia_info = {
             "geracoes": int(ger_ml),
@@ -742,16 +752,22 @@ def main():
             "esperas": int(es_ml),
             "falhas": int(fa_ml),
             "energia": round(float(en_ml), 2),
+            "energia_kwh": round(float(en_ml) / 1000.0, 3),
+            "potencia_kw": kw_ml,
+            "distancia_km": dist_km,
             "custo": custo_ml,
             "tempo_s": tempo_total_ga,
             "vetor_final": [int(x) for x in vetor_final],
             "executado_em": maquina_atual,
+            "calibrado_dt_l2_real": True,
         }
 
         # Recarrega o relatório do disco antes de salvar para mesclar sem sobrescrever a outra máquina
         relatorio = carregar_relatorio_existente()
         reg_atual = relatorio["cenarios"].get(chave, reg_atual)
         reg_atual["ga_ia_8gen"] = ga_ia_info
+        if "gen0_ia" in reg_atual:
+            reg_atual["ganho_ga_sobre_gen0_ia_makespan_pct"] = pct(reg_atual["gen0_ia"]["makespan"], mk_ml)
         frio_info = reg_atual.get("ga_frio_8gen")
         if frio_info:
             reg_atual["ganho_ga_ia_vs_frio_makespan_pct"] = pct(frio_info["makespan"], mk_ml)
